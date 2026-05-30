@@ -21,6 +21,11 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().optional(),
 });
 
+function normalizeSupabaseUrl(value: string | undefined) {
+  if (!value) return value;
+  return value.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+}
+
 export const env = envSchema.parse({
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -50,6 +55,7 @@ export const env = envSchema.parse({
   redisUrl: string | undefined;
 };
 
+env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL);
 env.supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 env.supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 env.demoMode = env.RECASTR_DEMO_MODE === "true";

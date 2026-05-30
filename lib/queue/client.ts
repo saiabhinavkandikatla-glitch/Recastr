@@ -16,12 +16,26 @@ export const jobNames = {
 let connection: IORedis | undefined;
 let queue: Queue | undefined;
 
+function resolveRedisUrl() {
+  if (env.redisUrl) return env.redisUrl;
+  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return undefined;
+
+  try {
+    const restUrl = new URL(env.UPSTASH_REDIS_REST_URL);
+    return `rediss://default:${encodeURIComponent(env.UPSTASH_REDIS_REST_TOKEN)}@${restUrl.host}:6379`;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getQueueConnection() {
   if (connection) return connection;
-  const redisUrl = env.redisUrl;
+  const redisUrl = resolveRedisUrl();
   if (!redisUrl) {
     if (env.demoMode) return null;
-    throw new Error("REDIS_URL is required to send scheduled post notification emails.");
+    throw new Error(
+      "REDIS_URL or UPSTASH_REDIS_REST_URL plus UPSTASH_REDIS_REST_TOKEN is required to send scheduled post notification emails.",
+    );
   }
   connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
   return connection;
