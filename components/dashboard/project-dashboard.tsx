@@ -1,15 +1,26 @@
 "use client";
 
-import type { ComponentType, SVGProps } from "react";
+import { useState, type ComponentType, type SVGProps } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Clock3, FileText, FolderOpen, Sparkles, Timer, Plus } from "lucide-react";
+import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { IngestFlow } from "@/components/ingest/IngestFlow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Project } from "@/lib/types";
 
-export function ProjectDashboard({ initialProjects }: { initialProjects: Project[] }) {
+export function ProjectDashboard({
+  initialProjects,
+  demoLocked = false,
+}: {
+  initialProjects: Project[];
+  demoLocked?: boolean;
+}) {
+  const router = useRouter();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | undefined>();
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -135,9 +146,17 @@ export function ProjectDashboard({ initialProjects }: { initialProjects: Project
                 transition={{ delay: index * 0.05, duration: 0.3 }}
                 key={project.id}
               >
-                <Link
-                  className="group relative flex flex-col h-full overflow-hidden rounded-[20px] glass-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-glow"
-                  href={`/projects/${project.id}`}
+                <button
+                  type="button"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-[20px] glass-card p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-glow"
+                  onClick={() => {
+                    if (demoLocked) {
+                      setSelectedProjectTitle(project.title);
+                      setAuthModalOpen(true);
+                      return;
+                    }
+                    router.push(`/projects/${project.id}`);
+                  }}
                 >
                   <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
 
@@ -165,7 +184,7 @@ export function ProjectDashboard({ initialProjects }: { initialProjects: Project
                       Open <ArrowRight className="ml-1 h-4 w-4" />
                     </span>
                   </div>
-                </Link>
+                </button>
               </motion.div>
             ))}
           </div>
@@ -189,6 +208,11 @@ export function ProjectDashboard({ initialProjects }: { initialProjects: Project
           </div>
         )}
       </section>
+      <AuthPromptModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        projectTitle={selectedProjectTitle}
+      />
     </div>
   );
 }

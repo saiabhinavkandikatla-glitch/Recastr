@@ -23,20 +23,21 @@ export async function POST(request: Request) {
     });
 
     if (payload.format === "pdf") {
+      const pdf = await createPdf(payload.projectId, user.id, payload.contentIds);
       return Response.json({
         format: "pdf",
-        base64: createPdf(payload.projectId).toString("base64"),
+        base64: pdf.toString("base64"),
       });
     }
 
     if (payload.format === "csv") {
-      return new Response(createCsv(payload.projectId), {
+      return new Response(await createCsv(payload.projectId, user.id, payload.contentIds), {
         headers: { "Content-Type": "text/csv" },
       });
     }
 
     if (payload.format === "json") {
-      return Response.json(JSON.parse(createJson(payload.projectId)));
+      return Response.json(JSON.parse(await createJson(payload.projectId, user.id, payload.contentIds)));
     }
 
     const job = await addRecastrJob(jobNames.exportNotion, {

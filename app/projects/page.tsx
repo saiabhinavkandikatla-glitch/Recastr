@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { ArrowRight, FolderOpen, Sparkles, Plus } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Badge } from "@/components/ui/badge";
+import { ProjectIndexGrid } from "@/components/projects/ProjectIndexGrid";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
@@ -32,38 +31,7 @@ export default async function ProjectsIndexPage() {
         </div>
 
         {projects.length ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {projects.map((project) => (
-              <Link
-                key={project.id}
-                href={`/projects/${project.id}`}
-                className="group relative flex flex-col h-full overflow-hidden rounded-[20px] glass-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-glow"
-              >
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                <div className="flex items-start justify-between gap-3 mb-5">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <Badge variant="muted" className="bg-muted capitalize text-xs">{project.sourceType.toLowerCase()}</Badge>
-                </div>
-
-                <h2 className="line-clamp-2 text-xl font-bold font-display group-hover:text-primary transition-colors">{project.title}</h2>
-                <p className="mt-2 text-sm font-medium text-muted-foreground flex-1">
-                  {project.contents?.length ?? project.outputs.length} generated pieces
-                </p>
-
-                <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
-                  <span className="text-sm font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                    {format(new Date(project.createdAt), "MMM d, yyyy")}
-                  </span>
-                  <span className="inline-flex items-center text-sm font-semibold text-primary transition-transform group-hover:translate-x-1">
-                    Continue <ArrowRight className="ml-1 h-4 w-4" />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <ProjectIndexGrid projects={projects} demoLocked={user?.id === "demo-user"} />
         ) : (
           <div className="rounded-[24px] border border-dashed border-white/20 bg-card/30 p-16 text-center glass-panel mt-8">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary shadow-glow mb-6">

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VerifyEmailBanner } from "@/components/auth/VerifyEmailBanner";
 import {
   canUseLocalAuthFallback,
   createSupabaseBrowserClient,
@@ -34,6 +35,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const searchParams = useSearchParams();
   const isSignup = mode === "signup";
   const nextPath = normalizeNextPath(searchParams.get("next"), isSignup ? "/onboarding" : "/dashboard");
+  const verificationPending = isSignup && searchParams.get("verify") === "pending";
+  const pendingEmail = searchParams.get("email");
   const {
     register,
     handleSubmit,
@@ -90,24 +93,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         }
 
         if (!data.session) {
-          toast.success("Account created. Check your email to confirm access.");
+          toast.success("Check your inbox - confirm your email to continue.");
+          router.replace(`/signup?verify=pending&email=${encodeURIComponent(values.email)}`);
           return;
         }
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
-
-      if (signInError) {
-        toast.error(signInError.message);
-        return;
-      }
-
-      toast.success("Welcome to Recastr");
-      router.replace(nextPath);
-      router.refresh();
+      toast.success("Check your inbox - confirm your email to continue.");
+      router.replace(`/signup?verify=pending&email=${encodeURIComponent(values.email)}`);
       return;
     }
 
@@ -156,6 +149,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     toast.success(message);
     router.replace(nextPath);
     router.refresh();
+  }
+
+  if (verificationPending) {
+    return <VerifyEmailBanner email={pendingEmail ?? undefined} />;
   }
 
   return (

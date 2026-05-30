@@ -11,9 +11,9 @@ const exportFileSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    await getRequestUser(request);
+    const user = await getRequestUser(request);
     const payload = exportFileSchema.parse(await request.json());
-    return new Response(createPdf(payload.projectId), {
+    return new Response(await createPdf(payload.projectId, user.id, payload.contentIds), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="recastr-${payload.projectId}.pdf"`,

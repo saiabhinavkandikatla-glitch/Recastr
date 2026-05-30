@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Keyboard, Search, Settings, UserCircle, ChevronRight } from "lucide-react";
+import { ArrowLeft, Bell, Keyboard, Search, Settings, UserCircle, ChevronRight } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +24,12 @@ export function TopBar({
   onOpenCommandPalette: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const breadcrumb = useMemo(() => makeBreadcrumb(pathname, title, sourceBadge), [pathname, sourceBadge, title]);
   const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
+  const depth = pathname.split("/").filter(Boolean).length;
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -40,6 +42,18 @@ export function TopBar({
 
   return (
     <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/5 bg-background/60 px-4 backdrop-blur-xl sm:px-6">
+      {depth > 1 ? (
+        <Button
+          aria-label="Go back"
+          className="hidden h-9 gap-1.5 rounded-full px-3 sm:inline-flex"
+          onClick={() => router.back()}
+          size="sm"
+          variant="ghost"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      ) : null}
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center text-[14px]">
           <AnimatePresence mode="popLayout">
@@ -78,7 +92,7 @@ export function TopBar({
       <div className="hidden items-center md:flex">
         <button
           onClick={onOpenCommandPalette}
-          className="group flex h-9 w-64 items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-card/50 px-3 text-sm text-muted-foreground transition-all duration-200 hover:border-primary/50 hover:bg-card hover:ring-2 hover:ring-primary/20"
+          className="group flex h-9 w-[280px] shrink-0 items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-card/50 px-3 text-sm text-muted-foreground transition-colors duration-150 hover:border-primary/50 hover:bg-card"
         >
           <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-primary" />
           <span className="flex-1 text-left">Search or jump to...</span>

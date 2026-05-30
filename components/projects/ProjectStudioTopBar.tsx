@@ -24,8 +24,8 @@ export function ProjectStudioTopBar({
   onGenerateToggle: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-20 -mt-4 bg-background/60 backdrop-blur-xl py-4 border-b border-white/5">
-      <div className="flex flex-col gap-4 min-[900px]:flex-row min-[900px]:items-center">
+    <div className="sticky top-0 z-30 -mx-2 -mt-4 border-b border-white/5 bg-background/80 px-2 py-4 backdrop-blur-xl">
+      <div className="flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <Button asChild className="h-9 rounded-lg px-3" variant="ghost">
             <Link href="/dashboard">
@@ -33,10 +33,10 @@ export function ProjectStudioTopBar({
               Dashboard
             </Link>
           </Button>
-          <h1 className="truncate text-lg font-semibold tracking-tight">{project.title}</h1>
+          <h1 className="max-w-[460px] truncate text-xl font-semibold tracking-tight">{project.title}</h1>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           {platformFilters.map((item) => {
             const active = platformFilter === item.value;
             return (
@@ -59,13 +59,13 @@ export function ProjectStudioTopBar({
           })}
         </div>
 
-        <div className="flex items-center gap-2 min-[900px]:ml-auto">
-          <Button className="h-10 rounded-[11px] px-4 text-[15px] font-medium" variant="secondary" onClick={onExportToggle}>
+        <div className="flex items-center gap-2.5 min-[900px]:ml-auto">
+          <Button className="h-11 rounded-[12px] px-5 text-[15px] font-semibold" variant="secondary" onClick={onExportToggle}>
             <Download className="h-4 w-4" />
             Export
             <ChevronDown className={cn("h-3.5 w-3.5 transition", exportOpen && "rotate-180")} />
           </Button>
-          <Button onClick={onGenerateToggle} className="h-10 rounded-[11px] bg-[var(--violet)] px-5 text-[15px] font-medium text-white hover:bg-[var(--violet-dark)]">
+          <Button onClick={onGenerateToggle} className="h-11 rounded-[12px] bg-[var(--violet)] px-5 text-[15px] font-semibold text-white hover:bg-[var(--violet-hover)]">
             + Generate more
           </Button>
         </div>
@@ -75,11 +75,12 @@ export function ProjectStudioTopBar({
 }
 
 function filterPillClass(filter: PlatformFilter, active: boolean) {
-  const base = "relative h-8 rounded-full border px-4 text-[15px] font-medium transition";
-  if (active) return cn(base, "border-[var(--violet)] bg-[var(--violet)] text-white");
-  if (filter === "twitter") return cn(base, "border-[var(--twitter)] text-[var(--twitter)] hover:bg-sky-500/10");
-  if (filter === "linkedin") return cn(base, "border-[#0A66C2] text-[#0A66C2] hover:bg-[#0A66C2]/10");
-  if (filter === "instagram") return cn(base, "border-[var(--instagram)] text-[var(--instagram)] hover:bg-pink-500/10");
-  if (filter === "youtube") return cn(base, "border-[var(--youtube)] text-[var(--youtube)] hover:bg-red-500/10");
-  return cn(base, "border-[var(--violet)] text-[var(--violet)]");
+  const base =
+    "relative h-10 rounded-full px-5 text-[15px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  if (active) return cn(base, "bg-[var(--violet)] text-white");
+  return cn(
+    base,
+    "border border-white/10 bg-white/[0.045] text-muted-foreground hover:border-white/20 hover:bg-white/[0.075] hover:text-foreground",
+    filter === "all" && "text-foreground",
+  );
 }

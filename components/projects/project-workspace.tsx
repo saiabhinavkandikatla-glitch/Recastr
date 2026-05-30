@@ -184,7 +184,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
   const exportIds = selectedExportIds.length ? selectedExportIds : filteredContents.map((item) => item.id);
 
   return (
-    <div className="text-foreground">
+    <div className="space-y-6 text-foreground">
       <motion.div
         animate={{ x: drawerOpen ? -24 : 0 }}
         transition={{ duration: 0.26, ease: [0.16, 1, 0.32, 1] }}
@@ -214,11 +214,12 @@ export function ProjectWorkspace({ project }: { project: Project }) {
                 )
               }
               projectId={project.id}
+              onClose={() => setExportOpen(false)}
             />
           ) : null}
         </AnimatePresence>
 
-        <div className="grid gap-4 border-t pt-5 min-[700px]:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="grid gap-6 border-t border-white/5 pt-6 min-[700px]:grid-cols-[240px_minmax(0,1fr)]">
           <HookSidebar
             hooks={hooks}
             selectedHookId={selectedHookId}

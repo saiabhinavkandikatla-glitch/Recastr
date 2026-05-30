@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { ProjectAuthGate } from "@/components/auth/ProjectAuthGate";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { getCurrentUser } from "@/lib/current-user";
@@ -30,7 +31,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 
   return (
     <AppShell projects={shellProjects.length ? shellProjects : [project]} title="Projects" sourceBadge={project.title} user={user}>
-      <ProjectWorkspace project={project} />
+      {user?.id === "demo-user" ? <ProjectAuthGate project={project} /> : <ProjectWorkspace project={project} />}
     </AppShell>
   );
 }

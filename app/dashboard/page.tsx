@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   return (
     <AppShell projects={projects} title="Dashboard" user={user}>
-      <ProjectDashboard initialProjects={projects} />
+      <ProjectDashboard initialProjects={projects} demoLocked={user?.id === "demo-user"} />
     </AppShell>
   );
 }
@@ -37,7 +37,10 @@ async function loadProjects(userId?: string): Promise<Project[]> {
 
     return projects.map(serializeProject);
   } catch {
-    const { listStoredProjects } = await import("@/lib/projects/store");
-    return listStoredProjects();
+    if (env.demoMode || userId === "demo-user" || userId === "local-user") {
+      const { listStoredProjects } = await import("@/lib/projects/store");
+      return listStoredProjects();
+    }
+    return [];
   }
 }

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
+import { Portal } from "@radix-ui/react-portal";
 import { Download, FileText, Table, FileJson, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ export function ExportInlinePanel({
   onFormatChange,
   onToggleContent,
   projectId,
+  onClose,
 }: {
   contents: ContentPiece[];
   selectedIds: string[];
@@ -32,6 +34,7 @@ export function ExportInlinePanel({
   onFormatChange: (format: ExportFormat) => void;
   onToggleContent: (id: string) => void;
   projectId: string;
+  onClose: () => void;
 }) {
   const [email, setEmail] = useState("");
 
@@ -66,14 +69,24 @@ export function ExportInlinePanel({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -10, height: 0 }}
-      animate={{ opacity: 1, y: 0, height: "auto" }}
-      exit={{ opacity: 0, y: -10, height: 0 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className="mt-3 overflow-hidden rounded-[16px] border bg-card/90 shadow-sm"
-    >
-      <div className="grid gap-4 p-4 lg:grid-cols-[220px_1fr_220px]">
+    <Portal>
+      <motion.button
+        aria-label="Close export menu"
+        className="fixed inset-0 z-[80] cursor-default bg-transparent"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        type="button"
+      />
+      <motion.div
+        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.98 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="fixed right-4 top-[calc(var(--topbar-height)+68px)] z-[90] max-h-[min(640px,calc(100vh-96px))] w-[min(900px,calc(100vw-32px))] overflow-hidden rounded-[18px] border border-white/10 bg-card/95 shadow-soft backdrop-blur-xl sm:right-6"
+      >
+      <div className="grid max-h-[inherit] gap-4 overflow-y-auto p-4 lg:grid-cols-[220px_1fr_220px]">
         <div className="space-y-2">
           {exportOptions.map((option) => (
             <button
@@ -137,6 +150,7 @@ export function ExportInlinePanel({
           </Button>
         </div>
       </div>
-    </motion.div>
+      </motion.div>
+    </Portal>
   );
 }

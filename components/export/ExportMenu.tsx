@@ -3,7 +3,13 @@
 import { Clipboard, Download, FileJson, FileText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function ExportMenu({ onExport }: { onExport: (format: "pdf" | "csv" | "json" | "notion") => void }) {
+export function ExportMenu({
+  onCopyAll,
+  onExport,
+}: {
+  onCopyAll?: () => void;
+  onExport: (format: "pdf" | "csv" | "json" | "notion") => void;
+}) {
   return (
     <div className="flex flex-wrap gap-2">
       <Button variant="secondary" size="sm" onClick={() => onExport("pdf")}>
@@ -22,7 +28,7 @@ export function ExportMenu({ onExport }: { onExport: (format: "pdf" | "csv" | "j
         <Send className="h-3.5 w-3.5" />
         Notion
       </Button>
-      <Button variant="secondary" size="sm" onClick={() => navigator.clipboard.writeText("Recastr export bundle")}>
+      <Button variant="secondary" size="sm" onClick={onCopyAll} disabled={!onCopyAll}>
         <Clipboard className="h-3.5 w-3.5" />
         Copy all
       </Button>

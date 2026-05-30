@@ -37,6 +37,11 @@ export function Sidebar({
   // Fallback to minimal state if no user, removing "Demo creator" hardcoding
   const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
   const plan = user?.plan ?? "FREE";
+  const queueCount = projects.reduce(
+    (total, project) =>
+      total + (project.contents ?? []).filter((content) => content.approved && !content.scheduledPost).length,
+    0,
+  );
 
   return (
     <>
@@ -60,6 +65,7 @@ export function Sidebar({
               href={item.href}
               icon={item.icon}
               label={item.label}
+              badge={item.label === "Tasks & Queue" ? queueCount : 0}
             />
           ))}
         </nav>
@@ -139,6 +145,7 @@ export function Sidebar({
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href, item.label);
+          const badge = item.label === "Tasks & Queue" ? queueCount : 0;
           return (
             <Link
               aria-label={item.label}
@@ -157,6 +164,11 @@ export function Sidebar({
                 active ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover:text-foreground group-hover:bg-muted/50"
               )}>
                 <Icon className="h-5 w-5" />
+                {badge > 0 ? (
+                  <span className="absolute right-4 top-2 rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-primary-foreground">
+                    {badge}
+                  </span>
+                ) : null}
               </div>
               <span className={cn(
                 "text-[10px] font-medium transition-colors",
@@ -177,11 +189,13 @@ function SidebarLink({
   href,
   icon: Icon,
   label,
+  badge = 0,
 }: {
   active: boolean;
   href: string;
   icon: ComponentType<{ className?: string }>;
   label: string;
+  badge?: number;
 }) {
   return (
     <Link
@@ -207,6 +221,11 @@ function SidebarLink({
         active ? "text-primary" : "group-hover:text-foreground"
       )} />
       <span className="relative z-10">{label}</span>
+      {badge > 0 ? (
+        <span className="relative z-10 ml-auto rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-primary-foreground">
+          {badge}
+        </span>
+      ) : null}
 
       {/* Hover background effect */}
       {!active && (

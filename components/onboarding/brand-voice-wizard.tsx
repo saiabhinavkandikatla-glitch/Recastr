@@ -77,14 +77,14 @@ export function BrandVoiceWizard() {
         setJobId(`job-${Date.now()}`);
         setStep(5);
         toast.success("First content pack created");
-        window.setTimeout(() => router.push(`/projects/${data.projectId}`), 900);
+        window.setTimeout(() => router.push("/dashboard?welcome=1"), 900);
         return;
       }
     }
     setJobId(`job-${Date.now()}`);
     setStep(5);
     toast.success("First content pack created");
-    window.setTimeout(() => router.push("/dashboard"), 900);
+    window.setTimeout(() => router.push("/dashboard?welcome=1"), 900);
   }
 
   return (

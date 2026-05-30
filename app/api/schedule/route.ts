@@ -97,6 +97,8 @@ export async function POST(request: Request) {
     });
     const delay = Math.max(0, scheduledAt.getTime() - Date.now());
     await addRecastrJob(jobNames.publishPost, { scheduledPostId: scheduledPost.id }, delay);
+    const reminderDelay = Math.max(0, scheduledAt.getTime() - Date.now() - 30 * 60 * 1000);
+    await addRecastrJob(jobNames.scheduleReminder, { scheduledPostId: scheduledPost.id }, reminderDelay);
     await recordAuditLog({
       userId: user.id,
       action: "content_scheduled",

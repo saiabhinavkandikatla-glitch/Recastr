@@ -11,9 +11,9 @@ const exportFileSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    await getRequestUser(request);
+    const user = await getRequestUser(request);
     const payload = exportFileSchema.parse(await request.json());
-    return new Response(createCsv(payload.projectId), {
+    return new Response(await createCsv(payload.projectId, user.id, payload.contentIds), {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="recastr-${payload.projectId}.csv"`,

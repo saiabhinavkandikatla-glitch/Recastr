@@ -4,6 +4,8 @@ import { assertGenerationRateLimit } from "@/lib/rate-limit";
 import { generatePlatformOutputs } from "@/lib/ai/service";
 import { trackServerEvent } from "@/lib/analytics";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
+import { sendContentReadyEmail } from "@/lib/email";
+import { prisma } from "@/lib/prisma/client";
 import { recordUsageEvent } from "@/lib/usage";
 import type { Platform, Tone } from "@/lib/types";
 
@@ -44,6 +46,7 @@ export async function GET(request: Request) {
       metadata: { platforms: platforms.join(","), tone },
     });
     await consumeCredits(user);
+    await notifyContentReady(user.id, projectId);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -127,6 +130,7 @@ export async function POST(request: Request) {
       metadata: { platforms: payload.platforms.join(","), tone: payload.tone },
     });
     await consumeCredits(user);
+    await notifyContentReady(user.id, payload.projectId);
 
     const text = outputs.map((output) => stringifyContent(output.content)).join("\n\n---\n\n");
     return streamTokens(text);
@@ -180,4 +184,26 @@ function streamTokens(text: string) {
 function stringifyContent(value: unknown) {
   if (typeof value === "string") return value;
   return JSON.stringify(value, null, 2);
+}
+
+async function notifyContentReady(userId: string, projectId: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        notifyContentReady: true,
+        projects: {
+          where: { id: projectId },
+          select: { title: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!user?.notifyContentReady) return;
+    await sendContentReadyEmail(user.email, user.projects[0]?.title ?? "your Recastr project");
+  } catch {
+    return;
+  }
 }

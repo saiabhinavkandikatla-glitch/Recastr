@@ -15,7 +15,7 @@ const signupSchema = z.object({
 export async function POST(request: Request) {
   try {
     const payload = signupSchema.parse(await request.json());
-    if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       return Response.json(
         {
           error: "Server signup is not configured",
@@ -26,9 +26,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabaseAdmin = createClient(
+    const supabase = createClient(
       env.NEXT_PUBLIC_SUPABASE_URL,
-      env.SUPABASE_SERVICE_ROLE_KEY,
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         auth: {
           autoRefreshToken: false,
@@ -37,12 +37,14 @@ export async function POST(request: Request) {
       },
     );
 
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    const { data, error } = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
-      email_confirm: true,
-      user_metadata: {
-        name: payload.name || payload.email.split("@")[0],
+      options: {
+        data: {
+          name: payload.name || payload.email.split("@")[0],
+        },
+        emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/onboarding")}`,
       },
     });
 
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
     return Response.json({
       userId: data.user.id,
       email: data.user.email,
+      verificationRequired: true,
     });
   } catch (error) {
     return apiError(error, "signup_failed", 400);

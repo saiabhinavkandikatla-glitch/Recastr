@@ -1,21 +1,47 @@
 import { jsPDF } from "jspdf";
+import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma/client";
+import { isLocalDatabaseSetupError } from "@/lib/prisma/errors";
+import { serializeProject } from "@/lib/projects/serialize";
 import { getStoredProject } from "@/lib/projects/store";
-import type { Project } from "@/lib/types";
+import type { ContentPiece, Project, SocialOutput } from "@/lib/types";
 import { stringifyContent } from "@/lib/utils";
 
-export function getExportProject(projectId: string): Project {
-  const project = getStoredProject(projectId);
-  if (!project) {
-    throw new Error(`Project ${projectId} was not found for export`);
+export async function getExportProject(
+  projectId: string,
+  userId: string,
+  contentIds: string[] = [],
+): Promise<Project> {
+  try {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId },
+      include: {
+        contents: {
+          include: { scheduledPost: true },
+          orderBy: { order: "asc" },
+        },
+        hooks: true,
+      },
+    });
+
+    if (project) return filterProjectContent(serializeProject(project), contentIds);
+  } catch (error) {
+    if (process.env.NODE_ENV === "production" && !isLocalDatabaseSetupError(error)) throw error;
   }
-  return project;
+
+  if (env.demoMode || process.env.NODE_ENV !== "production") {
+    const localProject = getStoredProject(projectId);
+    if (localProject) return filterProjectContent(localProject, contentIds);
+  }
+
+  throw new Error(`Project ${projectId} was not found for export`);
 }
 
-export function createCsv(projectId: string) {
-  const project = getExportProject(projectId);
+export async function createCsv(projectId: string, userId: string, contentIds: string[] = []) {
+  const project = await getExportProject(projectId, userId, contentIds);
   const rows = [
     ["project", "platform", "output_type", "content"],
-    ...project.outputs.map((output) => [
+    ...getExportRows(project).map((output) => [
       project.title,
       output.platform,
       output.outputType,
@@ -25,12 +51,12 @@ export function createCsv(projectId: string) {
   return rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
-export function createJson(projectId: string) {
-  return JSON.stringify(getExportProject(projectId), null, 2);
+export async function createJson(projectId: string, userId: string, contentIds: string[] = []) {
+  return JSON.stringify(await getExportProject(projectId, userId, contentIds), null, 2);
 }
 
-export function createPdf(projectId: string) {
-  const project = getExportProject(projectId);
+export async function createPdf(projectId: string, userId: string, contentIds: string[] = []) {
+  const project = await getExportProject(projectId, userId, contentIds);
   const doc = new jsPDF();
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
@@ -42,7 +68,7 @@ export function createPdf(projectId: string) {
   doc.text(`Source: ${project.sourceType}`, 16, 36);
 
   let y = 48;
-  project.outputs.slice(0, 8).forEach((output) => {
+  getExportRows(project).forEach((output) => {
     if (y > 260) {
       doc.addPage();
       y = 18;
@@ -57,4 +83,49 @@ export function createPdf(projectId: string) {
   });
 
   return Buffer.from(doc.output("arraybuffer"));
+}
+
+function getExportRows(project: Project): SocialOutput[] {
+  if (project.outputs.length) return project.outputs;
+
+  return (project.contents ?? []).map((content) => ({
+    id: content.id,
+    projectId: content.projectId,
+    platform: content.platform,
+    outputType: content.contentType,
+    tone: content.tone,
+    content: content.body,
+    originalContent: content.originalBody,
+    approved: content.approved,
+    createdAt: content.createdAt,
+  }));
+}
+
+function filterProjectContent(project: Project, contentIds: string[]) {
+  if (!contentIds.length) return project;
+  const selected = new Set(contentIds);
+
+  const contents = project.contents?.filter((content) => selected.has(content.id));
+  const outputs = project.outputs.filter((output) => selected.has(output.id));
+  const outputFallback = contents?.map(contentToOutput) ?? [];
+
+  return {
+    ...project,
+    contents,
+    outputs: outputs.length ? outputs : outputFallback,
+  };
+}
+
+function contentToOutput(content: ContentPiece): SocialOutput {
+  return {
+    id: content.id,
+    projectId: content.projectId,
+    platform: content.platform,
+    outputType: content.contentType,
+    tone: content.tone,
+    content: content.body,
+    originalContent: content.originalBody,
+    approved: content.approved,
+    createdAt: content.createdAt,
+  };
 }

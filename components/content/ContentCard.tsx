@@ -9,6 +9,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
@@ -225,11 +226,6 @@ export const ContentCard = memo(function ContentCard({
               </button>
             ))}
           </div>
-          {approved ? (
-            <span className="rounded-full bg-[var(--status-approved-bg)] px-2.5 py-0.5 text-xs font-medium text-[var(--status-approved)]">
-              Approved
-            </span>
-          ) : null}
           <button
             aria-label="Drag content card"
             className="opacity-0 transition group-hover:opacity-100"
@@ -306,28 +302,36 @@ export const ContentCard = memo(function ContentCard({
       <div className="flex min-h-12 items-center justify-between gap-3 border-t px-4 py-2">
         <span className={cn("font-mono text-xs", counterColor)}>{localBody.length} / {meta.limit}</span>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onApprove(id)}
-            className={cn(
-              "h-8 rounded-lg border px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted",
-              approved && "border-transparent bg-[var(--status-approved-bg)] text-[var(--status-approved)] hover:bg-[var(--status-approved-bg)]",
-            )}
-          >
-            {approved ? <Check className="mr-1 inline h-4 w-4" /> : null}
-            {approved ? "Approved" : "Approve"}
-          </button>
+          {approved ? (
+            <Link
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-transparent bg-[var(--status-approved-bg)] px-3 text-xs font-semibold text-[var(--status-approved)] transition hover:underline"
+              href="/tasks?tab=queue"
+              title="Approving moves this to your publishing queue in Tasks"
+            >
+              <Check className="h-4 w-4" />
+              In queue · Schedule it →
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onApprove(id)}
+              title="Approving moves this to your publishing queue in Tasks"
+              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+            >
+              Publish
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setScheduleOpen((current) => !current)}
-            className="h-8 rounded-lg border px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted"
+            className="h-8 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
           >
             Schedule
           </button>
           <button
             type="button"
             onClick={handleCopy}
-            className="h-8 rounded-lg border px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted"
+            className="h-8 rounded-lg px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
           >
             {copied ? "Copied" : "Copy"}
           </button>
