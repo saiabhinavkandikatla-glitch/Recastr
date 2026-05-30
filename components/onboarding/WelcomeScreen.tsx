@@ -18,8 +18,8 @@ const cards = [
   },
   {
     icon: CalendarClock,
-    title: "Approve, queue, schedule",
-    body: "Approved content moves into Tasks where you can schedule, export, and track the publishing pipeline.",
+    title: "Schedule, get reminded, post manually",
+    body: "Pick a date on any content card. Recastr emails the post when it is time, so no social account tokens are required.",
   },
 ];
 

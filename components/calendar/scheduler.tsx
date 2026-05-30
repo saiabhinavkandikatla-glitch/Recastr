@@ -80,7 +80,7 @@ export function Scheduler({ scheduledPosts }: { scheduledPosts: ScheduledPost[] 
               Content calendar
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Drag approved posts onto a snap-to-time publishing slot.
+              Drag drafts onto a snap-to-time email reminder slot.
             </p>
           </div>
           <div className="flex gap-2">
@@ -109,7 +109,7 @@ export function Scheduler({ scheduledPosts }: { scheduledPosts: ScheduledPost[] 
         <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
             <div className="space-y-3 rounded-[12px] border bg-muted/30 p-3">
-              <p className="text-sm font-medium">Approved queue</p>
+              <p className="text-sm font-medium">Draft reminders</p>
               {posts.map((post) => (
                 <DraggablePost key={post.id} post={post} />
               ))}

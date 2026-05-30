@@ -22,7 +22,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: Folder },
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/tasks", label: "Tasks & Queue", icon: ListChecks },
+  { href: "/tasks", label: "Tasks", icon: ListChecks },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -37,17 +37,11 @@ export function Sidebar({
   // Fallback to minimal state if no user, removing "Demo creator" hardcoding
   const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
   const plan = user?.plan ?? "FREE";
-  const queueCount = projects.reduce(
-    (total, project) =>
-      total + (project.contents ?? []).filter((content) => content.approved && !content.scheduledPost).length,
-    0,
-  );
-
   return (
     <>
-      <aside className="hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r glass-panel text-foreground lg:flex z-20">
-        <div className="flex h-[var(--topbar-height)] items-center gap-3 border-b border-white/5 px-5">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 shadow-glow">
+      <aside className="z-20 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#090E1D] text-foreground lg:flex">
+        <div className="flex h-[var(--topbar-height)] items-center gap-3 border-b border-white/10 px-5">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--violet)]">
             <Sparkles className="h-4 w-4 text-white" />
             <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 transition-opacity hover:opacity-100" />
           </div>
@@ -65,12 +59,11 @@ export function Sidebar({
               href={item.href}
               icon={item.icon}
               label={item.label}
-              badge={item.label === "Tasks & Queue" ? queueCount : 0}
             />
           ))}
         </nav>
 
-        <div className="border-y border-white/5 px-5 py-4">
+        <div className="border-y border-white/10 px-5 py-4">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Recent Projects
@@ -91,8 +84,8 @@ export function Sidebar({
                 className={cn(
                   "group relative flex gap-3 rounded-[12px] border border-transparent p-2 transition-all duration-200",
                   active
-                    ? "bg-primary/10 border-primary/20 shadow-sm"
-                    : "hover:bg-muted/50 hover:border-border/50"
+                    ? "border-[var(--violet)]/25 bg-[var(--violet)]/10"
+                    : "hover:border-white/10 hover:bg-white/[0.04]"
                 )}
               >
                 <div className="relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-[10px]">
@@ -118,10 +111,10 @@ export function Sidebar({
           })}
         </div>
 
-        <div className="border-t border-white/5 p-4 bg-background/30 backdrop-blur-md">
+        <div className="border-t border-white/10 bg-black/10 p-4">
           {user ? (
-            <div className="group flex items-center gap-3 rounded-2xl border border-border/50 bg-card/50 p-3 transition-all hover:bg-card hover:shadow-md cursor-pointer">
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-sm font-semibold text-white shadow-sm">
+            <div className="group flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all hover:bg-white/[0.07]">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-semibold text-white">
                 {displayName.slice(0, 1).toUpperCase()}
                 <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-green-500" />
               </div>
@@ -141,11 +134,10 @@ export function Sidebar({
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-white/10 bg-background/80 px-2 backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-white/10 bg-[#090E1D]/95 px-2 backdrop-blur-xl lg:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href, item.label);
-          const badge = item.label === "Tasks & Queue" ? queueCount : 0;
           return (
             <Link
               aria-label={item.label}
@@ -156,19 +148,14 @@ export function Sidebar({
               {active && (
                 <motion.div
                   layoutId="mobile-nav-indicator"
-                  className="absolute inset-x-4 top-0 h-[3px] rounded-b-md bg-gradient-to-r from-violet-500 to-cyan-500"
+                  className="absolute inset-x-4 top-0 h-[3px] rounded-b-md bg-[var(--violet)]"
                 />
               )}
               <div className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300",
-                active ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover:text-foreground group-hover:bg-muted/50"
+                active ? "bg-[var(--violet)]/15 text-[var(--violet)]" : "text-muted-foreground group-hover:bg-white/[0.06] group-hover:text-foreground"
               )}>
                 <Icon className="h-5 w-5" />
-                {badge > 0 ? (
-                  <span className="absolute right-4 top-2 rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-primary-foreground">
-                    {badge}
-                  </span>
-                ) : null}
               </div>
               <span className={cn(
                 "text-[10px] font-medium transition-colors",
@@ -204,14 +191,14 @@ function SidebarLink({
       className={cn(
         "relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-all duration-200 group overflow-hidden",
         active
-          ? "text-primary bg-primary/10"
-          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+          ? "bg-[var(--violet)]/15 text-[var(--violet)]"
+          : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
       )}
     >
       {active && (
         <motion.div
           layoutId="sidebar-indicator"
-          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-md bg-gradient-to-b from-violet-500 to-cyan-500"
+          className="absolute bottom-1.5 left-0 top-1.5 w-[3px] rounded-r-md bg-[var(--violet)]"
           initial={false}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         />
@@ -228,9 +215,7 @@ function SidebarLink({
       ) : null}
 
       {/* Hover background effect */}
-      {!active && (
-        <div className="absolute inset-0 rounded-[10px] bg-gradient-to-r from-white/0 via-white/5 to-white/0 opacity-0 group-hover:opacity-100 -translate-x-full group-hover:translate-x-full transition-all duration-700 ease-out" />
-      )}
+      {!active ? <div className="absolute inset-0 rounded-[10px] opacity-0 transition-opacity group-hover:opacity-100" /> : null}
     </Link>
   );
 }

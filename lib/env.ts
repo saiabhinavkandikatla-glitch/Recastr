@@ -6,8 +6,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   DATABASE_URL: z.string().optional(),
   DIRECT_URL: z.string().optional(),
-  RECASTR_DEMO_MODE: z.string().default("true"),
-  REQUIRE_AUTH: z.string().default("false"),
+  RECASTR_DEMO_MODE: z.string().default("false"),
+  REQUIRE_AUTH: z.string().default("true"),
   OPENAI_API_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   REDIS_URL: z.string().optional(),
@@ -18,13 +18,7 @@ const envSchema = z.object({
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
-  TWITTER_CLIENT_ID: z.string().optional(),
-  TWITTER_CLIENT_SECRET: z.string().optional(),
-  LINKEDIN_CLIENT_ID: z.string().optional(),
-  LINKEDIN_CLIENT_SECRET: z.string().optional(),
-  INSTAGRAM_CLIENT_ID: z.string().optional(),
-  INSTAGRAM_CLIENT_SECRET: z.string().optional(),
-  SOCIAL_TOKEN_ENCRYPTION_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -45,13 +39,7 @@ export const env = envSchema.parse({
   RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
   NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
-  TWITTER_CLIENT_ID: process.env.TWITTER_CLIENT_ID,
-  TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET,
-  LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID,
-  LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
-  INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID,
-  INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET,
-  SOCIAL_TOKEN_ENCRYPTION_KEY: process.env.SOCIAL_TOKEN_ENCRYPTION_KEY,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;
@@ -83,6 +71,8 @@ if (process.env.NODE_ENV === "production") {
 
   if (env.RECASTR_DEMO_MODE !== "true") {
     required.push(["DIRECT_URL", env.DIRECT_URL]);
+    required.push(["REDIS_URL", env.REDIS_URL]);
+    required.push(["RESEND_API_KEY", env.RESEND_API_KEY]);
   }
 
   const missing = required

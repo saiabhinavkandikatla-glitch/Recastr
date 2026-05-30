@@ -9,7 +9,6 @@ import {
   Bell,
   Check,
   CreditCard,
-  Link2,
   Mail,
   UserCircle,
   Settings,
@@ -26,11 +25,10 @@ import { PLAN_RULES } from "@/lib/plans";
 import type { Plan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type SettingsTab = "profile" | "connected" | "billing" | "notifications";
+type SettingsTab = "profile" | "billing" | "notifications";
 
 const tabs: Array<{ value: SettingsTab; label: string; icon: ComponentType<{ className?: string }> }> = [
   { value: "profile", label: "Profile", icon: UserCircle },
-  { value: "connected", label: "Connected accounts", icon: Link2 },
   { value: "billing", label: "Workspace billing", icon: CreditCard },
   { value: "notifications", label: "Notifications", icon: Bell },
 ];
@@ -38,17 +36,6 @@ const tabs: Array<{ value: SettingsTab; label: string; icon: ComponentType<{ cla
 type ApiEnvelope<T> =
   | { data: T; error: null }
   | { data: null; error: { message: string; code: string } };
-
-type PublishingPlatformId = "twitter" | "linkedin" | "instagram";
-
-type SocialAccountSummary = {
-  id: string;
-  platform: PublishingPlatformId;
-  handle: string | null;
-  platformId: string | null;
-  expiresAt: string | null;
-  updatedAt: string;
-};
 
 type UsageSummary = {
   projects: number;
@@ -63,26 +50,12 @@ type NotificationPreferences = {
   notifyMarketing: boolean;
 };
 
-const publishingPlatformCards: Array<{
-  id: PublishingPlatformId | "youtube";
-  name: string;
-  color: string;
-  connectable: boolean;
-}> = [
-  { id: "twitter", name: "Twitter / X", color: "from-sky-400 to-blue-500", connectable: true },
-  { id: "linkedin", name: "LinkedIn", color: "from-blue-600 to-indigo-600", connectable: true },
-  { id: "instagram", name: "Instagram", color: "from-pink-500 to-rose-500", connectable: true },
-  { id: "youtube", name: "YouTube Shorts", color: "from-red-500 to-rose-600", connectable: false },
-];
-
 const contentFormats = ["Twitter / X", "LinkedIn", "Instagram", "YouTube Shorts", "Threads", "Facebook"];
 
 export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null }) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const requestedTab = searchParams.get("tab");
-  const socialError = searchParams.get("social_error");
-  const socialConnected = searchParams.get("social_connected");
   const [activeTab, setActiveTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "profile");
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [plan, setPlan] = useState<Plan>(currentUser?.plan ?? "FREE");
@@ -95,12 +68,8 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const [notifications, setNotifications] = useState<NotificationPreferences>({
     notifyContentReady: true,
     notifyWeeklyDigest: true,
-    notifyScheduleReminder: false,
+    notifyScheduleReminder: true,
     notifyMarketing: false,
-  });
-  const socialAccountsQuery = useQuery({
-    queryKey: ["social-accounts"],
-    queryFn: () => fetchApiData<SocialAccountSummary[]>("/api/social/accounts"),
   });
   const usageQuery = useQuery({
     queryKey: ["usage"],
@@ -144,23 +113,6 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     if (notificationsQuery.data) setNotifications(notificationsQuery.data);
   }, [notificationsQuery.data]);
 
-  useEffect(() => {
-    if (socialConnected) toast.success(`${formatPlatformName(socialConnected)} connected`);
-    if (socialError) toast.error(decodeURIComponent(socialError));
-  }, [socialConnected, socialError]);
-
-  async function handleConnect(platform: PublishingPlatformId) {
-    window.location.href = `/api/social/connect/${platform}`;
-  }
-
-  async function handleDisconnect(platform: PublishingPlatformId) {
-    const previous = socialAccountsQuery.data ?? [];
-    await fetch(`/api/social/disconnect/${platform}`, { method: "DELETE" });
-    await queryClient.invalidateQueries({ queryKey: ["social-accounts"] });
-    const wasConnected = previous.some((account) => account.platform === platform);
-    toast.success(wasConnected ? `${formatPlatformName(platform)} disconnected` : "Account disconnected");
-  }
-
   async function updateNotificationPref(key: keyof NotificationPreferences, value: boolean) {
     const previous = notifications;
     setNotifications((current) => ({ ...current, [key]: value }));
@@ -188,7 +140,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
           Settings
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage workspace preferences, connected accounts, billing, and notifications.
+          Manage workspace preferences, billing, and email notifications.
         </p>
       </div>
 
@@ -319,78 +271,6 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === "connected" && (
-            <div className="grid gap-5 md:grid-cols-2">
-              {publishingPlatformCards.map((platform, index) => {
-                const account = socialAccountsQuery.data?.find((item) => item.platform === platform.id);
-                const connected = Boolean(account);
-                return (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    key={platform.name}
-                    className="rounded-[20px] border border-white/5 glass-card bg-card/40 p-6 shadow-lg relative overflow-hidden group"
-                  >
-                    {connected && (
-                      <div className={cn("absolute right-0 top-0 h-32 w-32 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br opacity-20 blur-2xl group-hover:opacity-30 transition-opacity", platform.color)} />
-                    )}
-                    <div className="flex items-start justify-between gap-4 relative z-10">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={cn("h-2.5 w-2.5 rounded-full shadow-sm", connected ? "bg-green-500 shadow-green-500/50" : "bg-muted-foreground")} />
-                          <h2 className="font-bold text-lg">{platform.name}</h2>
-                        </div>
-                        <p className="mt-2 text-sm text-muted-foreground font-medium">
-                          {connected
-                            ? `Connected as ${account?.handle ?? "workspace account"}`
-                            : platform.connectable
-                              ? "Not connected"
-                              : "Export coming soon"}
-                        </p>
-                        {connected && account ? (
-                          <p className="mt-1 text-xs text-muted-foreground/70">
-                            Last synced {new Date(account.updatedAt).toLocaleDateString()}
-                          </p>
-                        ) : null}
-                      </div>
-                      <Badge variant={connected ? "success" : "muted"} className={cn(
-                        "border-0",
-                        connected ? "bg-green-500/10 text-green-500" : "bg-muted"
-                      )}>
-                        {connected ? "Connected" : platform.connectable ? "Disconnected" : "Coming soon"}
-                      </Badge>
-                    </div>
-                    <div className="mt-6 flex gap-3 relative z-10">
-                      {platform.connectable ? (
-                        <Button
-                          variant={connected ? "secondary" : "default"}
-                          className={cn(
-                            "rounded-xl w-full sm:w-auto",
-                            !connected && "bg-foreground text-background hover:bg-foreground/90 shadow-lg",
-                          )}
-                          onClick={() =>
-                            isConnectablePlatform(platform.id)
-                              ? connected
-                                ? void handleDisconnect(platform.id)
-                                : void handleConnect(platform.id)
-                              : undefined
-                          }
-                        >
-                          {connected ? "Disconnect" : "Connect Account"}
-                        </Button>
-                      ) : (
-                        <Button className="rounded-xl w-full sm:w-auto" disabled variant="secondary">
-                          Export only
-                        </Button>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
             </div>
           )}
 
@@ -582,7 +462,7 @@ function UsageBar({ label, value }: { label: string; value: string }) {
 }
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === "profile" || value === "connected" || value === "billing" || value === "notifications";
+  return value === "profile" || value === "billing" || value === "notifications";
 }
 
 async function fetchApiData<T>(url: string): Promise<T> {
@@ -592,15 +472,4 @@ async function fetchApiData<T>(url: string): Promise<T> {
     throw new Error(payload.error?.message ?? "Request failed");
   }
   return payload.data;
-}
-
-function formatPlatformName(value: string) {
-  if (value === "twitter") return "Twitter / X";
-  if (value === "linkedin") return "LinkedIn";
-  if (value === "instagram") return "Instagram";
-  return value;
-}
-
-function isConnectablePlatform(value: PublishingPlatformId | "youtube"): value is PublishingPlatformId {
-  return value !== "youtube";
 }

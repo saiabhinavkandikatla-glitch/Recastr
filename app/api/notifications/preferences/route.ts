@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       return ok({
         notifyContentReady: true,
         notifyWeeklyDigest: true,
-        notifyScheduleReminder: false,
+        notifyScheduleReminder: true,
         notifyMarketing: false,
       });
     }
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       profile ?? {
         notifyContentReady: true,
         notifyWeeklyDigest: true,
-        notifyScheduleReminder: false,
+        notifyScheduleReminder: true,
         notifyMarketing: false,
       },
     );

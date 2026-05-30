@@ -15,7 +15,9 @@ import {
 import { toast } from "sonner";
 import { HookSidebar } from "@/components/content/HookSidebar";
 import { Button } from "@/components/ui/button";
+import { isBrowserLocalContentId, upsertBrowserScheduledPost } from "@/lib/browser-schedule-store";
 import { assertApiOk, readApiJson } from "@/lib/client-api";
+import { getPlatformCharacterLimit, normalizePlatformCopy } from "@/lib/platform-limits";
 import { cn } from "@/lib/utils";
 import type { ContentPiece, Platform, Project, ViralHook } from "@/lib/types";
 
@@ -41,7 +43,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
     () => initialContent[0]?.id ?? null,
   );
   const [selectedExportIds, setSelectedExportIds] = useState<string[]>(() =>
-    initialContent.filter((item) => item.approved).map((item) => item.id),
+    initialContent.map((item) => item.id),
   );
 
   const updateContentMutation = useMutation({
@@ -101,6 +103,13 @@ export function ProjectWorkspace({ project }: { project: Project }) {
 
   const handleApprove = useCallback(
     (id: string) => {
+      const content = contents.find((item) => item.id === id);
+      if (!content) return;
+      const limit = getPlatformCharacterLimit(content.platform);
+      if (content.body.length > limit) {
+        toast.error(`Shorten this ${platformLabels[toCardPlatform(content.platform)]} post to ${limit} characters before publishing.`);
+        return;
+      }
       setContents((current) =>
         current.map((item) =>
           item.id === id ? { ...item, approved: true } : item,
@@ -111,17 +120,19 @@ export function ProjectWorkspace({ project }: { project: Project }) {
       );
       updateContentMutation.mutate({ id, approved: true });
     },
-    [updateContentMutation],
+    [contents, updateContentMutation],
   );
 
   const handleBodyChange = useCallback(
     (id: string, body: string) => {
+      const content = contents.find((item) => item.id === id);
+      const overLimit = content ? body.length > getPlatformCharacterLimit(content.platform) : false;
       setContents((current) =>
-        current.map((item) => (item.id === id ? { ...item, body } : item)),
+        current.map((item) => (item.id === id ? { ...item, body, approved: overLimit ? false : item.approved } : item)),
       );
-      updateContentMutation.mutate({ id, body });
+      updateContentMutation.mutate(overLimit ? { id, body, approved: false } : { id, body });
     },
-    [updateContentMutation],
+    [contents, updateContentMutation],
   );
 
   const handleToneChange = useCallback(
@@ -140,7 +151,26 @@ export function ProjectWorkspace({ project }: { project: Project }) {
     (id: string, date: Date) => {
       const content = contents.find((item) => item.id === id);
       if (!content) return;
+      const limit = getPlatformCharacterLimit(content.platform);
+      if (content.body.length > limit) {
+        toast.error(`Shorten this ${platformLabels[toCardPlatform(content.platform)]} post to ${limit} characters before scheduling.`);
+        return;
+      }
       setScheduledDates((current) => ({ ...current, [id]: date }));
+      if (isBrowserLocalContentId(id)) {
+        upsertBrowserScheduledPost({
+          id: `browser-scheduled-${id}`,
+          outputId: id,
+          contentId: id,
+          platform: content.platform,
+          publishAt: date.toISOString(),
+          scheduledAt: date.toISOString(),
+          status: "PENDING",
+          title: content.body,
+          publishedAt: null,
+          failReason: null,
+        });
+      }
       scheduleMutation.mutate({
         contentId: id,
         platform: content.platform,
@@ -219,7 +249,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
           ) : null}
         </AnimatePresence>
 
-        <div className="grid gap-6 border-t border-white/5 pt-6 min-[700px]:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="grid gap-6 border-t border-white/10 pt-6 min-[700px]:grid-cols-[248px_minmax(0,1fr)]">
           <HookSidebar
             hooks={hooks}
             selectedHookId={selectedHookId}
@@ -344,6 +374,7 @@ function normalizeContents(project: Project): ContentPiece[] {
   return source.map((item, index) => ({
     ...item,
     platform: normalizeSupportedPlatform(item.platform),
+    body: normalizePlatformCopy(normalizeSupportedPlatform(item.platform), item.body),
     tone: item.tone.toLowerCase(),
     order: item.order ?? index,
   }));
@@ -382,7 +413,8 @@ function regenerateBody(
   const hook = hooks.find((item) => item.id === (selectedHookId ?? content.hookId));
   const seed = hook?.text ?? project.summary.hooks[0] ?? project.title;
   const platform = platformLabels[toCardPlatform(content.platform)];
-  return `${seed}\n\nHere is the sharper ${platform} version:\n\n${content.body.replace(/\s+/g, " ").slice(0, 260)}\n\nMake the opening more specific, keep the source promise, and close with one clear action.`;
+  const body = `${seed}\n\nHere is the sharper ${platform} version:\n\n${content.body.replace(/\s+/g, " ").slice(0, 260)}\n\nMake the opening more specific, keep the source promise, and close with one clear action.`;
+  return normalizePlatformCopy(content.platform, body);
 }
 
 function streamReplaceContent(

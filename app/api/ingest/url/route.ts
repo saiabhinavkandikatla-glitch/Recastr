@@ -6,6 +6,7 @@ import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
 import { hash, ingestBlog } from "@/lib/ingest";
+import { normalizePlatformCopy } from "@/lib/platform-limits";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
@@ -459,18 +460,21 @@ function createContents(projectId: string, metadata: YoutubeMetadata): ContentPi
     ["COMMUNITY", "YouTube community post", `If you watched "${topic}", what would help you most next?\n\nA) A beginner checklist\nB) A project roadmap\nC) Common mistakes\nD) A deeper breakdown`],
   ];
 
-  return rows.map(([platform, contentType, body], index) => ({
-    id: `${projectId}-content-${index + 1}`,
-    projectId,
-    platform,
-    contentType,
-    body,
-    originalBody: body,
-    tone: "casual",
-    approved: false,
-    order: index,
-    createdAt: now,
-  }));
+  return rows.map(([platform, contentType, body], index) => {
+    const normalizedBody = normalizePlatformCopy(platform, body);
+    return {
+      id: `${projectId}-content-${index + 1}`,
+      projectId,
+      platform,
+      contentType,
+      body: normalizedBody,
+      originalBody: normalizedBody,
+      tone: "casual",
+      approved: false,
+      order: index,
+      createdAt: now,
+    };
+  });
 }
 
 function browserHeaders() {

@@ -86,8 +86,8 @@ export function ExportModal({
           </div>
           <div className="rounded-[16px] border bg-muted/30 p-4 text-sm leading-6 text-muted-foreground">
             {format === "notion"
-              ? "Notion export will create a page with approved content blocks. Leave billing and workspace connected first."
-              : "The export includes project name, source title, generation date, platform labels, and approved content pieces."}
+              ? "Notion export is coming soon. PDF, CSV, and JSON are available now."
+              : "The export includes project name, source title, generation date, platform labels, and selected content pieces."}
           </div>
           <Button className="w-full" onClick={download}>
             <Download className="h-4 w-4" />

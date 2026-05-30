@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getOpenAIClient } from "@/lib/openai/client";
+import { normalizePlatformCopy } from "@/lib/platform-limits";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject } from "@/lib/projects/store";
 import { summarySchema } from "@/lib/ai/schemas";
@@ -89,8 +90,13 @@ export async function generatePlatformOutputs({
     const storedOutputs = storedProject?.outputs ?? [];
     if (storedOutputs.length > 0) {
       return storedOutputs
-      .filter((output) => platforms.includes(output.platform))
-      .map((output) => ({ ...output, tone, createdAt: new Date().toISOString() }));
+        .filter((output) => platforms.includes(output.platform))
+        .map((output) => ({
+          ...output,
+          content: normalizeGeneratedContent(output.platform, output.content),
+          tone,
+          createdAt: new Date().toISOString(),
+        }));
     }
     return platforms.map((platform) => createFallbackOutput(projectId, platform, tone));
   }
@@ -134,7 +140,7 @@ async function generatePlatformOutput(
     ],
   });
   const raw = response.choices[0]?.message.content ?? "{}";
-  const content = generationSchema.parse(JSON.parse(raw));
+  const content = normalizeGeneratedContent(platform, generationSchema.parse(JSON.parse(raw)));
 
   return {
     id: `output-${nanoid(10)}`,
@@ -154,13 +160,13 @@ function createFallbackOutput(
   platform: Platform,
   tone: Tone | string,
 ): SocialOutput {
-  const content = {
+  const content = normalizeGeneratedContent(platform, {
     content:
       "Lead with the strongest source promise, keep the copy specific, and adapt the structure so it feels native to the platform.",
     hook_score: 8,
     estimated_engagement: "Strong fit for educational creator audiences",
     platform_tips: ["Open with tension", "Make one clear point", "Use a platform-native CTA"],
-  };
+  });
 
   return {
     id: `output-${platform.toLowerCase()}-${nanoid(10)}`,
@@ -177,4 +183,20 @@ function createFallbackOutput(
 
 function truncateWords(value: string, words: number) {
   return value.split(/\s+/).slice(0, words).join(" ");
+}
+
+function normalizeGeneratedContent(platform: Platform, content: unknown) {
+  if (typeof content === "string") return normalizePlatformCopy(platform, content);
+
+  if (content && typeof content === "object" && "content" in content) {
+    const value = (content as { content?: unknown }).content;
+    if (typeof value === "string") {
+      return {
+        ...content,
+        content: normalizePlatformCopy(platform, value),
+      };
+    }
+  }
+
+  return content;
 }

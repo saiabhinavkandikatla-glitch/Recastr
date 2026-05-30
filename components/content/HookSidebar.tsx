@@ -33,9 +33,9 @@ export const HookSidebar = memo(function HookSidebar({
   onSelect,
 }: HookSidebarProps) {
   return (
-    <aside className="w-full shrink-0 min-[700px]:sticky min-[700px]:top-20 min-[700px]:w-[240px]">
+    <aside className="w-full shrink-0 min-[700px]:sticky min-[700px]:top-20 min-[700px]:w-[248px]">
       <div className="mb-3 px-1">
-        <p className="text-[13px] font-medium text-muted-foreground">
+        <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Viral hooks
         </p>
       </div>
@@ -51,8 +51,8 @@ export const HookSidebar = memo(function HookSidebar({
           variants={hookVariants}
           onClick={() => onSelect(null)}
           className={cn(
-            "w-full rounded-[8px] border bg-card px-3 py-2 text-left text-[15px] font-medium text-card-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
-            selectedHookId === null && "border-[var(--violet)] border-l-[3px] bg-[var(--violet-light)]/40",
+            "w-full rounded-[12px] border border-white/10 bg-white/[0.045] px-3 py-3 text-left text-[15px] font-semibold text-card-foreground transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
+            selectedHookId === null && "border-[var(--violet)] border-l-[3px] bg-[var(--violet)]/15",
           )}
         >
           All content ({contentCount})
@@ -68,8 +68,8 @@ export const HookSidebar = memo(function HookSidebar({
               variants={hookVariants}
               onClick={() => onSelect(hook.id)}
               className={cn(
-                "group relative w-full overflow-hidden rounded-[9px] border bg-card p-[15px] text-left transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
-                selected && "border-[var(--violet)] border-l-[3px] bg-[var(--violet-light)]/35",
+                "group relative w-full overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.045] p-4 text-left transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
+                selected && "border-[var(--violet)] border-l-[3px] bg-[var(--violet)]/15",
               )}
             >
               <div className="flex items-center justify-between gap-3">
@@ -77,7 +77,7 @@ export const HookSidebar = memo(function HookSidebar({
                   {hook.hookType}
                 </span>
               </div>
-              <p className="mt-3 line-clamp-2 text-[15px] font-medium leading-[1.45] text-card-foreground">
+              <p className="mt-3 line-clamp-2 text-[15px] font-semibold leading-[1.45] text-card-foreground">
                 {hook.text}
               </p>
               <div className="mt-4 flex items-center gap-3">

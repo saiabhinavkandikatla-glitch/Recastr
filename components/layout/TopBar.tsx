@@ -41,7 +41,7 @@ export function TopBar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/5 bg-background/60 px-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/10 bg-[#090E1D]/95 px-4 backdrop-blur-xl sm:px-6">
       {depth > 1 ? (
         <Button
           aria-label="Go back"
@@ -203,7 +203,7 @@ function makeBreadcrumb(pathname: string, fallbackTitle: string, sourceBadge?: s
   if (pathname.startsWith("/projects/")) return ["Projects", sourceBadge ?? fallbackTitle];
   if (pathname.startsWith("/projects")) return ["Projects"];
   if (pathname.startsWith("/schedule")) return ["Schedule"];
-  if (pathname.startsWith("/tasks")) return ["Tasks & Queue"];
+  if (pathname.startsWith("/tasks")) return ["Tasks"];
   if (pathname.startsWith("/settings")) return ["Settings"];
   if (pathname.startsWith("/onboarding")) return ["Onboarding"];
   return [fallbackTitle];

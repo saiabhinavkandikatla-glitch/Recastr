@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getRequestUser } from "@/lib/auth";
+import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import { prisma } from "@/lib/prisma/client";
 import { updateStoredContent } from "@/lib/projects/store";
 
@@ -30,7 +31,7 @@ export async function PATCH(
         id: params.id,
         project: { userId: user.id },
       },
-      select: { id: true },
+      select: { id: true, platform: true, body: true, approved: true },
     });
 
     if (!existing) {
@@ -40,11 +41,24 @@ export async function PATCH(
       );
     }
 
+    const nextBody = payload.body ?? existing.body;
+    const limit = getPlatformCharacterLimit(existing.platform);
+    if (payload.approved === true && nextBody.length > limit) {
+      return NextResponse.json(
+        {
+          error: `Content exceeds the ${limit} character limit for ${existing.platform}`,
+          code: "platform_limit_exceeded",
+          status: 422,
+        },
+        { status: 422 },
+      );
+    }
+
     const content = await prisma.content.update({
       where: { id: params.id },
       data: {
         body: payload.body,
-        approved: payload.approved,
+        approved: payload.body && payload.body.length > limit && existing.approved ? false : payload.approved,
         tone: payload.tone,
       },
     });

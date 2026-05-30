@@ -5,8 +5,6 @@ import { useMemo, useState } from "react";
 import {
   BadgeCheck,
   BriefcaseBusiness,
-  ChevronLeft,
-  ChevronRight,
   ImageIcon,
   MessageSquare,
   MoreHorizontal,
@@ -70,7 +68,7 @@ export function LinkedInPreview({
                   </p>
                   <p className="flex items-center gap-1 text-[12px] leading-[16px] text-[#666666] dark:text-[#b0b6bd]">
                     2h
-                    <span>•</span>
+                    <span>-</span>
                     <BriefcaseBusiness className="h-3 w-3" />
                   </p>
                 </div>
@@ -99,16 +97,16 @@ export function LinkedInPreview({
           )}
 
           <div className="px-3">
-            <div className="flex items-center justify-between border-b border-[#e8e8e8] py-2 text-[12px] text-[#666666] dark:border-[#38434f] dark:text-[#b0b6bd]">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between gap-3 border-b border-[#e8e8e8] py-2 text-[12px] text-[#666666] dark:border-[#38434f] dark:text-[#b0b6bd]">
+              <div className="flex min-w-0 items-center gap-1">
                 <span className="flex -space-x-1">
                   <span className="grid h-4 w-4 place-items-center rounded-full bg-[#0a66c2] text-[9px] text-white">L</span>
                   <span className="grid h-4 w-4 place-items-center rounded-full bg-[#df704d] text-[9px] text-white">C</span>
                   <span className="grid h-4 w-4 place-items-center rounded-full bg-[#2f9e44] text-[9px] text-white">I</span>
                 </span>
-                <span>{desktop ? "2,418 reactions" : "2,418"}</span>
+                <span className="truncate">{desktop ? "2,418 reactions" : "2,418"}</span>
               </div>
-              <span>146 comments - 38 reposts</span>
+              <span className="shrink-0 text-right">{desktop ? "146 comments - 38 reposts" : "146 comments"}</span>
             </div>
             <div className="grid grid-cols-4 py-1.5 text-[12px] font-semibold text-[#666666] dark:text-[#b0b6bd]">
               <LinkedInAction icon={<ThumbsUp className="h-4 w-4" />} label="Like" />
@@ -138,31 +136,46 @@ function LinkedInAvatar({ company }: { company: boolean }) {
 
 function LinkedInCarousel({ slides, dark }: { slides: string[]; dark: boolean }) {
   const visibleSlides = slides.slice(0, 3);
+  const primarySlide = slides[0] ?? "Turn one source into native posts";
   return (
     <div className="border-y border-[#e8e8e8] dark:border-[#38434f]">
-      <div className="relative grid grid-cols-[1fr_84px] gap-1 bg-black/5 p-1 dark:bg-white/5">
-        <div className={cn("relative flex aspect-[1.55] items-end overflow-hidden rounded-sm p-4", dark ? "bg-[#243447]" : "bg-[#eaf3ff]")}>
-          <div className="absolute left-4 top-4 flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[10px] font-semibold text-white">
-            <ImageIcon className="h-3 w-3" />
-            Carousel
-          </div>
-          <p className={cn("max-w-[82%] text-[21px] font-semibold leading-[1.12]", dark ? "text-white" : "text-[#0a2540]")}>
-            {slides[0] ?? "Turn one source into native posts"}
-          </p>
-        </div>
-        <div className="grid gap-1">
-          {visibleSlides.slice(1).map((slide, index) => (
-            <div key={`${slide}-${index}`} className={cn("rounded-sm p-2 text-[11px] font-semibold leading-tight", dark ? "bg-[#2f3a44] text-slate-100" : "bg-white text-[#191919]")}>
-              {clamp(slide, 58)}
+      <div className="bg-black/5 p-1 dark:bg-white/5">
+        <div className="grid min-h-[174px] grid-cols-[minmax(0,1fr)_96px] gap-1">
+          <div className={cn("flex min-w-0 flex-col justify-between overflow-hidden rounded-sm p-3", dark ? "bg-[#243447]" : "bg-[#eaf3ff]")}>
+            <div className="inline-flex w-max max-w-full items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[10px] font-semibold text-white">
+              <ImageIcon className="h-3 w-3 shrink-0" />
+              <span className="truncate">Carousel</span>
             </div>
+            <p className={cn("line-clamp-4 max-w-full break-words text-[20px] font-semibold leading-[1.12]", dark ? "text-white" : "text-[#0a2540]")}>
+              {primarySlide}
+            </p>
+          </div>
+          <div className="grid min-w-0 grid-rows-2 gap-1">
+            {visibleSlides.slice(1).map((slide, index) => (
+              <div
+                key={`${slide}-${index}`}
+                className={cn(
+                  "min-h-0 overflow-hidden rounded-sm p-2 text-[11px] font-semibold leading-tight",
+                  dark ? "bg-[#2f3a44] text-slate-100" : "bg-white text-[#191919]",
+                )}
+              >
+                <p className="line-clamp-5 break-words">{slide}</p>
+              </div>
+            ))}
+            {visibleSlides.length < 3 ? (
+              <div className={cn("min-h-0 rounded-sm p-2", dark ? "bg-[#2f3a44]" : "bg-white")} />
+            ) : null}
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-1 py-1.5">
+          {visibleSlides.map((slide, index) => (
+            <span
+              aria-label={`Slide ${index + 1}: ${slide}`}
+              className={cn("h-1.5 rounded-full transition-all", index === 0 ? "w-4 bg-[#0a66c2]" : "w-1.5 bg-[#8c8c8c]/60")}
+              key={`${slide}-dot-${index}`}
+            />
           ))}
         </div>
-        <button aria-label="Previous slide" className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white" type="button">
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button aria-label="Next slide" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white" type="button">
-          <ChevronRight className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );

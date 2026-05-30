@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VerifyEmailBanner } from "@/components/auth/VerifyEmailBanner";
 import {
-  canUseLocalAuthFallback,
   createSupabaseBrowserClient,
   hasSupabaseBrowserConfig,
 } from "@/lib/supabase/client";
@@ -23,7 +22,7 @@ import { cn } from "@/lib/utils";
 const authSchema = z.object({
   name: z.string().trim().min(2, "Use at least 2 characters").optional().or(z.literal("")),
   email: z.string().trim().email("Enter a valid email"),
-  password: z.string().min(8, "Use at least 8 characters"),
+  password: z.string().optional(),
 });
 
 type AuthValues = z.infer<typeof authSchema>;
@@ -46,14 +45,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     mode: "onTouched",
     defaultValues: {
       name: "",
-      email: "",
+      email: searchParams.get("email") ?? "",
       password: "",
     },
   });
 
   async function onSubmit(values: AuthValues) {
     if (!hasSupabaseBrowserConfig) {
-      continueLocally("Local auth mode enabled");
+      toast.error("Supabase auth is not configured. Add Supabase URL and anon key before signing in.");
       return;
     }
 
@@ -71,6 +70,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       };
 
       if (!signupResponse.ok && signupPayload.code !== "signup_admin_unavailable") {
+        if (signupPayload.code === "user_exists") {
+          toast.error("That email already has an account. Sign in instead.");
+          router.replace(`/login?next=${encodeURIComponent(nextPath)}&email=${encodeURIComponent(values.email)}`);
+          return;
+        }
         toast.error(signupPayload.error ?? "Could not create account");
         return;
       }
@@ -78,12 +82,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       if (signupPayload.code === "signup_admin_unavailable") {
         const { data, error } = await supabase.auth.signUp({
           email: values.email,
-          password: values.password,
+          password: createTemporarySignupPassword(),
           options: {
             data: {
               name: values.name || values.email.split("@")[0],
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?source=email&next=${encodeURIComponent(nextPath)}`,
           },
         });
 
@@ -104,16 +108,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
+    if (!values.password || values.password.length < 8) {
+      toast.error("Enter your password.");
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
     });
 
     if (error) {
-      if (canUseLocalAuthFallback) {
-        continueLocally("Supabase rejected this login locally. Continuing in local mode.");
-        return;
-      }
       toast.error(error.message);
       return;
     }
@@ -125,7 +130,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
   async function continueWithGoogle() {
     if (!hasSupabaseBrowserConfig) {
-      continueLocally("Local auth mode enabled");
+      toast.error("Google sign-in requires Supabase auth configuration.");
       return;
     }
 
@@ -137,18 +142,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       },
     });
     if (error) {
-      if (canUseLocalAuthFallback) {
-        continueLocally("Google OAuth is not configured locally. Continuing in local mode.");
-        return;
-      }
       toast.error(error.message);
     }
-  }
-
-  function continueLocally(message: string) {
-    toast.success(message);
-    router.replace(nextPath);
-    router.refresh();
   }
 
   if (verificationPending) {
@@ -202,18 +197,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             ))}
           </div>
         </div>
-
-        <div className="relative z-10 flex items-center gap-4 mt-12 bg-card/40 backdrop-blur-md rounded-2xl p-4 border border-white/5 w-fit">
-          <div className="flex -space-x-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className={`h-10 w-10 rounded-full border-2 border-background bg-gradient-to-br from-violet-${300+i*100} to-cyan-${200+i*100} opacity-80`} />
-            ))}
-          </div>
-          <div>
-            <div className="flex text-amber-500">{"★".repeat(5)}</div>
-            <p className="text-xs font-medium text-muted-foreground">Trusted by 5,000+ creators</p>
-          </div>
-        </div>
       </div>
 
       {/* Right side - Auth Form */}
@@ -231,7 +214,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               {isSignup ? "Create an account" : "Welcome back"}
             </h2>
             <p className="text-muted-foreground">
-              {isSignup ? "Enter your details to start generating content." : "Enter your credentials to access your workspace."}
+              {isSignup ? "Enter your details. You will create a password after email verification." : "Enter your credentials to access your workspace."}
             </p>
           </div>
 
@@ -270,20 +253,25 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Password
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete={isSignup ? "new-password" : "current-password"}
-                  placeholder="••••••••"
-                  className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
-                  {...register("password")}
-                />
-                {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
-              </div>
+              {!isSignup ? (
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
+                    {...register("password", {
+                      required: "Enter your password",
+                      minLength: { value: 8, message: "Use at least 8 characters" },
+                    })}
+                  />
+                  {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
+                </div>
+              ) : null}
 
               <Button
                 className={cn("w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 font-bold shadow-glow text-base transition-all hover:scale-[1.02]", isSubmitting && "opacity-80 scale-100 hover:scale-100")}
@@ -328,17 +316,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               </svg>
               Continue with Google
             </Button>
-
-            {canUseLocalAuthFallback ? (
-              <Button
-                className="mt-4 w-full h-12 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-semibold relative z-10 transition-colors"
-                onClick={() => continueLocally("Continuing in local mode")}
-                type="button"
-                variant="outline"
-              >
-                Continue in local mode
-              </Button>
-            ) : null}
           </div>
 
           <p className="mt-8 text-center text-sm text-muted-foreground font-medium">
@@ -359,4 +336,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 function normalizeNextPath(value: string | null, fallback: string) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
   return value;
+}
+
+function createTemporarySignupPassword() {
+  const values = new Uint8Array(24);
+  crypto.getRandomValues(values);
+  const token = btoa(String.fromCharCode(...Array.from(values))).replaceAll("+", "A").replaceAll("/", "b");
+  return `${token}Aa1!`;
 }

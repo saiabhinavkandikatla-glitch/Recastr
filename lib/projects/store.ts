@@ -1,7 +1,8 @@
-import type { ContentPiece, Project, SocialOutput } from "@/lib/types";
+import type { ContentPiece, Platform, Project, ScheduledPost, SocialOutput } from "@/lib/types";
 
 const globalForProjects = globalThis as unknown as {
   recastrProjects?: Map<string, Project>;
+  recastrScheduledPosts?: Map<string, ScheduledPost>;
 };
 
 function getProjectMap() {
@@ -9,6 +10,13 @@ function getProjectMap() {
     globalForProjects.recastrProjects = new Map();
   }
   return globalForProjects.recastrProjects;
+}
+
+function getScheduledPostMap() {
+  if (!globalForProjects.recastrScheduledPosts) {
+    globalForProjects.recastrScheduledPosts = new Map();
+  }
+  return globalForProjects.recastrScheduledPosts;
 }
 
 export function listStoredProjects() {
@@ -93,6 +101,72 @@ export function updateStoredContent(
   return undefined;
 }
 
+export function listStoredScheduledPosts() {
+  return Array.from(getScheduledPostMap().values()).sort(
+    (a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime(),
+  );
+}
+
+export function createStoredScheduledPost({
+  contentId,
+  platform,
+  scheduledAt,
+}: {
+  contentId: string;
+  platform: Platform;
+  scheduledAt: Date;
+}) {
+  const existing = listStoredScheduledPosts().find((post) => post.contentId === contentId);
+  const content = findStoredContent(contentId);
+  const post: ScheduledPost = {
+    id: existing?.id ?? `scheduled-demo-${Date.now()}`,
+    outputId: contentId,
+    contentId,
+    platform: content?.platform ?? platform,
+    publishAt: scheduledAt.toISOString(),
+    scheduledAt: scheduledAt.toISOString(),
+    status: "PENDING",
+    title: content?.body ?? "Scheduled content",
+    publishedAt: null,
+    failReason: null,
+  };
+
+  getScheduledPostMap().set(post.id, post);
+  return post;
+}
+
+export function updateStoredScheduledPost(id: string, updates: Partial<ScheduledPost>) {
+  const scheduledPosts = getScheduledPostMap();
+  const existing = scheduledPosts.get(id);
+  if (!existing) return undefined;
+
+  const next = { ...existing, ...updates };
+  scheduledPosts.set(id, next);
+  return next;
+}
+
+export function cancelStoredScheduledPost(id: string) {
+  return updateStoredScheduledPost(id, {
+    status: "CANCELLED",
+  });
+}
+
+export function retryStoredScheduledPost(id: string) {
+  return updateStoredScheduledPost(id, {
+    status: "PENDING",
+    failReason: null,
+  });
+}
+
+function findStoredContent(contentId: string) {
+  for (const project of Array.from(getProjectMap().values())) {
+    const content = project.contents?.find((item) => item.id === contentId);
+    if (content) return content;
+  }
+
+  return undefined;
+}
+
 function isLocalProjectId(projectId: string) {
   return /^(demo|youtube|text|blog|podcast)-/.test(projectId);
 }
@@ -113,7 +187,7 @@ function createFallbackProject(projectId: string): Project {
       "Local demo mode should never require Supabase to load a project.",
       "Start from the strongest promise in the source, then translate it by platform.",
       "Use the preview engine to check how the post feels before copying.",
-      "Approved content can move into queue, schedule, or export flows.",
+      "Generated content can move directly into schedule and export flows.",
     ],
     hooks: [
       `${title} should not disappear after one upload.`,

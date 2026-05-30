@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Plan } from "@/lib/types";
@@ -17,29 +18,41 @@ const localDevUser: CurrentUser = {
   plan: "PRO",
 };
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
-  if (process.env.RECASTR_DEMO_MODE === "true") {
-    return {
-      id: "demo-user",
-      email: "demo@recastr.app",
-      name: "Demo user",
-      plan: "PRO",
-    };
-  }
+const demoUser: CurrentUser = {
+  id: "demo-user",
+  email: "demo@recastr.app",
+  name: "Demo user",
+  plan: "PRO",
+};
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const canUseDemoUser = env.demoMode && !env.requireAuth;
+
+  if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    if (canUseDemoUser) return demoUser;
+    if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
     return null;
   }
 
   const supabase = createSupabaseServerClient();
   const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user?.email) {
+    if (canUseDemoUser) return demoUser;
+    if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
+    return null;
+  }
+
+  const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
-  if (!user?.email) {
-    if (process.env.NODE_ENV !== "production" && process.env.REQUIRE_AUTH !== "true") {
-      return localDevUser;
-    }
+  if (error || !user?.email) {
+    if (canUseDemoUser) return demoUser;
+    if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
     return null;
   }
 

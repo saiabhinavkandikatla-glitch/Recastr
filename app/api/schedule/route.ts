@@ -1,6 +1,10 @@
 import { getRequestUser } from "@/lib/auth";
 import { scheduleSchema } from "@/lib/ai/schemas";
+import { assertEmailConfigured } from "@/lib/email";
+import { env } from "@/lib/env";
+import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import { prisma } from "@/lib/prisma/client";
+import { createStoredScheduledPost, listStoredScheduledPosts } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
@@ -10,8 +14,11 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
-    if (process.env.RECASTR_DEMO_MODE === "true") {
-      return Response.json(groupByDate([]));
+    const localPosts = shouldUseLocalSchedules()
+      ? listStoredScheduledPosts().filter((post) => ["PENDING", "SCHEDULED"].includes(post.status))
+      : [];
+    if (env.demoMode && !env.requireAuth) {
+      return Response.json(groupByDate(localPosts));
     }
 
     const posts = await prisma.scheduledPost.findMany({
@@ -22,16 +29,19 @@ export async function GET(request: Request) {
 
     return Response.json(
       groupByDate(
-        posts.map((post) => ({
-          id: post.id,
-          outputId: post.contentId,
-          contentId: post.contentId,
-          platform: post.platform,
-          publishAt: post.scheduledAt.toISOString(),
-          scheduledAt: post.scheduledAt.toISOString(),
-          status: post.status.toUpperCase(),
-          title: post.content.contentType,
-        })),
+        [
+          ...posts.map((post) => ({
+            id: post.id,
+            outputId: post.contentId,
+            contentId: post.contentId,
+            platform: post.platform,
+            publishAt: post.scheduledAt.toISOString(),
+            scheduledAt: post.scheduledAt.toISOString(),
+            status: post.status.toUpperCase(),
+            title: post.content.contentType,
+          })),
+          ...localPosts,
+        ],
       ),
     );
   } catch (error) {
@@ -52,17 +62,21 @@ export async function POST(request: Request) {
     }
 
     const contentId = payload.contentId ?? payload.outputId ?? "";
-    if (process.env.RECASTR_DEMO_MODE === "true" || isLocalDemoContent(contentId)) {
+    if (env.demoMode && !env.requireAuth) {
+      const post = createStoredScheduledPost({
+        contentId,
+        platform: payload.platform,
+        scheduledAt,
+      });
       return Response.json(
         {
-          scheduledPostId: `scheduled-demo-${Date.now()}`,
-          publishAt: scheduledAt.toISOString(),
-          scheduledAt: scheduledAt.toISOString(),
+          scheduledPostId: post.id,
+          publishAt: post.publishAt,
+          scheduledAt: post.scheduledAt,
         },
         { status: 201 },
       );
     }
-
     const content = await prisma.content.findFirst({
       where: {
         id: contentId,
@@ -70,7 +84,7 @@ export async function POST(request: Request) {
           userId: user.id,
         },
       },
-      select: { id: true },
+      select: { id: true, body: true, platform: true },
     });
 
     if (!content) {
@@ -79,6 +93,19 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
+
+    const limit = getPlatformCharacterLimit(content.platform);
+    if (content.body.length > limit) {
+      return Response.json(
+        {
+          error: `Content exceeds the ${limit} character limit for ${content.platform}`,
+          code: "platform_limit_exceeded",
+          status: 422,
+        },
+        { status: 422 },
+      );
+    }
+    assertEmailConfigured();
 
     const scheduledPost = await prisma.scheduledPost.upsert({
       where: { contentId },
@@ -96,9 +123,12 @@ export async function POST(request: Request) {
       },
     });
     const delay = Math.max(0, scheduledAt.getTime() - Date.now());
-    await addRecastrJob(jobNames.publishPost, { scheduledPostId: scheduledPost.id }, delay);
-    const reminderDelay = Math.max(0, scheduledAt.getTime() - Date.now() - 30 * 60 * 1000);
-    await addRecastrJob(jobNames.scheduleReminder, { scheduledPostId: scheduledPost.id }, reminderDelay);
+    await addRecastrJob(
+      jobNames.publishPost,
+      { scheduledPostId: scheduledPost.id },
+      delay,
+      { required: true },
+    );
     await recordAuditLog({
       userId: user.id,
       action: "content_scheduled",
@@ -121,8 +151,8 @@ export async function POST(request: Request) {
   }
 }
 
-function isLocalDemoContent(contentId: string) {
-  return process.env.NODE_ENV !== "production" && contentId.startsWith("demo-");
+function shouldUseLocalSchedules() {
+  return process.env.NODE_ENV !== "production" || env.demoMode;
 }
 
 function groupByDate<T extends { publishAt: string }>(posts: T[]) {

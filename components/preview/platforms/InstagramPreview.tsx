@@ -3,8 +3,6 @@
 import type { ReactNode } from "react";
 import {
   Bookmark,
-  ChevronLeft,
-  ChevronRight,
   Clapperboard,
   Heart,
   MessageCircle,
@@ -95,23 +93,34 @@ function StoryRing() {
 
 function InstagramCarousel({ slides, dark }: { slides: string[]; dark: boolean }) {
   const first = slides[0] || "Turn one podcast into 30 posts";
+  const slideCount = Math.max(1, slides.length);
   return (
-    <div className={cn("relative aspect-square overflow-hidden", dark ? "bg-[#101010]" : "bg-[#f7f7f7]")}>
-      <div className="absolute inset-0 grid place-items-center p-8 text-center">
-        <div className={cn("max-w-[80%] rounded-3xl border p-6", dark ? "border-[#363636] bg-[#1c1c1c]" : "border-[#dbdbdb] bg-white")}>
-          <p className="text-[24px] font-semibold leading-[1.05] tracking-[-0.02em]">{first}</p>
-          <p className="mt-4 text-[12px] uppercase tracking-[0.22em] text-[#737373]">Carousel 1/{Math.max(1, slides.length)}</p>
-        </div>
+    <div className={cn("relative grid aspect-square place-items-center overflow-hidden p-6 text-center", dark ? "bg-[#101010]" : "bg-[#f7f7f7]")}>
+      <div
+        className={cn(
+          "flex max-h-full w-full max-w-[84%] flex-col overflow-hidden rounded-3xl border p-5",
+          dark ? "border-[#363636] bg-[#1c1c1c]" : "border-[#dbdbdb] bg-white",
+        )}
+      >
+        <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#737373]">
+          Carousel 1/{slideCount}
+        </p>
+        <p className="mt-4 line-clamp-6 min-w-0 break-words text-[23px] font-semibold leading-[1.08] tracking-[-0.01em]">
+          {first}
+        </p>
       </div>
       <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2 py-1 text-[11px] font-semibold text-white">
-        1/{Math.max(1, slides.length)}
+        1/{slideCount}
       </div>
-      <button aria-label="Previous Instagram carousel slide" className="absolute left-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white" type="button">
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <button aria-label="Next Instagram carousel slide" className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white" type="button">
-        <ChevronRight className="h-4 w-4" />
-      </button>
+      <div className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-1.5">
+        {slides.slice(0, 5).map((slide, index) => (
+          <span
+            aria-label={`Slide ${index + 1}: ${slide}`}
+            className={cn("h-1.5 rounded-full transition-all", index === 0 ? "w-4 bg-[#0095f6]" : "w-1.5 bg-[#a8a8a8]/75")}
+            key={`${slide}-preview-dot-${index}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -126,8 +135,10 @@ function InstagramReel({ content, dark }: { content: PreviewContent; dark: boole
       <div className="absolute right-3 top-3 rounded-full bg-black/35 p-2 text-white">
         <Volume2 className="h-4 w-4" />
       </div>
-      <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 rounded-3xl bg-white/10 p-5 text-center backdrop-blur-sm">
-        <p className="text-[28px] font-bold leading-[1.05] text-white">{content.hook || "Stop wasting long-form content"}</p>
+      <div className="absolute inset-x-8 top-1/2 max-h-[42%] -translate-y-1/2 overflow-hidden rounded-3xl bg-white/10 p-5 text-center backdrop-blur-sm">
+        <p className="line-clamp-4 break-words text-[28px] font-bold leading-[1.05] text-white">
+          {content.hook || "Stop wasting long-form content"}
+        </p>
       </div>
       <div className="absolute bottom-4 left-3 right-16 text-white">
         <p className="text-[13px] font-semibold">@recastr.studio</p>

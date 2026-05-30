@@ -17,7 +17,9 @@ import {
   GripVertical,
   RefreshCcw,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PlatformPreviewEngine } from "@/components/preview/PlatformPreview";
+import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import type { PreviewPlatform } from "@/lib/preview-content";
 import { cn } from "@/lib/utils";
 
@@ -52,25 +54,25 @@ const platformMeta: Record<
     label: "Twitter / X",
     dot: "bg-[var(--platform-twitter)]",
     accent: "border-l-[var(--platform-twitter)]",
-    limit: 280,
+    limit: getPlatformCharacterLimit("TWITTER"),
   },
   linkedin: {
     label: "LinkedIn",
     dot: "bg-[var(--platform-linkedin)]",
     accent: "border-l-[var(--platform-linkedin)]",
-    limit: 3000,
+    limit: getPlatformCharacterLimit("LINKEDIN"),
   },
   instagram: {
     label: "Instagram",
     dot: "bg-[var(--platform-instagram)]",
     accent: "border-l-[var(--platform-instagram)]",
-    limit: 2200,
+    limit: getPlatformCharacterLimit("INSTAGRAM"),
   },
   youtube: {
     label: "YouTube",
     dot: "bg-[var(--platform-youtube)]",
     accent: "border-l-[var(--platform-youtube)]",
-    limit: 500,
+    limit: getPlatformCharacterLimit("YOUTUBE"),
   },
 };
 
@@ -86,10 +88,8 @@ export const ContentCard = memo(function ContentCard({
   contentType,
   body,
   tone,
-  approved,
   scheduledAt,
   order,
-  onApprove,
   onToneChange,
   onBodyChange,
   onSchedule,
@@ -98,6 +98,7 @@ export const ContentCard = memo(function ContentCard({
   onActivate,
   selected = false,
 }: ContentCardProps) {
+  const approved = false;
   const [localBody, setLocalBody] = useState(body);
   const [focused, setFocused] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -108,6 +109,8 @@ export const ContentCard = memo(function ContentCard({
   const editorRef = useRef<HTMLDivElement | null>(null);
   const meta = platformMeta[platform];
   const ratio = localBody.length / meta.limit;
+  const overLimit = localBody.length > meta.limit;
+  const overLimitText = `${localBody.length - meta.limit} characters over ${meta.label} limit`;
   const showToneStrip = focused && mode === "edit";
 
   useEffect(() => {
@@ -168,18 +171,19 @@ export const ContentCard = memo(function ContentCard({
     if (Number.isNaN(date.getTime())) return;
     onSchedule(id, date);
     setScheduleOpen(false);
+    toast.success("Post scheduled. You will get an email when it is time to post.");
   }, [id, onSchedule, scheduleValue]);
 
   return (
     <motion.article
       {...(order < 8 ? cardEntrance : {})}
       className={cn(
-        "group overflow-hidden rounded-[var(--card-radius)] border border-l-[3px] bg-card text-card-foreground",
+        "group overflow-hidden rounded-[var(--card-radius)] border border-white/10 border-l-[3px] bg-[#090E1D] text-card-foreground",
         meta.accent,
         selected && "ring-1 ring-[var(--violet)]/45",
         focused && "border-[var(--violet)] ring-1 ring-[var(--violet)]/25",
-        approved && "border-l-[var(--status-approved)]",
-        scheduledAt && !approved && "border-l-[var(--status-scheduled)]",
+        overLimit && "border-red-500/60 ring-1 ring-red-500/20",
+        scheduledAt && "border-l-[var(--status-scheduled)]",
       )}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
@@ -190,13 +194,13 @@ export const ContentCard = memo(function ContentCard({
         onActivate?.(id);
       }}
     >
-      <div className="flex min-h-11 items-center gap-2 border-b px-4">
+      <div className="flex min-h-12 items-center gap-2 border-b border-white/10 px-4">
         <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
         <span className="text-sm font-medium text-muted-foreground">{meta.label}</span>
         <button
           type="button"
           onClick={handleRegenerate}
-          className="ml-2 hidden h-7 items-center gap-1 rounded-lg border px-2 text-xs text-muted-foreground transition hover:text-foreground group-hover:flex"
+          className="ml-2 hidden h-7 items-center gap-1 rounded-lg border border-white/10 px-2 text-xs text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground group-hover:flex"
         >
           <RefreshCcw className="h-3.5 w-3.5" />
           Regenerate
@@ -208,10 +212,10 @@ export const ContentCard = memo(function ContentCard({
               {scheduledLabel}
             </span>
           ) : null}
-          <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+          <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-muted-foreground">
             {contentType}
           </span>
-          <div className="flex rounded-full border bg-muted/50 p-0.5">
+          <div className="flex rounded-full border border-white/10 bg-white/[0.05] p-0.5">
             {(["edit", "preview"] as const).map((item) => (
               <button
                 key={item}
@@ -219,7 +223,7 @@ export const ContentCard = memo(function ContentCard({
                 onClick={() => setMode(item)}
                 className={cn(
                   "h-6 rounded-full px-2 text-[11px] font-medium capitalize text-muted-foreground transition",
-                  mode === item && "bg-background text-foreground shadow-sm",
+                  mode === item && "bg-[var(--violet)] text-white",
                 )}
               >
                 {item}
@@ -243,7 +247,7 @@ export const ContentCard = memo(function ContentCard({
             animate={{ height: 36, opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="flex items-center gap-2 overflow-hidden border-b px-4"
+            className="flex items-center gap-2 overflow-hidden border-b border-white/10 px-4"
           >
             {tones.map((item) => {
               const active = tone.toLowerCase() === item;
@@ -295,36 +299,50 @@ export const ContentCard = memo(function ContentCard({
           />
         )}
         <span className={cn("absolute bottom-3 right-5 font-mono text-xs", counterColor)}>
-          {localBody.length} / {meta.limit}
+          {localBody.length} / {meta.limit} chars
         </span>
       </motion.div>
 
-      <div className="flex min-h-12 items-center justify-between gap-3 border-t px-4 py-2">
-        <span className={cn("font-mono text-xs", counterColor)}>{localBody.length} / {meta.limit}</span>
+      <div className="flex min-h-12 items-center justify-between gap-3 border-t border-white/10 px-4 py-2">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className={cn("font-mono text-xs", counterColor)}>{localBody.length} / {meta.limit} chars</span>
+          {overLimit ? (
+            <span className="text-xs font-medium text-red-400">{overLimitText}</span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-2">
-          {approved ? (
+          {approved && overLimit ? (
+            <span
+              className="inline-flex h-8 items-center rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-300"
+              title={overLimitText}
+            >
+              Fix length first
+            </span>
+          ) : approved ? (
             <Link
               className="inline-flex h-8 items-center gap-1 rounded-lg border border-transparent bg-[var(--status-approved-bg)] px-3 text-xs font-semibold text-[var(--status-approved)] transition hover:underline"
-              href="/tasks?tab=queue"
-              title="Approving moves this to your publishing queue in Tasks"
+              href="/tasks?tab=scheduled"
+              title="Open scheduled reminders"
             >
               <Check className="h-4 w-4" />
-              In queue · Schedule it →
+              Open schedule
             </Link>
           ) : (
             <button
               type="button"
-              onClick={() => onApprove(id)}
-              title="Approving moves this to your publishing queue in Tasks"
-              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+              onClick={() => setScheduleOpen((current) => !current)}
+              disabled={overLimit}
+              title="Schedule this post and receive an email when it is time to publish manually."
+              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-red-500/15 disabled:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
             >
-              Publish
+              {overLimit ? "Over limit" : "Schedule"}
             </button>
           )}
           <button
             type="button"
             onClick={() => setScheduleOpen((current) => !current)}
-            className="h-8 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+            disabled={overLimit}
+            className="hidden h-8 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
           >
             Schedule
           </button>
@@ -345,7 +363,7 @@ export const ContentCard = memo(function ContentCard({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="overflow-hidden border-t"
+            className="overflow-hidden border-t border-white/10"
           >
             <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
               <input

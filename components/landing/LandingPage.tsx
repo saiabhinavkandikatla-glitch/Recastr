@@ -50,7 +50,7 @@ const workflowSteps: Array<{
   { icon: FileText, title: "Paste source", body: "YouTube, podcast, blog, or text." },
   { icon: Sparkles, title: "Extract hooks", body: "Rank the moments most likely to earn attention." },
   { icon: Wand2, title: "Generate pack", body: "Create posts, captions, scripts, and community prompts." },
-  { icon: Copy, title: "Copy/export", body: "Move approved content into your publishing flow." },
+  { icon: Copy, title: "Copy/export", body: "Move generated content into your publishing flow." },
 ];
 
 const featureCards: Array<{
@@ -75,12 +75,12 @@ const featureCards: Array<{
   },
   {
     title: "Export packs",
-    body: "Download approved assets as PDF, CSV, or JSON.",
+    body: "Download selected assets as PDF, CSV, or JSON.",
     Icon: Copy,
   },
   {
     title: "Queue and schedule",
-    body: "Keep approved posts moving without a complex calendar.",
+    body: "Keep scheduled reminders moving without a complex calendar.",
     Icon: CalendarDays,
   },
   {

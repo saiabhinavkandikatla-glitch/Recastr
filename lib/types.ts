@@ -17,6 +17,7 @@ export type PostStatus =
   | "DRAFT"
   | "PENDING"
   | "SCHEDULED"
+  | "NOTIFIED"
   | "PUBLISHED"
   | "FAILED"
   | "CANCELLED"

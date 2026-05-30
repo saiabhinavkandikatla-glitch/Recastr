@@ -1,20 +1,38 @@
 import { createClient } from "@supabase/supabase-js";
+import { Prisma } from "@prisma/client";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 import { ensureUserRecord } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma/client";
 
 export const runtime = "nodejs";
 
 const signupSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(8),
   name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
 });
 
 export async function POST(request: Request) {
   try {
     const payload = signupSchema.parse(await request.json());
+    const existingUser = await prisma.user.findUnique({
+      where: { email: payload.email },
+      select: { id: true },
+    }).catch(() => null);
+
+    if (existingUser) {
+      return Response.json(
+        {
+          error: "An account already exists for this email. Sign in instead.",
+          code: "user_exists",
+          status: 409,
+        },
+        { status: 409 },
+      );
+    }
+
     if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       return Response.json(
         {
@@ -36,15 +54,16 @@ export async function POST(request: Request) {
         },
       },
     );
+    const requestOrigin = getRequestOrigin(request);
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
-      password: payload.password,
+      password: createTemporaryPassword(),
       options: {
         data: {
           name: payload.name || payload.email.split("@")[0],
         },
-        emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/onboarding")}`,
+        emailRedirectTo: `${requestOrigin}/auth/callback?source=email&next=${encodeURIComponent("/onboarding")}`,
       },
     });
 
@@ -83,6 +102,36 @@ export async function POST(request: Request) {
       verificationRequired: true,
     });
   } catch (error) {
+    if (isUniqueEmailError(error)) {
+      return Response.json(
+        {
+          error: "An account already exists for this email. Sign in instead.",
+          code: "user_exists",
+          status: 409,
+        },
+        { status: 409 },
+      );
+    }
     return apiError(error, "signup_failed", 400);
   }
+}
+
+function getRequestOrigin(request: Request) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  if (forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+  return new URL(request.url).origin || env.appUrl;
+}
+
+function isUniqueEmailError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002" &&
+    Array.isArray(error.meta?.target) &&
+    error.meta.target.includes("email")
+  );
+}
+
+function createTemporaryPassword() {
+  return `${randomBytes(24).toString("base64url")}Aa1!`;
 }

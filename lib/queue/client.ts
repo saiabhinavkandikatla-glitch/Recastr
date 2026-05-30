@@ -1,13 +1,9 @@
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import type { Prisma } from "@prisma/client";
-import { sendPublishedEmail, sendScheduleReminderEmail } from "@/lib/email";
+import { assertEmailConfigured, sendScheduledPostNotificationEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
-import { publishToInstagram } from "@/lib/social/instagram";
-import { publishToLinkedIn } from "@/lib/social/linkedin";
-import { publishToTwitter } from "@/lib/social/twitter";
-import type { PublishingPlatform } from "@/lib/social/types";
 
 export const jobNames = {
   publishPost: "PUBLISH_POST",
@@ -25,7 +21,7 @@ export function getQueueConnection() {
   const redisUrl = env.redisUrl;
   if (!redisUrl) {
     if (env.demoMode) return null;
-    throw new Error("REDIS_URL is required when demo mode is off");
+    throw new Error("REDIS_URL is required to send scheduled post notification emails.");
   }
   connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
   return connection;
@@ -43,9 +39,17 @@ export function getRecastrQueue() {
   return getQueue("recastr-jobs");
 }
 
-export async function addRecastrJob(name: string, data: object, delay = 0) {
+export async function addRecastrJob(
+  name: string,
+  data: object,
+  delay = 0,
+  options: { required?: boolean } = {},
+) {
   const recastrQueue = getRecastrQueue();
   if (!recastrQueue) {
+    if (options.required) {
+      throw new Error("Scheduled notifications require REDIS_URL and a running Recastr worker.");
+    }
     return { id: `demo-job-${Date.now()}` };
   }
   const record = await prisma.jobRecord.create({
@@ -63,13 +67,13 @@ export function createRecastrWorker() {
       await markJobRecord(job.data.jobRecordId, "processing", 25);
 
       if (job.name === jobNames.publishPost) {
-        const result = await publishScheduledPost(job.data.scheduledPostId);
+        const result = await notifyScheduledPost(job.data.scheduledPostId);
         await markJobRecord(job.data.jobRecordId, "complete", 100, result);
         return result;
       }
 
       if (job.name === jobNames.scheduleReminder) {
-        const result = await sendScheduleReminder(job.data.scheduledPostId);
+        const result = { ignored: true, reason: "schedule reminders are sent by PUBLISH_POST jobs" };
         await markJobRecord(job.data.jobRecordId, "complete", 100, result);
         return result;
       }
@@ -87,65 +91,70 @@ type RecastrJobData = {
   jobRecordId?: string;
 };
 
-async function publishScheduledPost(scheduledPostId: string | undefined) {
+async function notifyScheduledPost(scheduledPostId: string | undefined) {
   if (!scheduledPostId) throw new Error("scheduledPostId is required");
+  assertEmailConfigured();
 
   const post = await prisma.scheduledPost.findUnique({
     where: { id: scheduledPostId },
     include: {
-      content: true,
-      user: { include: { socialAccounts: true } },
+      content: {
+        include: { project: true },
+      },
+      user: {
+        select: {
+          email: true,
+          notifyScheduleReminder: true,
+        },
+      },
     },
   });
 
   if (!post) throw new Error("Scheduled post not found");
-  const platform = toPublishingPlatform(post.platform);
-  if (!platform) {
-    await markScheduledPostFailed(post.id, `${post.platform} publishing is not supported yet`);
-    throw new Error(`${post.platform} publishing is not supported yet`);
+
+  if (!["pending", "scheduled"].includes(post.status.toLowerCase())) {
+    return {
+      skipped: true,
+      reason: `status_${post.status}`,
+      scheduledPostId: post.id,
+    };
   }
 
-  const account = post.user.socialAccounts.find((item) => item.platform === platform);
-  if (!account) {
-    await markScheduledPostFailed(post.id, `No connected ${platform} account`);
-    throw new Error(`No connected ${platform} account`);
+  if (post.scheduledAt.getTime() - Date.now() > 60_000) {
+    return {
+      skipped: true,
+      reason: "rescheduled_for_later",
+      scheduledPostId: post.id,
+      scheduledAt: post.scheduledAt.toISOString(),
+    };
   }
 
   try {
-    if (platform === "twitter") await publishToTwitter(account, post.content.body);
-    if (platform === "linkedin") await publishToLinkedIn(account, post.content.body);
-    if (platform === "instagram") await publishToInstagram(account, post.content.body);
+    if (post.user.notifyScheduleReminder) {
+      await sendScheduledPostNotificationEmail({
+        userEmail: post.user.email,
+        platform: post.platform,
+        postBody: post.content.body,
+        scheduledAt: post.scheduledAt,
+        projectTitle: post.content.project.title,
+      });
+    }
 
     await prisma.scheduledPost.update({
       where: { id: post.id },
-      data: { status: "published", publishedAt: new Date(), failReason: null },
+      data: { status: "notified", publishedAt: new Date(), failReason: null },
     });
 
-    if (post.user.notifyContentReady) {
-      await sendPublishedEmail(post.user.email, platform);
-    }
-    return { published: true, scheduledPostId: post.id, platform };
+    return {
+      notified: post.user.notifyScheduleReminder,
+      scheduledPostId: post.id,
+      platform: post.platform,
+    };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown publish error";
+    const message = error instanceof Error ? error.message : "Unknown notification error";
     await markScheduledPostFailed(post.id, message);
     throw error;
   }
-}
-
-async function sendScheduleReminder(scheduledPostId: string | undefined) {
-  if (!scheduledPostId) throw new Error("scheduledPostId is required");
-
-  const post = await prisma.scheduledPost.findUnique({
-    where: { id: scheduledPostId },
-    include: { user: true },
-  });
-
-  if (!post || !post.user.notifyScheduleReminder) {
-    return { reminded: false, scheduledPostId };
-  }
-
-  await sendScheduleReminderEmail(post.user.email, post.platform, post.scheduledAt);
-  return { reminded: true, scheduledPostId };
 }
 
 async function markScheduledPostFailed(id: string, message: string) {
@@ -172,12 +181,4 @@ async function markJobRecord(
       },
     })
     .catch(() => undefined);
-}
-
-function toPublishingPlatform(platform: string): PublishingPlatform | null {
-  const normalized = platform.toLowerCase();
-  if (normalized === "twitter" || normalized === "x") return "twitter";
-  if (normalized === "linkedin") return "linkedin";
-  if (normalized === "instagram") return "instagram";
-  return null;
 }

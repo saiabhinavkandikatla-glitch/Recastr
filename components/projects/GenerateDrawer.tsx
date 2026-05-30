@@ -4,6 +4,7 @@ import { useState, useCallback, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { normalizePlatformCopy } from "@/lib/platform-limits";
 import { cn } from "@/lib/utils";
 import type { Project, ViralHook, ContentPiece } from "@/lib/types";
 import { type ContentCardPlatform } from "@/components/content/ContentCard";
@@ -209,12 +210,16 @@ function createGeneratedCards(
   platforms.forEach((platform, platformIndex) => {
     contentTypes.forEach((contentType, typeIndex) => {
       const platformName = platformLabels[platform];
-      const body = buildGeneratedBody(project.title, hookText, platformName, contentType, maxWords);
+      const platformValue = fromCardPlatform(platform);
+      const body = normalizePlatformCopy(
+        platformValue,
+        buildGeneratedBody(project.title, hookText, platformName, contentType, maxWords),
+      );
       cards.push({
         id: `${project.id}-${platform}-${stamp}-${platformIndex}-${typeIndex}`,
         projectId: project.id,
         hookId: selectedHook?.id,
-        platform: fromCardPlatform(platform),
+        platform: platformValue,
         contentType,
         body,
         originalBody: body,
@@ -238,7 +243,10 @@ function buildGeneratedBody(
 ) {
   const base = `${hook}\n\nUse "${title}" as the proof source. This ${contentType.toLowerCase()} should feel native to ${platform}: specific opening, one useful insight, and a clear next action.`;
   if (platform === "Twitter/X") {
-    return `${hook}\n\nOne long-form source becomes useful when the best idea gets translated, not copied. Pull the tension, make one promise, then ship it in the format the platform expects.`;
+    return normalizePlatformCopy(
+      "TWITTER",
+      `${hook}\n\nOne source becomes useful when the best idea gets translated, not copied. Pull the tension, make one promise, then ship it natively.`,
+    );
   }
   if (platform === "YouTube Shorts") {
     return `Hook: ${hook}\n\nScene 1: Show the source title.\nScene 2: Name the mistake most viewers make.\nScene 3: Give the quick fix in three beats.\nCTA: Subscribe for the full breakdown.`;

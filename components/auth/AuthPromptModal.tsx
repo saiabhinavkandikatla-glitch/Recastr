@@ -90,7 +90,7 @@ export function AuthPromptModal({
 
             <div className="mt-6 space-y-3 border-t border-white/10 pt-5">
               <FeatureLine icon={CheckCircle2} text="Generate platform-ready posts from one source." />
-              <FeatureLine icon={CalendarClock} text="Approve, queue, schedule, and export in one workspace." />
+              <FeatureLine icon={CalendarClock} text="Schedule reminders and export in one workspace." />
               <FeatureLine icon={Sparkles} text="Save every project to your own private account." />
             </div>
           </div>

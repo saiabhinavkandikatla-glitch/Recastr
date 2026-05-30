@@ -66,7 +66,7 @@ export function ContentFeed({
 
   if (contentCount <= 20) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {feedItems.map((item) =>
           item.kind === "label" ? (
             <PlatformLabel key={item.id} platform={item.platform} />
@@ -105,7 +105,7 @@ export function ContentFeed({
           return (
             <div
               key={item.id}
-              className="absolute left-0 top-0 w-full pb-3"
+              className="absolute left-0 top-0 w-full pb-4"
               style={{ transform: `translateY(${virtualItem.start}px)` }}
             >
               {item.kind === "label" ? (
@@ -179,11 +179,12 @@ function ContentCardAdapter({
 
 function PlatformLabel({ platform }: { platform: ContentCardPlatform }) {
   return (
-    <div className="sticky top-0 z-[5] -mx-1 bg-[var(--page-bg)]/90 px-1 py-2 backdrop-blur">
+    <div className="sticky top-0 z-[5] -mx-1 bg-[#0B1020]/95 px-1 py-2 backdrop-blur">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className={cn("h-2 w-2 rounded-full", platformDot(platform))} />
         <span className="font-medium text-foreground">{platformLabels[platform]}</span>
         <span className="hidden sm:inline">Generated assets</span>
+        <span className="h-px flex-1 bg-white/10" />
       </div>
     </div>
   );

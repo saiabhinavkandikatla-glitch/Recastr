@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { buildGenerationPrompt, chunkTranscript, SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { generatedArraySchema } from "@/lib/ai/schemas";
 import { env } from "@/lib/env";
+import { getPlatformCharacterLimit, normalizePlatformCopy } from "@/lib/platform-limits";
 import { getStoredProject } from "@/lib/projects/store";
 import { stringifyContent } from "@/lib/utils";
 import type { GenerationRequest, Platform, SocialOutput } from "@/lib/types";
@@ -47,7 +48,12 @@ export async function generateContentSuite(
       const response = await model.invoke(prompt + retryConstraint(attempt, platform));
       const parsed = await parser.parse(String(response.content));
       const outputs = parsed.map((item, index) =>
-        toOutput(request.projectId ?? "generated", platform, `${platform} variation ${index + 1}`, item.content),
+        toOutput(
+          request.projectId ?? "generated",
+          platform,
+          `${platform} variation ${index + 1}`,
+          normalizeGeneratedContent(platform, item.content),
+        ),
       );
       const valid = outputs.every((output) => validatePlatformLimit(output.platform, stringifyContent(output.content)));
       if (valid) return outputs;
@@ -67,6 +73,7 @@ function createDemoOutputs(request: GenerationRequest): SocialOutput[] {
       return existing.map((output) => ({
         ...output,
         id: `${output.id}-stream-${nanoid(6)}`,
+        content: normalizeGeneratedContent(output.platform, output.content),
         tone: request.tone,
         approved: false,
         createdAt: new Date().toISOString(),
@@ -110,7 +117,7 @@ function toOutput(
 }
 
 function validatePlatformLimit(platform: Platform, text: string) {
-  if (platform === "TWITTER") return text.length <= 2200;
+  if (platform === "TWITTER") return text.length <= getPlatformCharacterLimit(platform);
   if (platform === "LINKEDIN") return text.length <= 3000;
   return true;
 }
@@ -124,4 +131,22 @@ function retryConstraint(attempt: number, platform: Platform) {
     return "\nRetry constraint: keep every LinkedIn post under 3000 characters.";
   }
   return "\nRetry constraint: make the JSON valid and keep copy concise.";
+}
+
+function normalizeGeneratedContent(platform: Platform, content: unknown) {
+  if (typeof content === "string") {
+    return normalizePlatformCopy(platform, content);
+  }
+
+  if (content && typeof content === "object" && "content" in content) {
+    const value = (content as { content?: unknown }).content;
+    if (typeof value === "string") {
+      return {
+        ...content,
+        content: normalizePlatformCopy(platform, value),
+      };
+    }
+  }
+
+  return content;
 }

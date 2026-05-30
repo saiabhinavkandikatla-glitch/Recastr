@@ -42,11 +42,6 @@ export function ProjectDashboard({
     return total + project.outputs.filter((output) => output.approved && project.status === "SCHEDULED").length;
   }, 0);
 
-  const approvedCount = initialProjects.reduce((total, project) => {
-    if (project.contents?.length) return total + project.contents.filter((content) => content.approved).length;
-    return total + project.outputs.filter((output) => output.approved).length;
-  }, 0);
-
   const timeSavedHours = Math.max(0, (contentCount * 8 + initialProjects.length * 20) / 60);
 
   const metrics: Array<{
@@ -57,7 +52,7 @@ export function ProjectDashboard({
     color: string;
   }> = [
     { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "Current", color: "from-blue-500 to-cyan-500" },
-    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: `${approvedCount} approved`, color: "from-violet-500 to-purple-500" },
+    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: "Ready to schedule", color: "from-violet-500 to-purple-500" },
     { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: "Live", color: "from-amber-500 to-orange-500" },
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated", color: "from-emerald-500 to-teal-500" },
   ];

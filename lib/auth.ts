@@ -1,4 +1,5 @@
 import { createClient, type User as SupabaseAuthUser } from "@supabase/supabase-js";
+import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { isLocalDatabaseSetupError } from "@/lib/prisma/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -23,29 +24,36 @@ const localDevUser: AuthenticatedUser = {
 };
 
 export async function getRequestUser(request: Request): Promise<AuthenticatedUser> {
-  const demoMode = process.env.RECASTR_DEMO_MODE === "true";
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const canUseDemoUser = env.demoMode && !env.requireAuth;
 
-  if (demoMode || !supabaseUrl || !supabaseAnonKey) return demoUser;
+  if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    if (canUseDemoUser) return demoUser;
+    if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
+    throw new Response("Supabase auth is not configured", { status: 500 });
+  }
 
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) {
     const supabase = createSupabaseServerClient();
     const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const {
       data: { user },
       error,
-    } = await supabase.auth.getUser();
+    } = session ? await supabase.auth.getUser() : { data: { user: null }, error: null };
 
     if (!error && user?.email) {
       return syncAuthenticatedUser(user);
     }
 
-    if (process.env.REQUIRE_AUTH !== "true") return localDevUser;
+    if (canUseDemoUser) return demoUser;
+    if (!env.requireAuth) return localDevUser;
     throw new Response("Missing authorization token", { status: 401 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const { data, error } = await supabase.auth.getUser(token);
@@ -57,14 +65,32 @@ export async function getRequestUser(request: Request): Promise<AuthenticatedUse
 }
 
 export async function ensureUserRecord(user: AuthenticatedUser) {
-  return prisma.user
-    .upsert({
-      where: { id: user.id },
-      update: {
-        email: user.email,
-        plan: user.plan.toLowerCase(),
+  try {
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: user.id },
+          { supabaseId: user.id },
+          { email: user.email },
+        ],
       },
-      create: {
+      select: { id: true, supabaseId: true },
+    });
+
+    if (existing) {
+      return prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          email: user.email,
+          plan: user.plan.toLowerCase(),
+          ...(existing.supabaseId === user.id ? {} : { supabaseId: existing.supabaseId }),
+        },
+        select: { id: true },
+      });
+    }
+
+    return prisma.user.create({
+      data: {
         id: user.id,
         supabaseId: user.id,
         email: user.email,
@@ -72,11 +98,11 @@ export async function ensureUserRecord(user: AuthenticatedUser) {
         platforms: [],
       },
       select: { id: true },
-    })
-    .catch((error: unknown) => {
-      if (isLocalDatabaseSetupError(error)) return { id: user.id };
-      throw error;
     });
+  } catch (error) {
+    if (isLocalDatabaseSetupError(error)) return { id: user.id };
+    throw error;
+  }
 }
 
 async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<AuthenticatedUser> {

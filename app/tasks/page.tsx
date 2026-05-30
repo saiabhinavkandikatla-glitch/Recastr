@@ -2,6 +2,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { TasksWorkspace } from "@/components/tasks/tasks-workspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
+import { listStoredScheduledPosts } from "@/lib/projects/store";
 import { serializeProject } from "@/lib/projects/serialize";
 import type { Platform, PostStatus, Project, ScheduledPost } from "@/lib/types";
 
@@ -10,7 +11,7 @@ export default async function TasksPage() {
   const { projects, scheduledPosts } = await loadTasksData(user?.id);
 
   return (
-    <AppShell projects={projects} title="Tasks & Queue" user={user}>
+    <AppShell projects={projects} title="Tasks" user={user}>
       <TasksWorkspace projects={projects} scheduledPosts={scheduledPosts} />
     </AppShell>
   );
@@ -36,19 +37,24 @@ async function loadTasksData(userId?: string): Promise<{
     }),
   ]);
 
+  const localScheduledPosts = process.env.NODE_ENV !== "production" ? listStoredScheduledPosts() : [];
+
   return {
     projects: projects.map(serializeProject),
-    scheduledPosts: scheduledPosts.map((post) => ({
-      id: post.id,
-      outputId: post.contentId,
-      contentId: post.contentId,
-      platform: post.platform as Platform,
-      publishAt: post.scheduledAt.toISOString(),
-      scheduledAt: post.scheduledAt.toISOString(),
-      status: post.status.toUpperCase() as PostStatus,
-      title: post.content.body,
-      publishedAt: post.publishedAt?.toISOString() ?? null,
-      failReason: post.failReason,
-    })),
+    scheduledPosts: [
+      ...scheduledPosts.map((post) => ({
+        id: post.id,
+        outputId: post.contentId,
+        contentId: post.contentId,
+        platform: post.platform as Platform,
+        publishAt: post.scheduledAt.toISOString(),
+        scheduledAt: post.scheduledAt.toISOString(),
+        status: post.status.toUpperCase() as PostStatus,
+        title: post.content.body,
+        publishedAt: post.publishedAt?.toISOString() ?? null,
+        failReason: post.failReason,
+      })),
+      ...localScheduledPosts,
+    ],
   };
 }

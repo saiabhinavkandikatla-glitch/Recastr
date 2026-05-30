@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clipboard, Circle } from "lucide-react";
+import { Clipboard, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,11 +36,7 @@ export function ContentCard({
             <PlatformBadge platform={content.platform} />
             <p className="text-sm font-medium">{content.contentType}</p>
           </div>
-          {content.approved ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          ) : (
-            <Circle className="h-4 w-4 text-muted-foreground" />
-          )}
+          <Circle className="h-4 w-4 text-muted-foreground" />
         </div>
         <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">{content.body}</p>
         <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">

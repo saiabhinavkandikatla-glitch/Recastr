@@ -20,6 +20,7 @@ import { CalendarDays, CalendarPlus, CheckCircle2, ChevronLeft, ChevronRight, Gr
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { readBrowserScheduledPosts } from "@/lib/browser-schedule-store";
 import { cn } from "@/lib/utils";
 import type { Platform, ScheduledPost } from "@/lib/types";
 
@@ -28,10 +29,10 @@ type ViewMode = "month" | "week" | "day";
 export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: ScheduledPost[] }) {
   const [cursor, setCursor] = useState(new Date());
   const [view, setView] = useState<ViewMode>("month");
-  const [posts, setPosts] = useState(scheduledPosts);
+  const [posts] = useState(() => mergeScheduledPosts(scheduledPosts, readBrowserScheduledPosts()));
   const visibleDays = useMemo(() => getVisibleDays(cursor, view), [cursor, view]);
 
-  const queue = useMemo(
+  const historyPosts = useMemo(
     () => posts.filter((post) => !["SCHEDULED", "PENDING"].includes(post.status)),
     [posts],
   );
@@ -45,16 +46,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
   }
 
   function autoSchedule() {
-    const start = new Date();
-    setPosts((current) =>
-      current.map((post, index) => {
-        if (["SCHEDULED", "PENDING"].includes(post.status)) return post;
-        const next = new Date(start.getTime() + (index + 1) * 24 * 60 * 60 * 1000);
-        next.setHours([9, 12, 18][index % 3] ?? 9, 0, 0, 0);
-        return { ...post, status: "SCHEDULED", publishAt: next.toISOString(), scheduledAt: next.toISOString() };
-      }),
-    );
-    toast.success("Auto-schedule preview applied");
+    toast.info("Auto-schedule is available from project content cards.");
   }
 
   return (
@@ -68,7 +60,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
           <p className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
             <span className="font-medium text-foreground">{format(cursor, "MMMM yyyy")}</span>
             <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
-            Drag from queue to schedule
+            Email reminders by date
           </p>
         </div>
 
@@ -112,7 +104,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
         <div className="flex items-center gap-3">
           <Button onClick={autoSchedule} size="sm" variant="outline" className="h-10 rounded-xl bg-card/50 border-white/10 hover:bg-card">
             <Shuffle className="mr-2 h-4 w-4 text-primary" />
-            Auto-fill queue
+            Preview cadence
           </Button>
           <Button size="sm" className="h-10 rounded-xl bg-primary text-primary-foreground hover:opacity-90 shadow-glow">
             <CalendarPlus className="mr-2 h-4 w-4" />
@@ -198,17 +190,17 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold flex items-center gap-2 text-foreground">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                Approved Queue
+                Reminder History
               </h3>
-              <Badge className="bg-primary/10 text-primary border-primary/20">{queue.length}</Badge>
+              <Badge className="bg-primary/10 text-primary border-primary/20">{historyPosts.length}</Badge>
             </div>
-            <p className="text-xs text-muted-foreground">Drag to calendar to schedule</p>
+            <p className="text-xs text-muted-foreground">Notified, failed, and cancelled reminders</p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 relative z-10 scrollbar-thin">
             <AnimatePresence>
-              {queue.length ? (
-                queue.map((post, i) => (
+              {historyPosts.length ? (
+                historyPosts.map((post, i) => (
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -233,8 +225,8 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
-                  <p className="text-sm font-medium">Queue empty</p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">Generate and approve posts to see them here.</p>
+                  <p className="text-sm font-medium">No reminder history</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">Scheduled reminders will move here after they fire or are cancelled.</p>
                 </div>
               )}
             </AnimatePresence>
@@ -278,4 +270,12 @@ function platformLabel(platform: Platform) {
   if (platform === "LINKEDIN") return "LinkedIn";
   if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "Instagram";
   return "YouTube";
+}
+
+function mergeScheduledPosts(current: ScheduledPost[], incoming: ScheduledPost[]) {
+  const map = new Map(current.map((post) => [post.contentId ?? post.id, post]));
+  for (const post of incoming) {
+    map.set(post.contentId ?? post.id, post);
+  }
+  return Array.from(map.values()).sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
 }

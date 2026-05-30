@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { EmailVerifiedSuccess } from "@/components/auth/EmailVerifiedSuccess";
 import { CreditUpgradeModal } from "@/components/billing/CreditUpgradeModal";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
@@ -24,7 +25,7 @@ export function AppShell({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground aurora-bg">
+    <div className="flex h-screen overflow-hidden bg-[#0B1020] text-foreground">
       <Sidebar projects={projects} user={user} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden relative z-10">
         <TopBar
@@ -38,6 +39,7 @@ export function AppShell({
         </main>
       </div>
       <CreditUpgradeModal />
+      <EmailVerifiedSuccess />
       <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}

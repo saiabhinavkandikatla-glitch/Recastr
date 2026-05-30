@@ -32,10 +32,9 @@ Open [http://localhost:3000](http://localhost:3000) or
 
 ## Production Wiring
 
-Copy `.env.example` to `.env.local` and add service credentials. With
-`RECASTR_DEMO_MODE=true`, routes return deterministic demo data. Set it to
-`false` and provide credentials to activate live OpenAI generation, Supabase,
-Razorpay, Redis, and analytics.
+Copy `.env.example` to `.env.local` and add service credentials. Keep
+`RECASTR_DEMO_MODE=false` and `REQUIRE_AUTH=true` for live work so auth,
+Postgres data, exports, scheduling, and email reminders use real services.
 
 ```bash
 npm run prisma:generate

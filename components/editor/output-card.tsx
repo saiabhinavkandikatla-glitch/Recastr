@@ -1,9 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
 import {
-  CheckCircle2,
   Clipboard,
   Diff,
   RefreshCcw,
@@ -87,8 +85,6 @@ export function OutputCard({
   const [isRewriting, setIsRewriting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const selectedTone = useRecastrStore((state) => state.selectedTone);
-  const approveOutput = useRecastrStore((state) => state.approveOutput);
-  const approvedIds = useRecastrStore((state) => state.approvedOutputIds);
   const original = formatOutputForEditing({
     ...output,
     content: output.originalContent ?? output.content,
@@ -96,7 +92,6 @@ export function OutputCard({
   const changed = draft !== original;
   const limit = platformLimit[output.platform];
   const isOverLimit = Boolean(limit && draft.length > limit);
-  const approved = output.approved || approvedIds.includes(output.id);
   const accent = platformAccent[output.platform];
 
   useEffect(() => {
@@ -169,17 +164,7 @@ export function OutputCard({
               <Badge className={accent.badge} variant="muted">
                 {formatPlatform(output.platform)}
               </Badge>
-              {approved ? (
-                <Link
-                  className="inline-flex h-6 items-center rounded-full bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-500 hover:underline"
-                  href="/tasks?tab=queue"
-                  title="Approving moves this to your publishing queue in Tasks"
-                >
-                  In queue
-                </Link>
-              ) : (
-                <Badge variant="muted">draft</Badge>
-              )}
+              <Badge variant="muted">ready</Badge>
               {changed ? (
                 <Badge>
                   <Diff className="mr-1 h-3 w-3" />
@@ -243,24 +228,6 @@ export function OutputCard({
               <Clipboard className="h-3.5 w-3.5" />
               Copy
             </Button>
-            {!isMobile && !approved ? (
-              <Button
-                size="sm"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  approveOutput(output.id);
-                  toast.success("Moved to schedule queue");
-                }}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Looks good
-              </Button>
-            ) : null}
-            {!isMobile && approved ? (
-              <Button asChild size="sm" variant="secondary">
-                <Link href="/tasks?tab=queue">Schedule it</Link>
-              </Button>
-            ) : null}
           </div>
         </div>
       </CardContent>

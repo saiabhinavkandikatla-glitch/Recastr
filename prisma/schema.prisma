@@ -22,14 +22,12 @@ model User {
   planExpiresAt  DateTime?
   notifyContentReady Boolean     @default(true)
   notifyWeeklyDigest Boolean     @default(true)
-  notifyScheduleReminder Boolean @default(false)
+  notifyScheduleReminder Boolean @default(true)
   notifyMarketing Boolean        @default(false)
   createdAt      DateTime        @default(now())
   projects       Project[]
   scheduledPosts ScheduledPost[]
   brandVoices    BrandVoice[]
-  connectedAccts ConnectedAccount[]
-  socialAccounts SocialAccount[]
   usageEvents    UsageEvent[]
   credits        UserCredit?
   jobRecords     JobRecord[]
@@ -155,37 +153,6 @@ model BrandVoice {
   contentPillars  String[]
   createdAt       DateTime @default(now())
 
-  @@index([userId])
-}
-
-model ConnectedAccount {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
-  platform     String
-  accessToken  String
-  refreshToken String?
-  expiresAt    DateTime?
-  createdAt    DateTime  @default(now())
-
-  @@unique([userId, platform])
-  @@index([userId])
-}
-
-model SocialAccount {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  platform     String
-  accessToken  String    @db.Text
-  refreshToken String?   @db.Text
-  handle       String?
-  platformId   String?
-  expiresAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  @@unique([userId, platform])
   @@index([userId])
 }
 

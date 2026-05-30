@@ -1,19 +1,35 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, isSameDay, isThisWeek, isToday } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, CheckCircle2, Clock3, Copy, Trash2, LayoutList, CalendarDays, History } from "lucide-react";
+import { CheckCircle2, Clock3, Trash2, CalendarDays, History } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  isBrowserScheduledPostId,
+  readBrowserScheduledPosts,
+  updateBrowserScheduledPost,
+} from "@/lib/browser-schedule-store";
 import { cn } from "@/lib/utils";
 import type { ContentPiece, Platform, Project, ScheduledPost } from "@/lib/types";
 
-type TaskTab = "queue" | "scheduled" | "history";
+type TaskTab = "scheduled" | "history";
 type ScheduledFilter = "upcoming" | "today" | "week" | "all";
+type ScheduledListResponse = {
+  data?: ScheduledPost[];
+  error?: { message?: string };
+};
+type HistoryListResponse = {
+  data?: {
+    items: ScheduledPost[];
+  };
+  error?: { message?: string };
+};
 
 export function TasksWorkspace({
   projects,
@@ -22,23 +38,18 @@ export function TasksWorkspace({
   projects: Project[];
   scheduledPosts: ScheduledPost[];
 }) {
-  const [tab, setTab] = useState<TaskTab>("queue");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [tab, setTab] = useState<TaskTab>(() => parseTaskTab(tabParam));
   const [scheduledFilter, setScheduledFilter] = useState<ScheduledFilter>("upcoming");
-  const [localScheduled, setLocalScheduled] = useState(scheduledPosts);
+  const [localScheduled, setLocalScheduled] = useState(() =>
+    mergeScheduledPosts(scheduledPosts, readBrowserScheduledPosts()),
+  );
+  const [scheduledLoading, setScheduledLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const contentIndex = useMemo(() => buildContentIndex(projects), [projects]);
-  const scheduledContentIds = useMemo(
-    () => new Set(localScheduled.map((post) => post.contentId).filter(Boolean)),
-    [localScheduled],
-  );
-  const queueItems = useMemo(
-    () =>
-      projects.flatMap((project) =>
-        (project.contents ?? [])
-          .filter((content) => content.approved && !scheduledContentIds.has(content.id))
-          .map((content) => ({ content, project })),
-      ),
-    [projects, scheduledContentIds],
-  );
   const scheduledItems = useMemo(
     () =>
       localScheduled
@@ -50,42 +61,132 @@ export function TasksWorkspace({
   const historyItems = useMemo(
     () =>
       localScheduled
-        .filter((post) => ["PUBLISHED", "FAILED", "CANCELLED"].includes(post.status))
+        .filter((post) => ["NOTIFIED", "PUBLISHED", "FAILED", "CANCELLED"].includes(post.status))
         .sort((a, b) => new Date(b.publishAt).getTime() - new Date(a.publishAt).getTime()),
     [localScheduled],
   );
 
-  function scheduleQueued(content: ContentPiece, project: Project, date: Date) {
-    const post: ScheduledPost = {
-      id: `local-scheduled-${Date.now()}`,
-      outputId: content.id,
-      contentId: content.id,
-      platform: content.platform,
-      publishAt: date.toISOString(),
-      scheduledAt: date.toISOString(),
-      status: "SCHEDULED",
-      title: project.title,
+  useEffect(() => {
+    setTab(parseTaskTab(tabParam));
+  }, [tabParam]);
+
+  useEffect(() => {
+    setLocalScheduled((current) => mergeScheduledPosts(current, scheduledPosts));
+  }, [scheduledPosts]);
+
+  useEffect(() => {
+    setLocalScheduled((current) => mergeScheduledPosts(current, readBrowserScheduledPosts()));
+  }, []);
+
+  useEffect(() => {
+    if (tab !== "scheduled") return;
+    let cancelled = false;
+    const slowTimer = window.setTimeout(() => {
+      if (!cancelled) setScheduledLoading(false);
+    }, 2_500);
+    setScheduledLoading(true);
+
+    fetch("/api/scheduled?filter=all")
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as ScheduledListResponse;
+        if (!response.ok) throw new Error(payload.error?.message ?? "Could not load scheduled posts");
+        if (!cancelled) {
+          setLocalScheduled((current) =>
+            replaceScheduledGroup(current, payload.data ?? [], ["PENDING", "SCHEDULED"]),
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load scheduled posts");
+      })
+      .finally(() => {
+        window.clearTimeout(slowTimer);
+        if (!cancelled) setScheduledLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(slowTimer);
     };
-    setLocalScheduled((current) => [...current, post]);
-    toast.success("Post scheduled");
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "history") return;
+    let cancelled = false;
+    const slowTimer = window.setTimeout(() => {
+      if (!cancelled) setHistoryLoading(false);
+    }, 2_500);
+    setHistoryLoading(true);
+
+    fetch("/api/history?page=1")
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as HistoryListResponse;
+        if (!response.ok) throw new Error(payload.error?.message ?? "Could not load history");
+        if (!cancelled) {
+          setLocalScheduled((current) =>
+            replaceScheduledGroup(current, payload.data?.items ?? [], ["NOTIFIED", "PUBLISHED", "FAILED", "CANCELLED"]),
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load history");
+      })
+      .finally(() => {
+        window.clearTimeout(slowTimer);
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(slowTimer);
+    };
+  }, [tab]);
+
+  function changeTab(nextTab: TaskTab) {
+    setTab(nextTab);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", nextTab);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
   }
 
-  function cancelScheduled(id: string) {
+  async function cancelScheduled(id: string) {
     setLocalScheduled((current) =>
       current.map((post) => (post.id === id ? { ...post, status: "CANCELLED" } : post)),
     );
+    updateBrowserScheduledPost(id, { status: "CANCELLED" });
+
+    if (isBrowserScheduledPostId(id)) {
+      toast.success("Post unscheduled");
+      return;
+    }
+
+    const response = await fetch(`/api/scheduled/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      toast.error("Could not unschedule post");
+      return;
+    }
     toast.success("Post unscheduled");
   }
 
-  function retryPost(id: string) {
+  async function retryPost(id: string) {
     setLocalScheduled((current) =>
-      current.map((post) => (post.id === id ? { ...post, status: "SCHEDULED", failReason: null } : post)),
+      current.map((post) => (post.id === id ? { ...post, status: "PENDING", failReason: null } : post)),
     );
-    toast.success("Retry queued");
+    updateBrowserScheduledPost(id, { status: "PENDING", failReason: null });
+    if (isBrowserScheduledPostId(id)) {
+      toast.success("Retry scheduled");
+      return;
+    }
+
+    const response = await fetch(`/api/scheduled/${id}/retry`, { method: "POST" });
+    if (!response.ok) {
+      toast.error("Could not retry post");
+      return;
+    }
+    toast.success("Retry scheduled");
   }
 
   const tabs: Array<{ id: TaskTab; label: string; icon: ReactNode }> = [
-    { id: "queue", label: "Content Queue", icon: <LayoutList className="h-4 w-4" /> },
     { id: "scheduled", label: "Scheduled", icon: <CalendarDays className="h-4 w-4" /> },
     { id: "history", label: "History", icon: <History className="h-4 w-4" /> },
   ];
@@ -95,10 +196,10 @@ export function TasksWorkspace({
       <div>
         <h1 className="text-3xl font-bold font-display tracking-tight flex items-center gap-2">
           <CheckCircle2 className="h-7 w-7 text-primary" />
-          Tasks & Queue
+          Tasks
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage your publishing pipeline, schedule approved content, and review post history.
+          Manage scheduled post reminders and review notification history.
         </p>
       </div>
 
@@ -106,7 +207,7 @@ export function TasksWorkspace({
         {tabs.map((item) => (
           <button
             key={item.id}
-            onClick={() => setTab(item.id)}
+            onClick={() => changeTab(item.id)}
             className={cn(
               "relative flex-1 md:flex-none flex items-center justify-center gap-2 h-10 px-6 rounded-[12px] text-sm font-medium transition-colors z-10",
               tab === item.id ? "text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
@@ -134,13 +235,11 @@ export function TasksWorkspace({
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {tab === "queue" && (
-              <QueueTab items={queueItems} onSchedule={scheduleQueued} />
-            )}
             {tab === "scheduled" && (
               <ScheduledTab
                 contentIndex={contentIndex}
                 filter={scheduledFilter}
+                loading={scheduledLoading}
                 posts={scheduledItems}
                 onCancel={cancelScheduled}
                 onFilterChange={setScheduledFilter}
@@ -149,6 +248,7 @@ export function TasksWorkspace({
             {tab === "history" && (
               <HistoryTab
                 contentIndex={contentIndex}
+                loading={historyLoading}
                 posts={historyItems}
                 onDelete={(id) => setLocalScheduled((current) => current.filter((post) => post.id !== id))}
                 onRetry={retryPost}
@@ -161,139 +261,17 @@ export function TasksWorkspace({
   );
 }
 
-function QueueTab({
-  items,
-  onSchedule,
-}: {
-  items: Array<{ content: ContentPiece; project: Project }>;
-  onSchedule: (content: ContentPiece, project: Project, date: Date) => void;
-}) {
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        actionHref="/dashboard"
-        actionLabel="Go to Dashboard"
-        headline="Queue is empty"
-        icon={<CheckCircle2 className="h-8 w-8 text-primary" />}
-        subline="Approve content inside any project to move it into your scheduling queue."
-      />
-    );
-  }
-
-  return (
-    <section className="space-y-4">
-      <p className="text-sm text-muted-foreground font-medium">Approved content waiting to be scheduled.</p>
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map(({ content, project }, index) => (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            key={content.id}
-          >
-            <QueueCard
-              content={content}
-              onSchedule={(date) => onSchedule(content, project, date)}
-              project={project}
-            />
-          </motion.div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function QueueCard({
-  content,
-  project,
-  onSchedule,
-}: {
-  content: ContentPiece;
-  project: Project;
-  onSchedule: (date: Date) => void;
-}) {
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [dateValue, setDateValue] = useState(defaultScheduleValue());
-
-  return (
-    <article className="h-full flex flex-col rounded-[20px] border border-white/5 bg-card/40 backdrop-blur-md p-5 glass-card shadow-lg hover:shadow-xl hover:border-primary/20 transition-all">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border/50 pb-4">
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-[8px] text-white shadow-sm", platformClass(content.platform))}>
-          <span className="text-[14px] font-bold">{platformLabel(content.platform).charAt(0)}</span>
-        </div>
-        <div>
-          <span className="text-sm font-bold text-foreground block">{platformLabel(content.platform)}</span>
-          <span className="text-xs font-medium text-muted-foreground">{project.title}</span>
-        </div>
-        <Badge variant="muted" className="ml-auto bg-primary/10 text-primary border-0">{content.contentType}</Badge>
-      </div>
-
-      <p className="mt-4 flex-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{truncate(content.body, 180)}</p>
-
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <Button onClick={() => setScheduleOpen((current) => !current)} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-glow">
-          <CalendarClock className="mr-2 h-4 w-4" />
-          Schedule
-        </Button>
-        <Button
-          onClick={() => {
-            void navigator.clipboard.writeText(content.body);
-            toast.success("Copied to clipboard");
-          }}
-          size="icon"
-          variant="secondary"
-          className="rounded-xl bg-muted/50 hover:bg-muted"
-        >
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Button size="icon" variant="ghost" className="rounded-xl ml-auto text-muted-foreground hover:text-destructive">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <AnimatePresence>
-        {scheduleOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-4 overflow-hidden"
-          >
-            <div className="flex flex-col gap-2 rounded-[14px] border border-white/5 bg-background/50 p-3 sm:flex-row sm:items-center">
-              <input
-                aria-label="Schedule date and time"
-                className="flex-1 h-9 rounded-lg border-0 bg-muted/30 px-3 text-sm outline-none focus:ring-2 focus:ring-primary/50"
-                type="datetime-local"
-                value={dateValue}
-                onChange={(event) => setDateValue(event.target.value)}
-              />
-              <Button
-                onClick={() => {
-                  onSchedule(new Date(dateValue));
-                  setScheduleOpen(false);
-                }}
-                size="sm"
-                className="rounded-lg"
-              >
-                Confirm
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </article>
-  );
-}
-
 function ScheduledTab({
   contentIndex,
   filter,
+  loading,
   posts,
   onCancel,
   onFilterChange,
 }: {
   contentIndex: Map<string, ContentPiece>;
   filter: ScheduledFilter;
+  loading: boolean;
   posts: ScheduledPost[];
   onCancel: (id: string) => void;
   onFilterChange: (filter: ScheduledFilter) => void;
@@ -321,11 +299,13 @@ function ScheduledTab({
         </div>
       </div>
 
-      {posts.length === 0 ? (
+      {loading ? (
+        <LoadingState label="Loading scheduled posts..." />
+      ) : posts.length === 0 ? (
         <EmptyState
           headline="Nothing scheduled yet"
           icon={<Clock3 className="h-8 w-8 text-amber-500" />}
-          subline="Head to Queue and schedule approved content."
+          subline="Go to a project and click Schedule on any content card."
         />
       ) : (
         Object.entries(grouped).map(([day, dayPosts], index) => (
@@ -374,21 +354,27 @@ function ScheduledTab({
 
 function HistoryTab({
   contentIndex,
+  loading,
   posts,
   onDelete,
   onRetry,
 }: {
   contentIndex: Map<string, ContentPiece>;
+  loading: boolean;
   posts: ScheduledPost[];
   onDelete: (id: string) => void;
   onRetry: (id: string) => void;
 }) {
+  if (loading) {
+    return <LoadingState label="Loading publishing history..." />;
+  }
+
   if (posts.length === 0) {
     return (
       <EmptyState
         headline="No publishing history yet"
         icon={<History className="h-8 w-8 text-muted-foreground" />}
-        subline="Published, failed, and cancelled posts will appear here."
+        subline="Notified, failed, and cancelled scheduled posts will appear here."
       />
     );
   }
@@ -445,6 +431,19 @@ function HistoryTab({
   );
 }
 
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-card/20 p-8 glass-panel">
+      <div className="space-y-3 animate-pulse">
+        <div className="h-4 w-40 rounded bg-muted" />
+        <div className="h-16 rounded-xl bg-muted/60" />
+        <div className="h-16 rounded-xl bg-muted/40" />
+      </div>
+      <p className="sr-only">{label}</p>
+    </div>
+  );
+}
+
 function EmptyState({
   actionHref,
   actionLabel,
@@ -473,6 +472,7 @@ function EmptyState({
 }
 
 function StatusBadge({ status }: { status: ScheduledPost["status"] }) {
+  if (status === "NOTIFIED") return <Badge variant="success" className="bg-green-500/20 text-green-500 border-0">Notified</Badge>;
   if (status === "PUBLISHED") return <Badge variant="success" className="bg-green-500/20 text-green-500 border-0">Published</Badge>;
   if (status === "FAILED") return <Badge variant="danger" className="bg-red-500/20 text-red-500 border-0">Failed</Badge>;
   if (status === "CANCELLED") return <Badge variant="muted" className="border-0">Cancelled</Badge>;
@@ -525,8 +525,48 @@ function truncate(value: string, length: number) {
   return `${value.slice(0, length - 1).trim()}...`;
 }
 
-function defaultScheduleValue() {
-  const next = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  next.setMinutes(0, 0, 0);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}T${String(next.getHours()).padStart(2, "0")}:00`;
+function parseTaskTab(value: string | null): TaskTab {
+  if (value === "scheduled" || value === "history") return value;
+  return "scheduled";
+}
+
+function mergeScheduledPosts(current: ScheduledPost[], incoming: ScheduledPost[]) {
+  const incomingContentIds = new Set(incoming.map((post) => post.contentId).filter(Boolean));
+  const optimistic = current.filter(
+    (post) => isEphemeralScheduleId(post.id) && post.contentId && !incomingContentIds.has(post.contentId),
+  );
+
+  if (optimistic.length === 0) return incoming;
+
+  const incomingIds = new Set(incoming.map((post) => post.id));
+  return [
+    ...incoming,
+    ...optimistic.filter((post) => !incomingIds.has(post.id)),
+  ].sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
+}
+
+function replaceScheduledGroup(
+  current: ScheduledPost[],
+  incoming: ScheduledPost[],
+  statuses: Array<ScheduledPost["status"]>,
+) {
+  const statusSet = new Set(statuses);
+  const incomingIds = new Set(incoming.map((post) => post.id));
+  const incomingContentIds = new Set(incoming.map((post) => post.contentId).filter(Boolean));
+  const optimistic = current.filter(
+    (post) =>
+      isEphemeralScheduleId(post.id) &&
+      statusSet.has(post.status) &&
+      !incomingIds.has(post.id) &&
+      (!post.contentId || !incomingContentIds.has(post.contentId)),
+  );
+  return [
+    ...current.filter((post) => !statusSet.has(post.status)),
+    ...incoming,
+    ...optimistic,
+  ].sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
+}
+
+function isEphemeralScheduleId(id: string) {
+  return id.startsWith("local-scheduled-") || id.startsWith("scheduled-demo-") || isBrowserScheduledPostId(id);
 }
