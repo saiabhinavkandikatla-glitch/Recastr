@@ -62,18 +62,14 @@ export function isDemoMode() {
   return env.demoMode;
 }
 
-if (process.env.NODE_ENV === "production") {
+const isNextProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+if (process.env.NODE_ENV === "production" && !isNextProductionBuild) {
   const required = [
     ["NEXT_PUBLIC_SUPABASE_URL", env.NEXT_PUBLIC_SUPABASE_URL],
     ["NEXT_PUBLIC_SUPABASE_ANON_KEY", env.NEXT_PUBLIC_SUPABASE_ANON_KEY],
     ["DATABASE_URL", env.DATABASE_URL],
   ];
-
-  if (env.RECASTR_DEMO_MODE !== "true") {
-    required.push(["DIRECT_URL", env.DIRECT_URL]);
-    required.push(["REDIS_URL", env.REDIS_URL]);
-    required.push(["RESEND_API_KEY", env.RESEND_API_KEY]);
-  }
 
   const missing = required
     .filter(([, value]) => !value)
