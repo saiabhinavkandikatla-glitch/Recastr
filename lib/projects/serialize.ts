@@ -1,4 +1,3 @@
-import { defaultSummary } from "@/lib/demo/data";
 import type {
   ContentPiece,
   Platform,
@@ -9,6 +8,15 @@ import type {
   SourceType,
   ViralHook,
 } from "@/lib/types";
+
+const defaultSummary = {
+  tldr: "",
+  takeaways: [],
+  hooks: [],
+  detectedTone: "educational",
+  topics: [],
+  targetAudience: ""
+} satisfies SourceSummary;
 
 type RawContent = {
   id: string;
@@ -172,7 +180,6 @@ function normalizePlatform(value: string): Platform {
     upper === "INSTAGRAM" ||
     upper === "FACEBOOK" ||
     upper === "THREADS" ||
-    upper === "TIKTOK" ||
     upper === "YOUTUBE" ||
     upper === "CAROUSEL" ||
     upper === "COMMUNITY" ||

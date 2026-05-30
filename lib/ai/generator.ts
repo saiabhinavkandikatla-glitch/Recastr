@@ -1,9 +1,10 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { nanoid } from "nanoid";
-import { demoProjects } from "@/lib/demo-data";
 import { buildGenerationPrompt, chunkTranscript, SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { generatedArraySchema } from "@/lib/ai/schemas";
+import { env } from "@/lib/env";
+import { getStoredProject } from "@/lib/projects/store";
 import { stringifyContent } from "@/lib/utils";
 import type { GenerationRequest, Platform, SocialOutput } from "@/lib/types";
 
@@ -13,7 +14,6 @@ const allPlatforms: Platform[] = [
   "INSTAGRAM",
   "FACEBOOK",
   "THREADS",
-  "TIKTOK",
   "CAROUSEL",
   "COMMUNITY",
   "STORY",
@@ -26,11 +26,11 @@ export async function generateContentSuite(
   const formatInstructions = parser.getFormatInstructions();
   const transcriptChunks = chunkTranscript(request.transcript);
 
-  if (process.env.OPENAI_API_KEY && process.env.RECASTR_DEMO_MODE !== "true") {
+  if (env.openaiKey && !env.demoMode) {
     const model = new ChatOpenAI({
       model: "gpt-4o",
       temperature: 0.7,
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: env.openaiKey,
     });
     const platform = request.platform ?? "TWITTER";
     const prompt = [
@@ -58,10 +58,7 @@ export async function generateContentSuite(
 }
 
 function createDemoOutputs(request: GenerationRequest): SocialOutput[] {
-  const existingProject = request.projectId
-    ? demoProjects.find((project) => project.id === request.projectId)
-    : undefined;
-  const sourceOutputs = existingProject?.outputs ?? demoProjects[0].outputs;
+  const sourceOutputs = request.projectId ? getStoredProject(request.projectId)?.outputs ?? [] : [];
   const platforms = request.platform ? [request.platform] : allPlatforms;
 
   return platforms.flatMap((platform) => {

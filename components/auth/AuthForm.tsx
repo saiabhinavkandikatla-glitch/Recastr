@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Loader2, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  canUseLocalAuthFallback,
+  createSupabaseBrowserClient,
+  hasSupabaseBrowserConfig,
+} from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const authSchema = z.object({
@@ -37,6 +40,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     formState: { errors, isSubmitting },
   } = useForm<AuthValues>({
     resolver: zodResolver(authSchema),
+    mode: "onTouched",
     defaultValues: {
       name: "",
       email: "",
@@ -45,12 +49,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   });
 
   async function onSubmit(values: AuthValues) {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      continueLocally("Demo auth enabled");
+    if (!hasSupabaseBrowserConfig) {
+      continueLocally("Local auth mode enabled");
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
+    const supabase = await createSupabaseBrowserClient();
 
     if (isSignup) {
       const signupResponse = await fetch("/api/auth/signup", {
@@ -113,7 +117,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     });
 
     if (error) {
-      if (canUseLocalAuthFallback()) {
+      if (canUseLocalAuthFallback) {
         continueLocally("Supabase rejected this login locally. Continuing in local mode.");
         return;
       }
@@ -127,12 +131,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   }
 
   async function continueWithGoogle() {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      continueLocally("Demo auth enabled");
+    if (!hasSupabaseBrowserConfig) {
+      continueLocally("Local auth mode enabled");
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
+    const supabase = await createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -140,7 +144,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       },
     });
     if (error) {
-      if (canUseLocalAuthFallback()) {
+      if (canUseLocalAuthFallback) {
         continueLocally("Google OAuth is not configured locally. Continuing in local mode.");
         return;
       }
@@ -155,158 +159,201 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_12%,rgba(124,58,237,0.36),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(20,184,166,0.2),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0),rgba(3,7,18,1)_72%)]" />
-      <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-10 px-5 py-10 lg:grid-cols-[1fr_420px]">
-        <section className="max-w-2xl">
-          <Badge className="border-white/10 bg-white/10 text-violet-100 ring-white/10">
-            <Sparkles className="mr-1 h-3 w-3" />
-            AI content workflow
+    <main className="flex min-h-screen bg-background overflow-hidden text-foreground">
+      {/* Left side - Marketing/Visual */}
+      <div className="hidden lg:flex w-[55%] flex-col justify-between p-12 aurora-bg relative border-r border-white/5">
+        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background/80" />
+
+        <div className="relative z-10 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-glow">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <span className="font-display text-xl font-bold tracking-wide">Recastr</span>
+        </div>
+
+        <div className="relative z-10 max-w-xl">
+          <Badge className="bg-primary/20 text-primary border-primary/30 px-3 py-1 mb-6 rounded-full text-xs font-semibold tracking-wide uppercase backdrop-blur-md">
+            AI Content Engine
           </Badge>
-          <h1 className="mt-6 text-4xl font-medium leading-tight tracking-normal sm:text-5xl">
-            Turn one podcast into 30 days of content.
+          <h1 className="text-5xl font-display font-bold leading-[1.1] tracking-tight mb-6">
+            Turn one recording into <br />
+            <span className="text-gradient">30 days of content.</span>
           </h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
-            Secure your workspace, track usage, and upgrade when your content
-            engine starts moving faster.
+          <p className="text-lg leading-relaxed text-muted-foreground mb-10">
+            Join thousands of creators who repurposed their podcasts, videos, and articles into platform-native posts.
           </p>
-          <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
-            {["Private projects", "Usage limits", "Razorpay billing"].map((item) => (
-              <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur">
-                <p className="text-sm font-medium text-white">{item}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8 space-y-3">
+
+          <div className="space-y-4">
             {[
-              "Your next month of content is already inside one source.",
-              "Repurposing is translation, not copy-paste.",
-              "The best hook is hiding in the moment with tension.",
-            ].map((sample, index) => (
+              "Generate platform-native content automatically",
+              "Smart hook intelligence to grab attention",
+              "Visual previews for all major platforms",
+            ].map((feature, index) => (
               <motion.div
-                key={sample}
-                className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-200"
-                initial={{ opacity: 0, x: -12 }}
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.14 }}
+                transition={{ delay: 0.2 + index * 0.1, duration: 0.5 }}
+                className="flex items-center gap-3"
               >
-                {sample}
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary shrink-0">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-medium">{feature}</p>
               </motion.div>
             ))}
           </div>
-        </section>
+        </div>
 
-        <Card className="border-white/10 bg-slate-950/75 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
-                <LockKeyhole className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-xl font-medium tracking-normal">
-                  {isSignup ? "Create your workspace" : "Sign in to Recastr"}
-                </h2>
-                <p className="text-sm text-slate-400">
-                  {isSignup ? "Start with the free plan." : "Continue your content system."}
-                </p>
-              </div>
-            </div>
+        <div className="relative z-10 flex items-center gap-4 mt-12 bg-card/40 backdrop-blur-md rounded-2xl p-4 border border-white/5 w-fit">
+          <div className="flex -space-x-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={`h-10 w-10 rounded-full border-2 border-background bg-gradient-to-br from-violet-${300+i*100} to-cyan-${200+i*100} opacity-80`} />
+            ))}
+          </div>
+          <div>
+            <div className="flex text-amber-500">{"★".repeat(5)}</div>
+            <p className="text-xs font-medium text-muted-foreground">Trusted by 5,000+ creators</p>
+          </div>
+        </div>
+      </div>
 
-            <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+      {/* Right side - Auth Form */}
+      <div className="flex w-full lg:w-[45%] flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-24 relative z-10 bg-background">
+        <div className="mx-auto w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="mb-10 flex lg:hidden items-center justify-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-glow">
+              <Sparkles className="h-6 w-6" />
+            </span>
+          </div>
+
+          <div className="text-center lg:text-left mb-10">
+            <h2 className="text-3xl font-bold font-display tracking-tight mb-2">
+              {isSignup ? "Create an account" : "Welcome back"}
+            </h2>
+            <p className="text-muted-foreground">
+              {isSignup ? "Enter your details to start generating content." : "Enter your credentials to access your workspace."}
+            </p>
+          </div>
+
+          <div className="glass-panel p-8 rounded-[24px] border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
+
+            <form className="space-y-5 relative z-10" onSubmit={handleSubmit(onSubmit)}>
               {isSignup ? (
                 <div className="space-y-2">
-                  <Label className="text-slate-200" htmlFor="name">
+                  <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Name
                   </Label>
                   <Input
                     id="name"
                     autoComplete="name"
-                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                    placeholder="Abhinav"
+                    placeholder="John Doe"
+                    className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
                     {...register("name")}
                   />
-                  {errors.name ? <p className="text-xs text-red-300">{errors.name.message}</p> : null}
+                  {errors.name ? <p className="text-xs text-red-400">{errors.name.message}</p> : null}
                 </div>
               ) : null}
 
               <div className="space-y-2">
-                <Label className="text-slate-200" htmlFor="email">
+                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Email
                 </Label>
                 <Input
                   id="email"
                   type="email"
                   autoComplete="email"
-                  className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                  placeholder="you@company.com"
+                  placeholder="you@example.com"
+                  className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
                   {...register("email")}
                 />
-                {errors.email ? <p className="text-xs text-red-300">{errors.email.message}</p> : null}
+                {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
               </div>
 
               <div className="space-y-2">
-                <Label className="text-slate-200" htmlFor="password">
+                <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Password
                 </Label>
                 <Input
                   id="password"
                   type="password"
                   autoComplete={isSignup ? "new-password" : "current-password"}
-                  className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                  placeholder="Minimum 8 characters"
+                  placeholder="••••••••"
+                  className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
                   {...register("password")}
                 />
-                {errors.password ? <p className="text-xs text-red-300">{errors.password.message}</p> : null}
+                {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
               </div>
 
               <Button
-                className={cn("w-full bg-white text-slate-950 hover:bg-slate-200", isSubmitting && "opacity-80")}
+                className={cn("w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 font-bold shadow-glow text-base transition-all hover:scale-[1.02]", isSubmitting && "opacity-80 scale-100 hover:scale-100")}
                 disabled={isSubmitting}
                 type="submit"
               >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                 {isSignup ? "Create account" : "Sign in"}
-                {!isSubmitting ? <ArrowRight className="h-4 w-4" /> : null}
+                {!isSubmitting ? <ArrowRight className="ml-2 h-5 w-5" /> : null}
               </Button>
             </form>
 
-            <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
-              <span className="h-px flex-1 bg-white/10" />
-              or
-              <span className="h-px flex-1 bg-white/10" />
+            <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground uppercase tracking-widest font-semibold relative z-10">
+              <span className="h-px flex-1 bg-border/50" />
+              Or
+              <span className="h-px flex-1 bg-border/50" />
             </div>
 
             <Button
-              className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
+              className="w-full h-12 rounded-xl bg-card hover:bg-muted border border-white/10 font-semibold relative z-10 transition-colors"
               onClick={continueWithGoogle}
               type="button"
-              variant="secondary"
+              variant="outline"
             >
+              <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  fill="#EA4335"
+                />
+              </svg>
               Continue with Google
             </Button>
 
-            {canUseLocalAuthFallback() ? (
+            {canUseLocalAuthFallback ? (
               <Button
-                className="mt-3 w-full border-violet-300/20 bg-violet-400/10 text-violet-100 hover:bg-violet-400/15"
+                className="mt-4 w-full h-12 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-semibold relative z-10 transition-colors"
                 onClick={() => continueLocally("Continuing in local mode")}
                 type="button"
-                variant="secondary"
+                variant="outline"
               >
                 Continue in local mode
               </Button>
             ) : null}
+          </div>
 
-            <p className="mt-5 text-center text-sm text-slate-400">
-              {isSignup ? "Already have an account?" : "New to Recastr?"}{" "}
-              <Link
-                className="font-medium text-violet-200 hover:text-white"
-                href={`${isSignup ? "/login" : "/signup"}?next=${encodeURIComponent(nextPath)}`}
-              >
-                {isSignup ? "Sign in" : "Create account"}
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+          <p className="mt-8 text-center text-sm text-muted-foreground font-medium">
+            {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+            <Link
+              className="font-bold text-primary hover:text-primary/80 transition-colors underline decoration-primary/30 underline-offset-4"
+              href={`${isSignup ? "/login" : "/signup"}?next=${encodeURIComponent(nextPath)}`}
+            >
+              {isSignup ? "Sign in instead" : "Create one now"}
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );
@@ -315,11 +362,4 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 function normalizeNextPath(value: string | null, fallback: string) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
   return value;
-}
-
-function canUseLocalAuthFallback() {
-  return (
-    process.env.NODE_ENV !== "production" &&
-    (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-  );
 }

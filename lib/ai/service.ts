@@ -2,12 +2,29 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getOpenAIClient } from "@/lib/openai/client";
 import { prisma } from "@/lib/prisma/client";
-import { demoProjects } from "@/lib/demo/data";
+import { getStoredProject } from "@/lib/projects/store";
 import { summarySchema } from "@/lib/ai/schemas";
-import { isDemoMode } from "@/lib/env";
+import { env } from "@/lib/env";
 import type { Platform, SocialOutput, SourceSummary, Tone } from "@/lib/types";
 
 const generationSchema = z.record(z.string(), z.unknown());
+
+const fallbackSummary: SourceSummary = {
+  tldr: "A source has been analyzed into reusable ideas for platform-native content.",
+  takeaways: [
+    "Lead with the strongest source promise.",
+    "Translate the idea for each platform instead of copying it.",
+    "Keep the output specific, concise, and useful.",
+  ],
+  hooks: [
+    "One source can become a complete content system.",
+    "The strongest post is usually hiding in the highest-tension moment.",
+    "Repurpose the idea, not the exact wording.",
+  ],
+  detectedTone: "educational",
+  topics: ["content repurposing", "creator workflow"],
+  targetAudience: "Founders, creators, and content teams",
+};
 
 const platformPrompt: Record<Platform, string> = {
   TWITTER:
@@ -20,8 +37,6 @@ const platformPrompt: Record<Platform, string> = {
     "Generate one Facebook feed post, one poll with 4 options, and one image caption designed for comments and shares.",
   THREADS:
     "Generate one 5-post Threads sequence with conversational pacing, one standalone post, and one reply-bait question.",
-  TIKTOK:
-    "Generate one 30-second TikTok script, one caption with 8 hashtags, and one comment-bait question. Use fast visual beats.",
   YOUTUBE:
     "Generate one YouTube community post, one Shorts script, and three title ideas with clear viewer transformations.",
   CAROUSEL:
@@ -33,10 +48,10 @@ const platformPrompt: Record<Platform, string> = {
 };
 
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
-  if (isDemoMode() || !process.env.OPENAI_API_KEY) return demoProjects[0].summary;
+  if (!env.openaiKey) return fallbackSummary;
 
   const openai = getOpenAIClient();
-  if (!openai) return demoProjects[0].summary;
+  if (!openai) return fallbackSummary;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -56,7 +71,7 @@ export async function summarizeTranscript(transcript: string): Promise<SourceSum
   });
 
   const content = response.choices[0]?.message.content;
-  if (!content) return demoProjects[0].summary;
+  if (!content) return fallbackSummary;
   return summarySchema.parse(JSON.parse(content));
 }
 
@@ -69,18 +84,22 @@ export async function generatePlatformOutputs({
   platforms: Platform[];
   tone: Tone | string;
 }): Promise<SocialOutput[]> {
-  const demoProject = demoProjects.find((item) => item.id === projectId) ?? demoProjects[0];
-  if (isDemoMode() || !process.env.OPENAI_API_KEY) {
-    return demoProject.outputs
+  if (!env.openaiKey) {
+    const storedProject = getStoredProject(projectId);
+    const storedOutputs = storedProject?.outputs ?? [];
+    if (storedOutputs.length > 0) {
+      return storedOutputs
       .filter((output) => platforms.includes(output.platform))
       .map((output) => ({ ...output, tone, createdAt: new Date().toISOString() }));
+    }
+    return platforms.map((platform) => createFallbackOutput(projectId, platform, tone));
   }
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { summary: true },
   });
-  const summary = project?.summary ? summarySchema.parse(project.summary) : demoProject.summary;
+  const summary = project?.summary ? summarySchema.parse(project.summary) : getStoredProject(projectId)?.summary ?? fallbackSummary;
   const generated = await Promise.all(
     platforms.map((platform) => generatePlatformOutput(projectId, platform, tone, summary)),
   );
@@ -95,11 +114,10 @@ async function generatePlatformOutput(
 ): Promise<SocialOutput> {
   const openai = getOpenAIClient();
   if (!openai) {
-    const demo = demoProjects[0].outputs.find((output) => output.platform === platform);
-    if (demo) return { ...demo, projectId, tone, createdAt: new Date().toISOString() };
+    return createFallbackOutput(projectId, platform, tone);
   }
 
-  const response = await openai!.chat.completions.create({
+  const response = await openai.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.75,
     response_format: { type: "json_object" },
@@ -120,6 +138,32 @@ async function generatePlatformOutput(
 
   return {
     id: `output-${nanoid(10)}`,
+    projectId,
+    platform,
+    outputType: `${platform.toLowerCase()} pack`,
+    tone,
+    content,
+    originalContent: content,
+    approved: false,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function createFallbackOutput(
+  projectId: string,
+  platform: Platform,
+  tone: Tone | string,
+): SocialOutput {
+  const content = {
+    content:
+      "Lead with the strongest source promise, keep the copy specific, and adapt the structure so it feels native to the platform.",
+    hook_score: 8,
+    estimated_engagement: "Strong fit for educational creator audiences",
+    platform_tips: ["Open with tension", "Make one clear point", "Use a platform-native CTA"],
+  };
+
+  return {
+    id: `output-${platform.toLowerCase()}-${nanoid(10)}`,
     projectId,
     platform,
     outputType: `${platform.toLowerCase()} pack`,

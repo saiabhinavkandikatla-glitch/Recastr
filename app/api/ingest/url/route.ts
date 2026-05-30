@@ -5,10 +5,9 @@ import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
-import { getDemoProjectBySource } from "@/lib/demo-data";
 import { hash, ingestBlog } from "@/lib/ingest";
 import { prisma } from "@/lib/prisma/client";
-import { saveStoredProject } from "@/lib/projects/store";
+import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { assertIngestRateLimit } from "@/lib/rate-limit";
 import type { ContentPiece, Platform, Project, SourceSummary, ViralHook } from "@/lib/types";
@@ -57,7 +56,8 @@ export async function POST(request: Request) {
             "Demo mode imported public YouTube metadata. Paste transcript or turn demo mode off for full media processing.",
         });
       }
-      const project = getDemoProjectBySource(source === "youtube" ? "youtube" : "blog")!;
+      const project =
+        source === "youtube" ? getStoredProject("demo-ai-youtube")! : getStoredProject("demo-marketing-blog")!;
       await consumeCredits(user);
       return NextResponse.json({
         projectId: project.id,

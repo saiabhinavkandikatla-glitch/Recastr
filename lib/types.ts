@@ -8,7 +8,6 @@ export type Platform =
   | "INSTAGRAM"
   | "FACEBOOK"
   | "THREADS"
-  | "TIKTOK"
   | "YOUTUBE"
   | "CAROUSEL"
   | "COMMUNITY"

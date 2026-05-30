@@ -6,13 +6,31 @@ import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { ingestTextSchema } from "@/lib/ai/schemas";
 import { apiError } from "@/lib/api/response";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
-import { defaultSummary, getDemoProjectBySource } from "@/lib/demo/data";
 import { summarizeTranscript } from "@/lib/ai/service";
 import { prisma } from "@/lib/prisma/client";
+import { getStoredProject } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { assertIngestRateLimit } from "@/lib/rate-limit";
+import type { SourceSummary } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+const defaultSummary: SourceSummary = {
+  tldr: "A pasted source is ready for hook extraction and platform-native content.",
+  takeaways: [
+    "Start with the clearest promise in the source.",
+    "Turn the best lesson into multiple platform-native angles.",
+    "Keep each output specific to the audience and format.",
+  ],
+  hooks: [
+    "One source can become a complete content system.",
+    "The best post is usually hiding in the strongest tension point.",
+    "Repurpose the idea, not the exact wording.",
+  ],
+  detectedTone: "educational",
+  topics: ["content repurposing", "creator workflow"],
+  targetAudience: "Founders, creators, and content teams",
+};
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +39,7 @@ export async function POST(request: Request) {
     await requireCredits(user);
 
     if (process.env.RECASTR_DEMO_MODE === "true") {
-      const project = getDemoProjectBySource("text")!;
+      const project = getStoredProject("demo-founder-podcast")!;
       await consumeCredits(user);
       return NextResponse.json({
         projectId: project.id,

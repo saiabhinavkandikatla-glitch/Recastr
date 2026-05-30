@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { HookCard } from "@/components/ui/hook-card";
 import { getCurrentUser } from "@/lib/current-user";
-import { demoProjects, getProject } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
+import type { DbProjectWithContent } from "@/lib/projects/serialize";
 import type { Project } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export default async function HooksPage({ params }: { params: { id: string } }) 
   if (!project) notFound();
 
   return (
-    <AppShell projects={demoProjects} title="Viral hooks" sourceBadge={project.title} user={user}>
+    <AppShell projects={[]} title="Viral hooks" sourceBadge={project.title} user={user}>
       <div className="space-y-6">
         <div className="rounded-[28px] border bg-card/80 p-6 shadow-soft">
           <p className="text-sm text-muted-foreground">Viral hook intelligence</p>
@@ -32,17 +32,24 @@ export default async function HooksPage({ params }: { params: { id: string } }) 
 }
 
 async function findProject(id: string, userId?: string): Promise<Project | null> {
-  const demoProject = getProject(id);
-  if (demoProject) return demoProject;
   if (!userId) return null;
 
+  const timeout = new Promise<DbProjectWithContent | null>((_, reject) =>
+    setTimeout(() => reject(new Error("DB Timeout")), 2000),
+  );
   try {
-    const project = await prisma.project.findFirst({
-      where: { id, userId },
-      include: { contents: true, hooks: true },
-    });
-    return project ? serializeProject(project) : null;
+    const project = await Promise.race<DbProjectWithContent | null>([
+      prisma.project.findFirst({
+        where: { id, userId },
+        include: { contents: true, hooks: true },
+      }),
+      timeout
+    ]);
+
+    if (project) return serializeProject(project);
+    throw new Error("Not found in DB");
   } catch {
-    return null;
+    const { getStoredProject } = await import("@/lib/projects/store");
+    return getStoredProject(id) || null;
   }
 }

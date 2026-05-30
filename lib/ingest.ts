@@ -2,13 +2,13 @@ import crypto from "node:crypto";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
-import { getDemoProjectBySource } from "@/lib/demo/data";
 import { summarizeTranscript } from "@/lib/ai/service";
+import { getStoredProject } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
 export async function ingestYoutube(url: string): Promise<Project> {
   if (process.env.RECASTR_DEMO_MODE === "true") {
-    return getDemoProjectBySource("youtube")!;
+    return getStoredProject("demo-ai-youtube")!;
   }
 
   try {
@@ -28,11 +28,11 @@ export async function ingestYoutube(url: string): Promise<Project> {
 
 export async function ingestPodcast(fileName = "podcast-upload.mp3"): Promise<Project> {
   if (process.env.RECASTR_DEMO_MODE === "true") {
-    return getDemoProjectBySource("podcast")!;
+    return getStoredProject("demo-founder-podcast")!;
   }
 
   return {
-    ...getDemoProjectBySource("podcast")!,
+    ...getStoredProject("demo-founder-podcast")!,
     id: `podcast-${hash(fileName).slice(0, 10)}`,
     title: fileName.replace(/\.[^.]+$/, ""),
     createdAt: new Date().toISOString(),
@@ -41,7 +41,7 @@ export async function ingestPodcast(fileName = "podcast-upload.mp3"): Promise<Pr
 
 export async function ingestBlog(url: string): Promise<Project> {
   if (process.env.RECASTR_DEMO_MODE === "true") {
-    return getDemoProjectBySource("blog")!;
+    return getStoredProject("demo-marketing-blog")!;
   }
 
   const response = await axios.get(url, {
@@ -81,7 +81,7 @@ export async function ingestBlog(url: string): Promise<Project> {
   }
 
   return {
-    ...getDemoProjectBySource("blog")!,
+    ...getStoredProject("demo-marketing-blog")!,
     id: `blog-${hash(url).slice(0, 10)}`,
     title,
     sourceUrl: url,

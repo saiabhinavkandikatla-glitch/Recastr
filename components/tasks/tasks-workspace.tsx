@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format, isSameDay, isThisWeek, isToday } from "date-fns";
-import { CalendarClock, CheckCircle2, Clock3, Copy, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { CalendarClock, CheckCircle2, Clock3, Copy, Trash2, LayoutList, CalendarDays, History } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,53 +84,79 @@ export function TasksWorkspace({
     toast.success("Retry queued");
   }
 
+  const tabs: Array<{ id: TaskTab; label: string; icon: ReactNode }> = [
+    { id: "queue", label: "Content Queue", icon: <LayoutList className="h-4 w-4" /> },
+    { id: "scheduled", label: "Scheduled", icon: <CalendarDays className="h-4 w-4" /> },
+    { id: "history", label: "History", icon: <History className="h-4 w-4" /> },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-medium">Tasks & Queue</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your scheduled posts, content queue, and publishing history.
+        <h1 className="text-3xl font-bold font-display tracking-tight flex items-center gap-2">
+          <CheckCircle2 className="h-7 w-7 text-primary" />
+          Tasks & Queue
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Manage your publishing pipeline, schedule approved content, and review post history.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border bg-card p-2">
-        {(["queue", "scheduled", "history"] as const).map((item) => (
+      <div className="flex w-full md:w-auto p-1 bg-card/40 backdrop-blur-md rounded-[16px] border border-white/5 relative z-10 glass-panel">
+        {tabs.map((item) => (
           <button
-            key={item}
-            type="button"
-            onClick={() => setTab(item)}
+            key={item.id}
+            onClick={() => setTab(item.id)}
             className={cn(
-              "h-9 rounded-lg px-4 text-sm font-medium capitalize text-muted-foreground transition",
-              tab === item && "bg-[var(--violet)] text-white",
+              "relative flex-1 md:flex-none flex items-center justify-center gap-2 h-10 px-6 rounded-[12px] text-sm font-medium transition-colors z-10",
+              tab === item.id ? "text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
             )}
           >
-            {item === "queue" ? "Queue" : item}
+            {tab === item.id && (
+              <motion.div
+                layoutId="task-tab-indicator"
+                className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm -z-10"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              />
+            )}
+            {item.icon}
+            {item.label}
           </button>
         ))}
       </div>
 
-      {tab === "queue" ? (
-        <QueueTab items={queueItems} onSchedule={scheduleQueued} />
-      ) : null}
-
-      {tab === "scheduled" ? (
-        <ScheduledTab
-          contentIndex={contentIndex}
-          filter={scheduledFilter}
-          posts={scheduledItems}
-          onCancel={cancelScheduled}
-          onFilterChange={setScheduledFilter}
-        />
-      ) : null}
-
-      {tab === "history" ? (
-        <HistoryTab
-          contentIndex={contentIndex}
-          posts={historyItems}
-          onDelete={(id) => setLocalScheduled((current) => current.filter((post) => post.id !== id))}
-          onRetry={retryPost}
-        />
-      ) : null}
+      <div className="min-h-[400px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {tab === "queue" && (
+              <QueueTab items={queueItems} onSchedule={scheduleQueued} />
+            )}
+            {tab === "scheduled" && (
+              <ScheduledTab
+                contentIndex={contentIndex}
+                filter={scheduledFilter}
+                posts={scheduledItems}
+                onCancel={cancelScheduled}
+                onFilterChange={setScheduledFilter}
+              />
+            )}
+            {tab === "history" && (
+              <HistoryTab
+                contentIndex={contentIndex}
+                posts={historyItems}
+                onDelete={(id) => setLocalScheduled((current) => current.filter((post) => post.id !== id))}
+                onRetry={retryPost}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -144,26 +171,34 @@ function QueueTab({
   if (items.length === 0) {
     return (
       <EmptyState
-        actionHref="/projects/demo-founder-podcast"
-        actionLabel="Open a project"
-        headline="No approved content yet"
-        icon={<CheckCircle2 className="h-10 w-10 text-muted-foreground" />}
-        subline="Approve content inside a project to move it into your scheduling queue."
+        actionHref="/dashboard"
+        actionLabel="Go to Dashboard"
+        headline="Queue is empty"
+        icon={<CheckCircle2 className="h-8 w-8 text-primary" />}
+        subline="Approve content inside any project to move it into your scheduling queue."
       />
     );
   }
 
   return (
-    <section className="space-y-3">
-      <p className="text-sm text-muted-foreground">Approved content waiting to be scheduled.</p>
-      {items.map(({ content, project }) => (
-        <QueueCard
-          content={content}
-          key={content.id}
-          onSchedule={(date) => onSchedule(content, project, date)}
-          project={project}
-        />
-      ))}
+    <section className="space-y-4">
+      <p className="text-sm text-muted-foreground font-medium">Approved content waiting to be scheduled.</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        {items.map(({ content, project }, index) => (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.05 }}
+            key={content.id}
+          >
+            <QueueCard
+              content={content}
+              onSchedule={(date) => onSchedule(content, project, date)}
+              project={project}
+            />
+          </motion.div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -181,55 +216,71 @@ function QueueCard({
   const [dateValue, setDateValue] = useState(defaultScheduleValue());
 
   return (
-    <article className="rounded-2xl border bg-card p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <PlatformDot platform={content.platform} />
-        <span className="text-sm font-medium">{platformLabel(content.platform)}</span>
-        <Badge variant="muted">{content.contentType}</Badge>
-        <span className="text-xs text-muted-foreground">From: {project.title}</span>
+    <article className="h-full flex flex-col rounded-[20px] border border-white/5 bg-card/40 backdrop-blur-md p-5 glass-card shadow-lg hover:shadow-xl hover:border-primary/20 transition-all">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border/50 pb-4">
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-[8px] text-white shadow-sm", platformClass(content.platform))}>
+          <span className="text-[14px] font-bold">{platformLabel(content.platform).charAt(0)}</span>
+        </div>
+        <div>
+          <span className="text-sm font-bold text-foreground block">{platformLabel(content.platform)}</span>
+          <span className="text-xs font-medium text-muted-foreground">{project.title}</span>
+        </div>
+        <Badge variant="muted" className="ml-auto bg-primary/10 text-primary border-0">{content.contentType}</Badge>
       </div>
-      <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm leading-6">{truncate(content.body, 220)}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => setScheduleOpen((current) => !current)} size="sm">
-          <CalendarClock className="h-4 w-4" />
-          Schedule this
+
+      <p className="mt-4 flex-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{truncate(content.body, 180)}</p>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <Button onClick={() => setScheduleOpen((current) => !current)} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-glow">
+          <CalendarClock className="mr-2 h-4 w-4" />
+          Schedule
         </Button>
         <Button
           onClick={() => {
             void navigator.clipboard.writeText(content.body);
             toast.success("Copied to clipboard");
           }}
-          size="sm"
+          size="icon"
           variant="secondary"
+          className="rounded-xl bg-muted/50 hover:bg-muted"
         >
           <Copy className="h-4 w-4" />
-          Copy
         </Button>
-        <Button size="sm" variant="ghost">
+        <Button size="icon" variant="ghost" className="rounded-xl ml-auto text-muted-foreground hover:text-destructive">
           <Trash2 className="h-4 w-4" />
-          Remove
         </Button>
       </div>
-      {scheduleOpen ? (
-        <div className="mt-4 flex flex-col gap-2 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center">
-          <input
-            aria-label="Schedule date and time"
-            className="h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--violet)]"
-            type="datetime-local"
-            value={dateValue}
-            onChange={(event) => setDateValue(event.target.value)}
-          />
-          <Button
-            onClick={() => {
-              onSchedule(new Date(dateValue));
-              setScheduleOpen(false);
-            }}
-            size="sm"
+
+      <AnimatePresence>
+        {scheduleOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-4 overflow-hidden"
           >
-            Confirm schedule
-          </Button>
-        </div>
-      ) : null}
+            <div className="flex flex-col gap-2 rounded-[14px] border border-white/5 bg-background/50 p-3 sm:flex-row sm:items-center">
+              <input
+                aria-label="Schedule date and time"
+                className="flex-1 h-9 rounded-lg border-0 bg-muted/30 px-3 text-sm outline-none focus:ring-2 focus:ring-primary/50"
+                type="datetime-local"
+                value={dateValue}
+                onChange={(event) => setDateValue(event.target.value)}
+              />
+              <Button
+                onClick={() => {
+                  onSchedule(new Date(dateValue));
+                  setScheduleOpen(false);
+                }}
+                size="sm"
+                className="rounded-lg"
+              >
+                Confirm
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </article>
   );
 }
@@ -250,15 +301,15 @@ function ScheduledTab({
   const grouped = groupByDay(posts);
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Posts scheduled to go out.</p>
-        <div className="flex flex-wrap gap-2">
+    <section className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-2 px-4 rounded-[16px] border border-white/5">
+        <p className="text-sm font-medium text-muted-foreground">Posts scheduled to go out.</p>
+        <div className="flex flex-wrap gap-1 bg-card/50 p-1 rounded-xl border border-white/5">
           {(["upcoming", "today", "week", "all"] as const).map((item) => (
             <button
               className={cn(
-                "h-8 rounded-full border px-3 text-xs font-medium text-muted-foreground transition hover:text-foreground",
-                filter === item && "border-[var(--violet)] bg-[var(--violet)] text-white",
+                "h-7 rounded-[8px] px-3 text-xs font-medium capitalize transition-colors",
+                filter === item ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
               key={item}
               onClick={() => onFilterChange(item)}
@@ -273,39 +324,48 @@ function ScheduledTab({
       {posts.length === 0 ? (
         <EmptyState
           headline="Nothing scheduled yet"
-          icon={<Clock3 className="h-10 w-10 text-muted-foreground" />}
+          icon={<Clock3 className="h-8 w-8 text-amber-500" />}
           subline="Head to Queue and schedule approved content."
         />
       ) : (
-        Object.entries(grouped).map(([day, dayPosts]) => (
-          <div className="rounded-2xl border bg-card" key={day}>
-            <div className="border-b px-4 py-3">
-              <p className="text-sm font-medium">{day}</p>
+        Object.entries(grouped).map(([day, dayPosts], index) => (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="rounded-[20px] border border-white/5 glass-card bg-card/40 overflow-hidden shadow-lg"
+            key={day}
+          >
+            <div className="border-b border-white/5 bg-muted/20 px-5 py-3">
+              <p className="text-sm font-bold text-foreground">{day}</p>
             </div>
-            <div className="divide-y">
+            <div className="divide-y divide-white/5">
               {dayPosts.map((post) => {
                 const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
                 return (
-                  <div className="grid gap-3 px-4 py-3 md:grid-cols-[82px_150px_1fr_auto] md:items-center" key={post.id}>
-                    <span className="font-mono text-xs text-muted-foreground">
+                  <div className="grid gap-4 px-5 py-4 md:grid-cols-[100px_140px_1fr_auto] md:items-center hover:bg-muted/10 transition-colors" key={post.id}>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-background/50 px-2.5 py-1 font-mono text-xs font-semibold border border-white/5">
+                      <Clock3 className="h-3 w-3 text-muted-foreground" />
                       {format(new Date(post.publishAt), "h:mma")}
                     </span>
-                    <span className="flex items-center gap-2 text-sm font-medium">
-                      <PlatformDot platform={post.platform} />
+                    <span className="flex items-center gap-2 text-sm font-bold">
+                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-[6px] text-white", platformClass(post.platform))}>
+                        <span className="text-[10px] font-bold">{platformLabel(post.platform).charAt(0)}</span>
+                      </div>
                       {platformLabel(post.platform)}
                     </span>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {content ? truncate(content.body, 90) : post.title}
+                    <p className="truncate text-sm text-muted-foreground font-medium">
+                      {content ? truncate(content.body, 100) : post.title}
                     </p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="secondary">Edit</Button>
-                      <Button onClick={() => onCancel(post.id)} size="sm" variant="ghost">Cancel</Button>
+                      <Button size="sm" variant="secondary" className="rounded-lg h-8">Edit</Button>
+                      <Button onClick={() => onCancel(post.id)} size="sm" variant="ghost" className="rounded-lg h-8 text-muted-foreground hover:text-destructive">Cancel</Button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         ))
       )}
     </section>
@@ -327,52 +387,58 @@ function HistoryTab({
     return (
       <EmptyState
         headline="No publishing history yet"
-        icon={<Clock3 className="h-10 w-10 text-muted-foreground" />}
+        icon={<History className="h-8 w-8 text-muted-foreground" />}
         subline="Published, failed, and cancelled posts will appear here."
       />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card">
-      <div className="grid grid-cols-[150px_120px_1fr_110px_130px] gap-3 border-b px-4 py-3 text-xs font-medium text-muted-foreground">
+    <div className="overflow-hidden rounded-[20px] border border-white/5 glass-card bg-card/40 shadow-lg">
+      <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 border-b border-white/5 bg-muted/20 px-5 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
         <span>Date & time</span>
         <span>Platform</span>
         <span>Content preview</span>
         <span>Status</span>
         <span>Actions</span>
       </div>
-      {posts.map((post) => {
-        const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
-        return (
-          <div className="grid grid-cols-[150px_120px_1fr_110px_130px] gap-3 border-b px-4 py-3 text-sm last:border-b-0" key={post.id}>
-            <span className="font-mono text-xs text-muted-foreground">{format(new Date(post.publishAt), "MMM d, h:mma")}</span>
-            <span className="flex items-center gap-2">
-              <PlatformDot platform={post.platform} />
-              {platformLabel(post.platform)}
-            </span>
-            <span className="truncate text-muted-foreground">{content ? truncate(content.body, 88) : post.title}</span>
-            <StatusBadge status={post.status} />
-            <span className="flex gap-2">
-              {post.status === "FAILED" ? (
-                <button className="text-[var(--violet)]" onClick={() => onRetry(post.id)} type="button">
-                  Retry
-                </button>
-              ) : (
-                <button className="text-muted-foreground" type="button">View</button>
-              )}
-              <button className="text-muted-foreground" onClick={() => onDelete(post.id)} type="button">
-                Delete
-              </button>
-            </span>
-          </div>
-        );
-      })}
-      <div className="flex items-center justify-between px-4 py-3 text-sm text-muted-foreground">
-        <span>Showing {posts.length} rows</span>
+      <div className="divide-y divide-white/5">
+        {posts.map((post) => {
+          const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
+          return (
+            <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 px-5 py-4 text-sm hover:bg-muted/10 transition-colors items-center" key={post.id}>
+              <span className="font-mono text-xs font-medium text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-white/5 w-max">
+                {format(new Date(post.publishAt), "MMM d, h:mma")}
+              </span>
+              <span className="flex items-center gap-2 font-bold text-xs">
+                <div className={cn("flex h-6 w-6 items-center justify-center rounded-[6px] text-white", platformClass(post.platform))}>
+                  <span className="text-[10px] font-bold">{platformLabel(post.platform).charAt(0)}</span>
+                </div>
+                {platformLabel(post.platform)}
+              </span>
+              <span className="truncate text-muted-foreground font-medium">{content ? truncate(content.body, 88) : post.title}</span>
+              <StatusBadge status={post.status} />
+              <span className="flex items-center gap-2">
+                {post.status === "FAILED" ? (
+                  <Button size="sm" variant="ghost" className="h-8 text-primary hover:text-primary hover:bg-primary/10" onClick={() => onRetry(post.id)}>
+                    Retry
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" className="h-8 text-muted-foreground">View</Button>
+                )}
+                <Button size="sm" variant="ghost" className="h-8 text-muted-foreground hover:text-destructive px-2" onClick={() => onDelete(post.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between border-t border-white/5 px-5 py-4 text-sm text-muted-foreground bg-card/20">
+        <span className="font-medium">Showing {posts.length} rows</span>
         <div className="flex gap-2">
-          <Button disabled size="sm" variant="secondary">Previous</Button>
-          <Button disabled size="sm" variant="secondary">Next</Button>
+          <Button disabled size="sm" variant="secondary" className="rounded-xl h-8">Previous</Button>
+          <Button disabled size="sm" variant="secondary" className="rounded-xl h-8">Next</Button>
         </div>
       </div>
     </div>
@@ -393,12 +459,12 @@ function EmptyState({
   subline: string;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed bg-card p-10 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">{icon}</div>
-      <h2 className="mt-5 text-lg font-medium">{headline}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{subline}</p>
+    <div className="rounded-[24px] border border-dashed border-white/10 bg-card/20 p-12 text-center glass-panel">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/5 text-primary shadow-glow mb-6">{icon}</div>
+      <h2 className="text-2xl font-bold font-display">{headline}</h2>
+      <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">{subline}</p>
       {actionHref && actionLabel ? (
-        <Button asChild className="mt-5">
+        <Button asChild size="lg" className="mt-8 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105">
           <Link href={actionHref}>{actionLabel}</Link>
         </Button>
       ) : null}
@@ -407,28 +473,24 @@ function EmptyState({
 }
 
 function StatusBadge({ status }: { status: ScheduledPost["status"] }) {
-  if (status === "PUBLISHED") return <Badge variant="success">Published</Badge>;
-  if (status === "FAILED") return <Badge variant="danger">Failed</Badge>;
-  if (status === "CANCELLED") return <Badge variant="muted">Cancelled</Badge>;
-  return <Badge variant="warning">Scheduled</Badge>;
-}
-
-function PlatformDot({ platform }: { platform: Platform }) {
-  return <span className={cn("h-2 w-2 rounded-full", platformClass(platform))} />;
+  if (status === "PUBLISHED") return <Badge variant="success" className="bg-green-500/20 text-green-500 border-0">Published</Badge>;
+  if (status === "FAILED") return <Badge variant="danger" className="bg-red-500/20 text-red-500 border-0">Failed</Badge>;
+  if (status === "CANCELLED") return <Badge variant="muted" className="border-0">Cancelled</Badge>;
+  return <Badge variant="warning" className="bg-amber-500/20 text-amber-500 border-0">Scheduled</Badge>;
 }
 
 function platformClass(platform: Platform) {
-  if (platform === "TWITTER") return "bg-[var(--twitter)]";
-  if (platform === "LINKEDIN") return "bg-[var(--linkedin)]";
-  if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "bg-[var(--instagram)]";
-  return "bg-[var(--youtube)]";
+  if (platform === "TWITTER") return "bg-[var(--platform-twitter)]";
+  if (platform === "LINKEDIN") return "bg-[var(--platform-linkedin)]";
+  if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "bg-[var(--platform-instagram)]";
+  return "bg-[var(--platform-youtube)]";
 }
 
 function platformLabel(platform: Platform) {
   if (platform === "TWITTER") return "Twitter / X";
   if (platform === "LINKEDIN") return "LinkedIn";
   if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "Instagram";
-  return "YouTube Shorts";
+  return "YouTube";
 }
 
 function buildContentIndex(projects: Project[]) {

@@ -1,8 +1,6 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
 import { getCurrentUser } from "@/lib/current-user";
-import { demoProjects, demoScheduledPosts } from "@/lib/demo-data";
-import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
 import type { Platform, PostStatus, Project, ScheduledPost } from "@/lib/types";
@@ -22,7 +20,7 @@ async function loadScheduleData(userId?: string): Promise<{
   projects: Project[];
   scheduledPosts: ScheduledPost[];
 }> {
-  if (isDemoMode()) return { projects: demoProjects, scheduledPosts: demoScheduledPosts };
+
   if (!userId) return { projects: [], scheduledPosts: [] };
 
   const [projects, scheduledPosts] = await Promise.all([

@@ -28,7 +28,7 @@ const tones: Array<{ id: LocalTone; label: string }> = [
   { id: "entertaining", label: "Entertaining" },
 ];
 
-export function IngestFlow({ demoProjects }: { demoProjects: Project[] }) {
+export function IngestFlow() {
   const [phase, setPhase] = useState<FlowPhase>("idle");
   const [url, setUrl] = useState("");
   const [rawText, setRawText] = useState("");
@@ -143,21 +143,7 @@ export function IngestFlow({ demoProjects }: { demoProjects: Project[] }) {
           placeholder="Paste transcript, notes, or article text..."
           value={rawText}
         />
-        <div className="mt-4 flex flex-wrap gap-2">
-          {demoProjects.map((demo) => (
-            <button
-              className="rounded-full border px-3 py-1.5 text-xs text-muted-foreground transition hover:border-[var(--violet)] hover:text-foreground"
-              key={demo.id}
-              onClick={() => {
-                setUrl(demo.sourceUrl ?? `demo://${demo.id}`);
-                void analyze(demo.sourceUrl ?? `demo://${demo.id}`);
-              }}
-              type="button"
-            >
-              {demo.title}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       {phase === "analyzing" ? (

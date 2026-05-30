@@ -33,7 +33,7 @@ export const HookSidebar = memo(function HookSidebar({
   onSelect,
 }: HookSidebarProps) {
   return (
-    <aside className="w-full shrink-0 min-[700px]:w-[325px]">
+    <aside className="w-full shrink-0 min-[700px]:sticky min-[700px]:top-20 min-[700px]:w-[240px]">
       <div className="mb-3 px-1">
         <p className="text-[13px] font-medium text-muted-foreground">
           Viral hooks
@@ -52,7 +52,7 @@ export const HookSidebar = memo(function HookSidebar({
           onClick={() => onSelect(null)}
           className={cn(
             "w-full rounded-[8px] border bg-card px-3 py-2 text-left text-[15px] font-medium text-card-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
-            selectedHookId === null && "border-[var(--violet)] bg-[var(--violet-light)]/40",
+            selectedHookId === null && "border-[var(--violet)] border-l-[3px] bg-[var(--violet-light)]/40",
           )}
         >
           All content ({contentCount})
@@ -69,7 +69,7 @@ export const HookSidebar = memo(function HookSidebar({
               onClick={() => onSelect(hook.id)}
               className={cn(
                 "group relative w-full overflow-hidden rounded-[9px] border bg-card p-[15px] text-left transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
-                selected && "border-[var(--violet)] bg-[var(--violet-light)]/35",
+                selected && "border-[var(--violet)] border-l-[3px] bg-[var(--violet-light)]/35",
               )}
             >
               <div className="flex items-center justify-between gap-3">

@@ -51,11 +51,6 @@ const platformAccent: Record<Platform, { bar: string; ring: string; badge: strin
     ring: "ring-zinc-500/70",
     badge: "bg-zinc-950/10 text-zinc-800 ring-zinc-700/20 dark:text-zinc-100",
   },
-  TIKTOK: {
-    bar: "from-cyan-400 via-zinc-950 to-rose-500",
-    ring: "ring-zinc-500/70",
-    badge: "bg-zinc-950/10 text-zinc-800 ring-zinc-700/20 dark:text-zinc-100",
-  },
   YOUTUBE: {
     bar: "from-red-500 via-rose-500 to-orange-400",
     ring: "ring-red-500/70",

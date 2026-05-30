@@ -23,9 +23,7 @@ const localDevUser: AuthenticatedUser = {
 };
 
 export async function getRequestUser(request: Request): Promise<AuthenticatedUser> {
-  const demoMode =
-    process.env.RECASTR_DEMO_MODE === "true" &&
-    request.headers.get("x-demo-mode") === "true";
+  const demoMode = process.env.RECASTR_DEMO_MODE === "true";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

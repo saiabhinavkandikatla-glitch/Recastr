@@ -1,5 +1,4 @@
 import { ensureUserRecord, type AuthenticatedUser } from "@/lib/auth";
-import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { isLocalDatabaseSetupError } from "@/lib/prisma/errors";
 
@@ -11,7 +10,7 @@ export class CreditExhaustedError extends Error {
 }
 
 export async function requireCredits(user: AuthenticatedUser, amount = 1) {
-  if (isDemoMode()) return { credits: 999, used: 0 };
+
   await ensureUserRecord(user);
   const record = await prisma.userCredit
     .upsert({
@@ -30,7 +29,7 @@ export async function requireCredits(user: AuthenticatedUser, amount = 1) {
 }
 
 export async function consumeCredits(user: AuthenticatedUser, amount = 1) {
-  if (isDemoMode()) return { credits: 999, used: 0 };
+
   await requireCredits(user, amount);
   return prisma.userCredit
     .update({

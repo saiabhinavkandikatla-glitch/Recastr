@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Search, UserCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bell, Keyboard, Search, Settings, UserCircle, ChevronRight } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -15,84 +16,170 @@ export function TopBar({
   title,
   sourceBadge,
   user,
+  onOpenCommandPalette,
 }: {
   title: string;
   sourceBadge?: string;
   user?: CurrentUser | null;
+  onOpenCommandPalette: () => void;
 }) {
   const pathname = usePathname();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const breadcrumb = useMemo(() => makeBreadcrumb(pathname, title, sourceBadge), [pathname, sourceBadge, title]);
+  const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSearchOpen(true);
-      }
+    function onPointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-[var(--topbar-h)] items-center gap-4 border-b bg-background/92 px-4 backdrop-blur-sm sm:px-6">
+    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/5 bg-background/60 px-4 backdrop-blur-xl sm:px-6">
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2 text-sm">
-          {breadcrumb.map((item, index) => (
-            <span key={`${item}-${index}`} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <span className="text-muted-foreground">/</span> : null}
-              <span className={cn(index === breadcrumb.length - 1 ? "truncate font-medium text-foreground" : "text-muted-foreground")}>
-                {item}
-              </span>
-            </span>
-          ))}
+        <div className="flex min-w-0 items-center text-[14px]">
+          <AnimatePresence mode="popLayout">
+            {breadcrumb.map((item, index) => (
+              <motion.div
+                key={`${item}-${index}`}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                className="flex items-center"
+              >
+                {index > 0 && <ChevronRight className="mx-2 h-4 w-4 text-muted-foreground/50" />}
+                <span className={cn(
+                  "truncate transition-colors",
+                  index === breadcrumb.length - 1
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                )}>
+                  {item}
+                </span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
-        {sourceBadge ? <p className="hidden truncate text-xs text-muted-foreground sm:block">{sourceBadge}</p> : null}
+        {sourceBadge && (
+          <motion.p
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="hidden truncate text-xs font-medium text-muted-foreground sm:block mt-0.5"
+          >
+            {sourceBadge}
+          </motion.p>
+        )}
       </div>
 
       <div className="hidden items-center md:flex">
-        <label
-          className={cn(
-            "flex h-9 items-center overflow-hidden rounded-lg border bg-background transition-all duration-200",
-            searchOpen ? "w-60" : "w-36",
-          )}
+        <button
+          onClick={onOpenCommandPalette}
+          className="group flex h-9 w-64 items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-card/50 px-3 text-sm text-muted-foreground transition-all duration-200 hover:border-primary/50 hover:bg-card hover:ring-2 hover:ring-primary/20"
         >
-          <Search className="ml-3 h-4 w-4 shrink-0 text-muted-foreground" />
-          <input
-            aria-label="Global search"
-            className="h-full min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
-            onBlur={() => setSearchOpen(false)}
-            onFocus={() => setSearchOpen(true)}
-            placeholder="Search"
-          />
-          <kbd className="mr-2 rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">⌘K</kbd>
-        </label>
+          <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-primary" />
+          <span className="flex-1 text-left">Search or jump to...</span>
+          <kbd className="inline-flex h-5 items-center gap-1 rounded border border-border/50 bg-background px-1.5 font-mono text-[10px] font-medium">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button aria-label="Notifications" className="relative" size="icon" variant="ghost">
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[var(--violet)]" />
+      <div className="flex items-center gap-2 lg:gap-3">
+        <Button
+          aria-label="Notifications"
+          size="icon"
+          variant="ghost"
+          className="relative h-9 w-9 rounded-full hover:bg-muted/80"
+        >
+          <Bell className="h-[18px] w-[18px] text-muted-foreground transition-colors hover:text-foreground" />
+          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 ring-2 ring-background" />
         </Button>
-        <ThemeToggle />
+
+        <div className="hidden sm:block">
+          <ThemeToggle />
+        </div>
+
         {user ? (
-          <div className="hidden items-center gap-2 rounded-full border bg-card px-2 py-1 text-sm md:flex">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--violet)] text-xs font-medium text-white">
-              {(user.name ?? user.email).slice(0, 1).toUpperCase()}
-            </div>
-            <span className="max-w-32 truncate">{user.name ?? user.email}</span>
-            <Badge variant="muted">{user.plan}</Badge>
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              aria-expanded={menuOpen}
+              aria-label="Open user menu"
+              onClick={() => setMenuOpen((current) => !current)}
+              className="flex h-9 items-center gap-2 rounded-full border border-border/50 bg-card/50 pl-1 pr-3 text-sm transition-all hover:bg-card hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-semibold text-white shadow-sm">
+                {displayName.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="hidden max-w-32 truncate font-medium md:inline">{displayName}</span>
+            </button>
+
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 top-12 w-64 overflow-hidden rounded-[16px] border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl origin-top-right"
+                >
+                  <div className="border-b border-border/50 p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-sm font-bold text-white shadow-sm">
+                        {displayName.slice(0, 1).toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+                    <Badge className="mt-3 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20" variant="muted">
+                      {user.plan} Plan
+                    </Badge>
+                  </div>
+                  <div className="p-2 space-y-1">
+                    <Link
+                      href="/settings"
+                      className="flex h-9 items-center gap-2.5 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Profile settings
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onOpenCommandPalette();
+                      }}
+                      className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Keyboard className="h-4 w-4" />
+                      Command menu
+                      <kbd className="ml-auto inline-flex h-5 items-center rounded border border-border/50 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                        ⌘K
+                      </kbd>
+                    </button>
+                  </div>
+                  <div className="border-t border-border/50 p-2 bg-muted/20">
+                    <LogoutButton />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
             <Link href="/login">
-              <UserCircle className="h-4 w-4" />
+              <UserCircle className="mr-2 h-4 w-4" />
               Sign in
             </Link>
           </Button>
         )}
-        {user ? <LogoutButton /> : null}
       </div>
     </header>
   );
@@ -100,6 +187,7 @@ export function TopBar({
 
 function makeBreadcrumb(pathname: string, fallbackTitle: string, sourceBadge?: string) {
   if (pathname.startsWith("/projects/")) return ["Projects", sourceBadge ?? fallbackTitle];
+  if (pathname.startsWith("/projects")) return ["Projects"];
   if (pathname.startsWith("/schedule")) return ["Schedule"];
   if (pathname.startsWith("/tasks")) return ["Tasks & Queue"];
   if (pathname.startsWith("/settings")) return ["Settings"];

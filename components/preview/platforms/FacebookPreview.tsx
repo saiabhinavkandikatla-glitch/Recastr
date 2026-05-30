@@ -94,7 +94,7 @@ function FacebookAvatar() {
 function FacebookMedia({ content, dark }: { content: PreviewContent; dark: boolean }) {
   return (
     <div className={cn("grid aspect-[16/10] place-items-center border-y p-6 text-center", dark ? "border-[#3e4042] bg-[#111827]" : "border-[#ced0d4] bg-[#e7f3ff]")}>
-      <div className={cn("rounded-2xl border p-5", dark ? "border-white/10 bg-white/5" : "border-white bg-white/80")}>
+      <div className={cn("rounded-2xl border p-5", dark ? "border-[#3e4042] bg-[#242526]" : "border-[#dadde1] bg-white")}>
         <p className="text-[24px] font-bold leading-tight">{content.hook || "Repurpose one source into every channel"}</p>
         <p className="mt-3 text-[13px] text-[#65676b] dark:text-[#b0b3b8]">Image post preview</p>
       </div>

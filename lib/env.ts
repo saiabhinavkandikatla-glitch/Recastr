@@ -54,6 +54,10 @@ env.appUrl = env.NEXT_PUBLIC_APP_URL;
 env.openaiKey = env.OPENAI_API_KEY;
 env.redisUrl = env.REDIS_URL;
 
+export function isDemoMode() {
+  return env.demoMode;
+}
+
 if (process.env.NODE_ENV === "production") {
   const required = [
     ["NEXT_PUBLIC_SUPABASE_URL", env.NEXT_PUBLIC_SUPABASE_URL],
@@ -87,8 +91,4 @@ if (process.env.NODE_ENV === "production") {
         .join(", ")}`,
     );
   }
-}
-
-export function isDemoMode() {
-  return env.demoMode;
 }

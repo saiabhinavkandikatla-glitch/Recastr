@@ -98,7 +98,7 @@ function InstagramCarousel({ slides, dark }: { slides: string[]; dark: boolean }
   return (
     <div className={cn("relative aspect-square overflow-hidden", dark ? "bg-[#101010]" : "bg-[#f7f7f7]")}>
       <div className="absolute inset-0 grid place-items-center p-8 text-center">
-        <div className={cn("max-w-[80%] rounded-3xl border p-6", dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white")}>
+        <div className={cn("max-w-[80%] rounded-3xl border p-6", dark ? "border-[#363636] bg-[#1c1c1c]" : "border-[#dbdbdb] bg-white")}>
           <p className="text-[24px] font-semibold leading-[1.05] tracking-[-0.02em]">{first}</p>
           <p className="mt-4 text-[12px] uppercase tracking-[0.22em] text-[#737373]">Carousel 1/{Math.max(1, slides.length)}</p>
         </div>

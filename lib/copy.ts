@@ -9,10 +9,10 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 };
 
 export const PLATFORM_COLORS: Record<Platform, string> = {
-  twitter: "var(--twitter)",
-  linkedin: "var(--linkedin)",
-  instagram: "var(--instagram)",
-  youtube: "var(--youtube)",
+  twitter: "var(--platform-twitter)",
+  linkedin: "var(--platform-linkedin)",
+  instagram: "var(--platform-instagram)",
+  youtube: "var(--platform-youtube)",
 };
 
 export const PLATFORM_LIMITS: Record<Platform, number> = {

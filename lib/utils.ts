@@ -11,7 +11,6 @@ export function formatPlatform(platform: string) {
   if (platform === "COMMUNITY") return "Community post";
   if (platform === "FACEBOOK") return "Facebook";
   if (platform === "THREADS") return "Threads";
-  if (platform === "TIKTOK") return "TikTok";
   return platform.charAt(0) + platform.slice(1).toLowerCase();
 }
 

@@ -3,6 +3,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   Check,
@@ -10,12 +11,13 @@ import {
   Link2,
   Mail,
   UserCircle,
+  Settings,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { RazorpayButton } from "@/components/billing/RazorpayButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CurrentUser } from "@/lib/current-user";
@@ -33,10 +35,10 @@ const tabs: Array<{ value: SettingsTab; label: string; icon: ComponentType<{ cla
 ];
 
 const platformCards = [
-  { name: "Twitter / X", handle: "@recastr_ai", connected: true, lastSync: "2h ago" },
-  { name: "LinkedIn", handle: "Recastr Studio", connected: true, lastSync: "4h ago" },
-  { name: "Instagram", handle: "", connected: false, lastSync: "" },
-  { name: "YouTube Shorts", handle: "", connected: false, lastSync: "" },
+  { name: "Twitter / X", handle: "@recastr_ai", connected: true, lastSync: "2h ago", color: "from-sky-400 to-blue-500" },
+  { name: "LinkedIn", handle: "Recastr Studio", connected: true, lastSync: "4h ago", color: "from-blue-600 to-indigo-600" },
+  { name: "Instagram", handle: "", connected: false, lastSync: "", color: "from-pink-500 to-rose-500" },
+  { name: "YouTube Shorts", handle: "", connected: false, lastSync: "", color: "from-red-500 to-rose-600" },
 ];
 
 export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null }) {
@@ -46,8 +48,8 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [plan, setPlan] = useState<Plan>(currentUser?.plan ?? "FREE");
   const [profile, setProfile] = useState({
-    name: currentUser?.name ?? "Demo creator",
-    email: currentUser?.email ?? "demo@recastr.app",
+    name: currentUser?.name ?? "Creator",
+    email: currentUser?.email ?? "",
     creatorType: "Founder",
     defaultTone: "Casual",
   });
@@ -80,15 +82,18 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   }, [requestedTab]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-10">
       <div>
-        <h1 className="text-2xl font-medium">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h1 className="text-3xl font-bold font-display tracking-tight flex items-center gap-2">
+          <Settings className="h-7 w-7 text-primary" />
+          Settings
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Manage workspace preferences, connected accounts, billing, and notifications.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border bg-card p-2">
+      <div className="flex flex-wrap gap-2 rounded-[16px] border border-white/5 bg-card/40 backdrop-blur-md p-1.5 glass-panel">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -97,10 +102,18 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
               type="button"
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-muted-foreground transition hover:text-foreground",
-                activeTab === tab.value && "bg-[var(--violet)] text-white hover:text-white",
+                "relative flex h-10 items-center gap-2 rounded-[12px] px-5 text-sm font-medium transition-colors z-10",
+                activeTab === tab.value ? "text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
               )}
             >
+              {activeTab === tab.value && (
+                <motion.div
+                  layoutId="settings-tab-indicator"
+                  className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm -z-10"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
               <Icon className="h-4 w-4" />
               {tab.label}
             </button>
@@ -108,248 +121,310 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
         })}
       </div>
 
-      {activeTab === "profile" ? (
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2">
-              <UserCircle className="h-4 w-4 text-[var(--violet)]" />
-              Profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--violet)] text-xl font-medium text-white">
-                {profile.name.slice(0, 1).toUpperCase()}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeTab === "profile" && (
+            <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden">
+              <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center gap-2">
+                <UserCircle className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-bold font-display">Profile Settings</h2>
               </div>
-              <div>
-                <Button variant="secondary">Upload photo</Button>
-                <p className="mt-1 text-xs text-muted-foreground">JPG or PNG, up to 2MB.</p>
-              </div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Full name">
-                <Input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} />
-              </Field>
-              <Field label="Email">
-                <Input readOnly value={profile.email} />
-              </Field>
-              <Field label="Creator type">
-                <select
-                  className="h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--violet)]"
-                  value={profile.creatorType}
-                  onChange={(event) => setProfile((current) => ({ ...current, creatorType: event.target.value }))}
-                >
-                  {["Founder", "Podcaster", "YouTuber", "Blogger", "Agency"].map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Default tone">
-                <select
-                  className="h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--violet)]"
-                  value={profile.defaultTone}
-                  onChange={(event) => setProfile((current) => ({ ...current, defaultTone: event.target.value }))}
-                >
-                  {["Professional", "Casual", "Educational", "Entertaining"].map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">Default platforms</p>
-              <div className="flex flex-wrap gap-2">
-                {["Twitter / X", "LinkedIn", "Instagram", "YouTube Shorts"].map((platform) => (
-                  <Badge key={platform} className="bg-[var(--violet-light)] text-[var(--violet)] ring-[var(--violet)]/20">
-                    <Check className="mr-1 h-3 w-3" />
-                    {platform}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <Button
-              onClick={() => toast.success("Profile updated")}
-              className="bg-[var(--violet)] text-white hover:bg-[var(--violet-dark)]"
-            >
-              Save changes
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {activeTab === "connected" ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {platformCards.map((account) => (
-            <Card key={account.name}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={cn("h-2.5 w-2.5 rounded-full", account.connected ? "bg-[var(--green-approve)]" : "bg-muted-foreground")} />
-                      <h2 className="font-medium">{account.name}</h2>
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {account.connected ? `Connected as ${account.handle}` : "Not connected"}
-                    </p>
-                    {account.connected ? (
-                      <p className="mt-1 text-xs text-muted-foreground">Last synced {account.lastSync}</p>
-                    ) : null}
+              <div className="p-6 sm:p-8 space-y-8">
+                <div className="flex items-center gap-6">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-2xl font-bold text-white shadow-glow">
+                    {profile.name.slice(0, 1).toUpperCase() || "C"}
                   </div>
-                  <Badge variant={account.connected ? "success" : "muted"}>
-                    {account.connected ? "Connected" : "Disconnected"}
-                  </Badge>
+                  <div>
+                    <Button variant="secondary" className="rounded-full shadow-sm">Upload photo</Button>
+                    <p className="mt-2 text-xs text-muted-foreground">JPG or PNG, up to 2MB.</p>
+                  </div>
                 </div>
-                <div className="mt-5 flex gap-2">
-                  <Button variant={account.connected ? "secondary" : "default"}>
-                    {account.connected ? "Disconnect" : "Connect"}
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Field label="Full name">
+                    <Input
+                      className="h-11 rounded-xl bg-muted/30 border-white/10 focus:ring-primary"
+                      value={profile.name}
+                      onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <Input
+                      className="h-11 rounded-xl bg-muted/30 border-white/10 opacity-70"
+                      readOnly
+                      value={profile.email}
+                    />
+                  </Field>
+                  <Field label="Creator type">
+                    <div className="relative">
+                      <select
+                        className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-muted/30 px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                        value={profile.creatorType}
+                        onChange={(event) => setProfile((current) => ({ ...current, creatorType: event.target.value }))}
+                      >
+                        {["Founder", "Podcaster", "YouTuber", "Blogger", "Agency"].map((item) => (
+                          <option key={item}>{item}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+                        <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
+                    </div>
+                  </Field>
+                  <Field label="Default tone">
+                    <div className="relative">
+                      <select
+                        className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-muted/30 px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                        value={profile.defaultTone}
+                        onChange={(event) => setProfile((current) => ({ ...current, defaultTone: event.target.value }))}
+                      >
+                        {["Professional", "Casual", "Educational", "Entertaining"].map((item) => (
+                          <option key={item}>{item}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+                        <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
+                    </div>
+                  </Field>
+                </div>
+
+                <div className="pt-4 border-t border-white/5">
+                  <p className="mb-3 text-sm font-semibold">Default platforms</p>
+                  <div className="flex flex-wrap gap-2">
+                    {["Twitter / X", "LinkedIn", "Instagram", "YouTube Shorts"].map((platform) => (
+                      <Badge key={platform} className="bg-primary/10 text-primary border-0 py-1.5 px-3 rounded-lg font-medium">
+                        <Check className="mr-1.5 h-3.5 w-3.5" />
+                        {platform}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <Button
+                    onClick={() => toast.success("Profile updated")}
+                    size="lg"
+                    className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105"
+                  >
+                    Save changes
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : null}
+              </div>
+            </div>
+          )}
 
-      {activeTab === "billing" ? (
-        <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle>Current plan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-muted/30 p-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Current plan</p>
-                  <h2 className="mt-1 text-2xl font-medium">{PLAN_RULES[plan].label}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Next billing: June 29, 2026</p>
+          {activeTab === "connected" && (
+            <div className="grid gap-5 md:grid-cols-2">
+              {platformCards.map((account, index) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  key={account.name}
+                  className="rounded-[20px] border border-white/5 glass-card bg-card/40 p-6 shadow-lg relative overflow-hidden group"
+                >
+                  {account.connected && (
+                    <div className={cn("absolute right-0 top-0 h-32 w-32 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br opacity-20 blur-2xl group-hover:opacity-30 transition-opacity", account.color)} />
+                  )}
+                  <div className="flex items-start justify-between gap-4 relative z-10">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("h-2.5 w-2.5 rounded-full shadow-sm", account.connected ? "bg-green-500 shadow-green-500/50" : "bg-muted-foreground")} />
+                        <h2 className="font-bold text-lg">{account.name}</h2>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground font-medium">
+                        {account.connected ? `Connected as ${account.handle}` : "Not connected"}
+                      </p>
+                      {account.connected && (
+                        <p className="mt-1 text-xs text-muted-foreground/70">Last synced {account.lastSync}</p>
+                      )}
+                    </div>
+                    <Badge variant={account.connected ? "success" : "muted"} className={cn(
+                      "border-0",
+                      account.connected ? "bg-green-500/10 text-green-500" : "bg-muted"
+                    )}>
+                      {account.connected ? "Connected" : "Disconnected"}
+                    </Badge>
+                  </div>
+                  <div className="mt-6 flex gap-3 relative z-10">
+                    <Button variant={account.connected ? "secondary" : "default"} className={cn(
+                      "rounded-xl w-full sm:w-auto",
+                      !account.connected && "bg-foreground text-background hover:bg-foreground/90 shadow-lg"
+                    )}>
+                      {account.connected ? "Disconnect" : "Connect Account"}
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {activeTab === "billing" && (
+            <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+              <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden h-fit">
+                <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold font-display">Current Plan</h2>
                 </div>
-                <Badge variant="success">Active</Badge>
-              </div>
-              <div className="space-y-4">
-                <UsageBar label="Projects created" value={usage.projects} percent={38} />
-                <UsageBar label="Content generated" value={usage.content} percent={64} />
-                <UsageBar label="Scheduled posts" value={usage.scheduled} percent={52} />
-              </div>
-              <div className="rounded-2xl border">
-                <div className="grid grid-cols-3 border-b px-4 py-3 text-xs font-medium text-muted-foreground">
-                  <span>Month</span>
-                  <span>Amount</span>
-                  <span>Invoice</span>
+                <div className="p-6 sm:p-8 space-y-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-[20px] border border-white/5 bg-gradient-to-br from-primary/10 to-transparent p-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 h-32 w-32 bg-primary/20 blur-[50px] -translate-y-1/2 translate-x-1/4 rounded-full" />
+                    <div className="relative z-10">
+                      <p className="text-sm font-semibold uppercase tracking-wider text-primary">Your Plan</p>
+                      <h2 className="mt-1 text-3xl font-bold font-display">{PLAN_RULES[plan].label}</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">Next billing: June 29, 2026</p>
+                    </div>
+                    <Badge variant="success" className="bg-green-500/20 text-green-500 border-0 text-sm py-1 relative z-10 self-start sm:self-center">Active</Badge>
+                  </div>
+
+                  <div className="space-y-6">
+                    <h3 className="font-semibold">Usage this billing cycle</h3>
+                    <UsageBar label="Projects created" value={usage.projects}  />
+                    <UsageBar label="Content generated" value={usage.content}  />
+                    <UsageBar label="Scheduled posts" value={usage.scheduled}  />
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold mb-4">Billing History</h3>
+                    <div className="rounded-[16px] border border-white/5 bg-card/50 overflow-hidden">
+                      <div className="grid grid-cols-3 border-b border-white/5 bg-muted/20 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <span>Date</span>
+                        <span>Amount</span>
+                        <span>Invoice</span>
+                      </div>
+                      {["May 29, 2026", "Apr 29, 2026"].map((month) => (
+                        <div className="grid grid-cols-3 px-5 py-4 text-sm font-medium border-b border-white/5 last:border-b-0 hover:bg-muted/10 transition-colors" key={month}>
+                          <span>{month}</span>
+                          <span>$19.00</span>
+                          <button type="button" className="text-left text-primary hover:underline">Download PDF</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                {["May 2026", "Apr 2026"].map((month) => (
-                  <div className="grid grid-cols-3 px-4 py-3 text-sm" key={month}>
-                    <span>{month}</span>
-                    <span>INR 999</span>
-                    <button type="button" className="text-left text-[var(--violet)]">Download PDF</button>
+              </div>
+
+              <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden h-fit">
+                <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-bold font-display">Upgrade</h2>
+                  </div>
+                  <div className="flex rounded-lg border border-white/10 bg-muted/50 p-1">
+                    {(["monthly", "annual"] as const).map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setInterval(option)}
+                        className={cn("h-7 rounded-md px-3 text-xs font-semibold capitalize transition-all", interval === option ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  {(Object.keys(PLAN_RULES) as Plan[]).map((planName) => {
+                    const rule = PLAN_RULES[planName];
+                    const price = interval === "monthly" ? rule.monthlyPrice : rule.annualPrice;
+                    const isCurrent = plan === planName;
+
+                    return (
+                      <div className={cn(
+                        "rounded-[16px] border p-5 transition-all relative overflow-hidden",
+                        isCurrent ? "border-primary/50 bg-primary/5" : "border-white/5 bg-card/50 hover:border-white/20"
+                      )} key={planName}>
+                        {isCurrent && <div className="absolute top-0 right-0 w-16 h-16 bg-primary/20 blur-2xl rounded-full" />}
+                        <div className="flex items-start justify-between relative z-10">
+                          <div>
+                            <h3 className="font-bold text-lg font-display">{rule.label}</h3>
+                            <p className="mt-1 text-2xl font-bold flex items-baseline gap-1">
+                              ${price} <span className="text-sm font-medium text-muted-foreground">/mo</span>
+                            </p>
+                          </div>
+                          {isCurrent && <Badge variant="success" className="bg-primary/20 text-primary border-0">Current</Badge>}
+                        </div>
+                        <div className="mt-5 space-y-2.5 relative z-10">
+                          {rule.features.slice(0, 3).map((feature) => (
+                            <p key={feature} className="flex gap-2.5 text-sm text-muted-foreground font-medium">
+                              <Check className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                              {feature}
+                            </p>
+                          ))}
+                        </div>
+                        <div className="mt-6 relative z-10">
+                          {planName === "FREE" ? (
+                            <Button className="w-full rounded-xl" disabled={isCurrent} variant="secondary">
+                              {isCurrent ? "Current plan" : "Choose free"}
+                            </Button>
+                          ) : (
+                            <RazorpayButton
+                              className="w-full rounded-xl font-bold shadow-glow"
+                              interval={interval}
+                              label={isCurrent ? "Manage plan" : `Upgrade to ${rule.label}`}
+                              onSuccess={() => setPlan(planName)}
+                              plan={planName}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "notifications" && (
+            <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden max-w-3xl">
+              <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-bold font-display">Email Preferences</h2>
+              </div>
+              <div className="divide-y divide-white/5">
+                {[
+                  ["ready", "Email when content is ready", "Send an email after an analysis or generation job finishes."],
+                  ["digest", "Weekly digest email", "Summarize usage, exports, and scheduled content every week."],
+                  ["reminder", "Schedule reminder", "Remind me before a scheduled post goes out."],
+                  ["marketing", "Marketing emails", "Occasional product updates and growth playbooks."],
+                ].map(([key, label, helper]) => (
+                  <div className="flex items-center justify-between gap-6 px-6 py-5 hover:bg-muted/5 transition-colors" key={key}>
+                    <div>
+                      <p className="text-base font-semibold">{label}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
+                    </div>
+                    <button
+                      aria-label={label}
+                      type="button"
+                      onClick={() => {
+                        setNotifications((current) => ({ ...current, [key]: !current[key as keyof typeof current] }));
+                        toast.success("Notification preference updated");
+                      }}
+                      className={cn(
+                        "relative h-6 w-11 rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background shrink-0",
+                        notifications[key as keyof typeof notifications] ? "bg-primary" : "bg-muted-foreground/30",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all",
+                          notifications[key as keyof typeof notifications] ? "left-[22px]" : "left-[2px]",
+                        )}
+                      />
+                    </button>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="h-fit">
-            <CardHeader className="border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle>Upgrade</CardTitle>
-                <div className="flex rounded-lg border bg-muted p-1">
-                  {(["monthly", "annual"] as const).map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => setInterval(option)}
-                      className={cn("h-8 rounded-md px-3 text-sm capitalize text-muted-foreground", interval === option && "bg-card text-foreground")}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {(Object.keys(PLAN_RULES) as Plan[]).map((planName) => {
-                const rule = PLAN_RULES[planName];
-                const price = interval === "monthly" ? rule.monthlyPrice : rule.annualPrice;
-                return (
-                  <div className={cn("rounded-xl border p-4", plan === planName && "border-[var(--violet)]")} key={planName}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium">{rule.label}</h3>
-                        <p className="mt-1 text-2xl font-medium">INR {price}</p>
-                      </div>
-                      {plan === planName ? <Badge variant="success">current</Badge> : null}
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      {rule.features.slice(0, 3).map((feature) => (
-                        <p key={feature} className="flex gap-2 text-sm text-muted-foreground">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--violet)]" />
-                          {feature}
-                        </p>
-                      ))}
-                    </div>
-                    {planName === "FREE" ? (
-                      <Button className="mt-4 w-full" disabled={plan === "FREE"} variant="secondary">
-                        {plan === "FREE" ? "Current plan" : "Choose free"}
-                      </Button>
-                    ) : (
-                      <RazorpayButton
-                        className="mt-4 w-full"
-                        interval={interval}
-                        label={plan === planName ? "Manage plan" : `Choose ${rule.label}`}
-                        onSuccess={() => setPlan(planName)}
-                        plan={planName}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
-
-      {activeTab === "notifications" ? (
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-[var(--violet)]" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y">
-            {[
-              ["ready", "Email when content is ready", "Send an email after an analysis or generation job finishes."],
-              ["digest", "Weekly digest email", "Summarize usage, exports, and scheduled content every week."],
-              ["reminder", "Schedule reminder", "Remind me before a scheduled post goes out."],
-              ["marketing", "Marketing emails", "Occasional product updates and growth playbooks."],
-            ].map(([key, label, helper]) => (
-              <div className="flex items-center justify-between gap-4 py-4" key={key}>
-                <div>
-                  <p className="text-sm font-medium">{label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
-                </div>
-                <button
-                  aria-label={label}
-                  type="button"
-                  onClick={() => {
-                    setNotifications((current) => ({ ...current, [key]: !current[key as keyof typeof current] }));
-                    toast.success("Notification preference updated");
-                  }}
-                  className={cn(
-                    "relative h-6 w-11 rounded-full border transition",
-                    notifications[key as keyof typeof notifications] ? "bg-[var(--violet)]" : "bg-muted",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white transition",
-                      notifications[key as keyof typeof notifications] ? "left-5" : "left-0.5",
-                    )}
-                  />
-                </button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
@@ -357,21 +432,23 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="text-sm font-semibold">{label}</Label>
       {children}
     </div>
   );
 }
 
-function UsageBar({ label, percent, value }: { label: string; percent: number; value: string }) {
+function UsageBar({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between text-sm">
+      <div className="mb-2 flex items-center justify-between text-sm font-medium">
         <span>{label}</span>
         <span className="text-muted-foreground">{value}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-[var(--violet)]" style={{ width: `${percent}%` }} />
+      <div className="h-2.5 overflow-hidden rounded-full bg-muted/50 border border-white/5">
+        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 relative">
+          <div className="absolute inset-0 bg-white/20 w-full animate-shimmer" />
+        </div>
       </div>
     </div>
   );

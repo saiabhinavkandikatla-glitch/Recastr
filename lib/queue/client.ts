@@ -2,7 +2,6 @@ import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma/client";
-import { isDemoMode } from "@/lib/env";
 
 export const jobNames = {
   publishPost: "PUBLISH_POST",
@@ -18,7 +17,7 @@ export function getQueueConnection() {
   if (connection) return connection;
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    if (isDemoMode()) return undefined;
+
     throw new Error("REDIS_URL is required when demo mode is off");
   }
   connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -39,7 +38,7 @@ export function getRecastrQueue() {
 
 export async function addRecastrJob(name: string, data: object, delay = 0) {
   const recastrQueue = getRecastrQueue();
-  if (!recastrQueue || isDemoMode()) {
+  if (!recastrQueue) {
     return { id: `demo-job-${Date.now()}` };
   }
   const record = await prisma.jobRecord.create({
@@ -54,7 +53,7 @@ export function createRecastrWorker() {
   return new Worker(
     "recastr-jobs",
     async (job) => {
-      if (isDemoMode()) return { skipped: true };
+
       return { processed: job.name };
     },
     { connection: redis as never },

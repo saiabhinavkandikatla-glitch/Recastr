@@ -4,19 +4,19 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
 
 export function LogoutButton() {
   const router = useRouter();
 
   async function signOut() {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (!hasSupabaseBrowserConfig) {
       toast.success("Demo session cleared");
       router.replace("/login");
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
+    const supabase = await createSupabaseBrowserClient();
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error(error.message);

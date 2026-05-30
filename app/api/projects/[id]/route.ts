@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth";
-import { getProject } from "@/lib/demo-data";
-import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
 import { getStoredProject } from "@/lib/projects/store";
@@ -13,14 +11,6 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   const user = await getRequestUser(request);
-  const demoProject = getProject(params.id);
-  if (demoProject) return NextResponse.json(demoProject);
-
-  if (isDemoMode()) {
-    const storedProject = getStoredProject(params.id);
-    if (storedProject) return NextResponse.json(storedProject);
-  }
-
   try {
     const project = await prisma.project.findFirst({
       where: {
@@ -36,6 +26,8 @@ export async function GET(
 
     return NextResponse.json(serializeProject(project));
   } catch {
+    const storedProject = getStoredProject(params.id);
+    if (storedProject) return NextResponse.json(storedProject);
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 }

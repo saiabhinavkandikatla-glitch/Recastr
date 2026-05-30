@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth";
-import { demoBrandVoices } from "@/lib/demo-data";
 
 export const runtime = "nodejs";
+
+const demoBrandVoices = [
+  {
+    id: "demo-brand-voice",
+    name: "Founder operator",
+    toneDescriptors: ["clear", "specific", "practical"],
+    bannedWords: ["game-changing", "unlock"],
+    samplePosts: [
+      "The best growth ideas usually sound boring until they compound.",
+      "Specific beats clever when your customer is busy.",
+    ],
+    targetAudience: "Founders, creators, and operators",
+    contentPillars: ["customer insight", "operator lessons", "distribution"],
+  },
+];
 
 export async function GET(request: Request) {
   await getRequestUser(request);

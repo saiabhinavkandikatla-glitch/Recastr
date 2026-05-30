@@ -1,6 +1,5 @@
 import { getRequestUser } from "@/lib/auth";
 import { scheduleSchema } from "@/lib/ai/schemas";
-import { demoScheduledPosts } from "@/lib/demo/data";
 import { prisma } from "@/lib/prisma/client";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { apiError } from "@/lib/api/response";
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
     if (process.env.RECASTR_DEMO_MODE === "true") {
-      return Response.json(groupByDate(demoScheduledPosts));
+      return Response.json(groupByDate([]));
     }
 
     const posts = await prisma.scheduledPost.findMany({

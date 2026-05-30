@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
-import { demoProjects } from "@/lib/demo-data";
-import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
-import { saveStoredProject } from "@/lib/projects/store";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
-import type { Project } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -20,9 +16,7 @@ const createProjectSchema = z.object({
 
 export async function GET(request: Request) {
   const user = await getRequestUser(request);
-  if (isDemoMode()) {
-    return NextResponse.json(demoProjects);
-  }
+
 
   try {
     const projects = await prisma.project.findMany({
@@ -41,22 +35,8 @@ export async function POST(request: Request) {
   try {
     const user = await getRequestUser(request);
     const body = createProjectSchema.parse(await request.json());
-    const createdAt = new Date().toISOString();
 
-    if (isDemoMode()) {
-      const project = {
-        ...demoProjects[0],
-        id: `demo-created-${Date.now()}`,
-        title: body.title,
-        sourceType: body.sourceType,
-        transcript: body.transcript || demoProjects[0].transcript,
-        createdAt,
-        updatedAt: createdAt,
-        status: "DRAFT",
-      } satisfies Project;
-      saveStoredProject(project);
-      return NextResponse.json(project, { status: 201 });
-    }
+
 
     await ensureUserRecord(user);
     const project = await prisma.project.create({

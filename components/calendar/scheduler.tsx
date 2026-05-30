@@ -24,7 +24,6 @@ const platformAccent: Record<Platform, string> = {
   INSTAGRAM: "border-pink-500 bg-pink-500/10 text-pink-700 dark:text-pink-300",
   FACEBOOK: "border-blue-600 bg-blue-600/10 text-blue-700 dark:text-blue-300",
   THREADS: "border-zinc-800 bg-zinc-800/10 text-zinc-800 dark:text-zinc-100",
-  TIKTOK: "border-zinc-900 bg-zinc-900/10 text-zinc-800 dark:text-zinc-100",
   YOUTUBE: "border-red-600 bg-red-600/10 text-red-700 dark:text-red-300",
   CAROUSEL: "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   COMMUNITY: "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",

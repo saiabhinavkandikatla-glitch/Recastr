@@ -18,15 +18,16 @@ const localDevUser: CurrentUser = {
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
+  if (process.env.RECASTR_DEMO_MODE === "true") {
+    return {
+      id: "demo-user",
+      email: "demo@recastr.app",
+      name: "Demo user",
+      plan: "PRO",
+    };
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    if (process.env.RECASTR_DEMO_MODE === "true") {
-      return {
-        id: "demo-user",
-        email: "demo@recastr.app",
-        name: "Demo user",
-        plan: "PRO",
-      };
-    }
     return null;
   }
 

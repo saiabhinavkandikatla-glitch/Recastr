@@ -18,60 +18,96 @@ const platformLabels: Record<PreviewPlatform, string> = {
   INSTAGRAM: "Instagram",
   FACEBOOK: "Facebook",
   THREADS: "Threads",
-  COMMUNITY: "YouTube Community",
+  COMMUNITY: "YouTube",
 };
 
 const previewPlatforms: PreviewPlatform[] = [
   "LINKEDIN",
   "TWITTER",
   "INSTAGRAM",
-  "FACEBOOK",
   "THREADS",
   "COMMUNITY",
 ];
+
+const fullPreviewPlatforms: PreviewPlatform[] = [
+  ...previewPlatforms,
+  "FACEBOOK",
+];
+
+const storageKey = "recastr-preview-preferences";
+
+type PreviewPreferences = {
+  device: PreviewDevice;
+  platform: PreviewPlatform;
+  theme: "light" | "dark";
+};
 
 export function PlatformPreviewEngine({
   platform,
   draft,
   theme,
   onThemeChange,
+  includeFacebook = false,
+  compact = false,
 }: {
   platform: PreviewPlatform;
   draft: string;
-  theme: "light" | "dark";
-  onThemeChange: (theme: "light" | "dark") => void;
+  theme?: "light" | "dark";
+  onThemeChange?: (theme: "light" | "dark") => void;
+  includeFacebook?: boolean;
+  compact?: boolean;
 }) {
   const [activePlatform, setActivePlatform] = useState<PreviewPlatform>(platform);
   const [device, setDevice] = useState<PreviewDevice>("iphone");
+  const [localTheme, setLocalTheme] = useState<"light" | "dark">(theme ?? "light");
+  const platforms = includeFacebook ? fullPreviewPlatforms : previewPlatforms;
+  const activeTheme = theme ?? localTheme;
   const content = useMemo(() => parsePreviewContent(activePlatform, draft), [activePlatform, draft]);
 
   useEffect(() => {
-    setActivePlatform(platform);
-  }, [platform]);
+    const stored = readPreferences();
+    if (!stored) return;
+    setDevice(stored.device);
+    setLocalTheme(stored.theme);
+    if (platforms.includes(stored.platform)) setActivePlatform(stored.platform);
+  }, [platforms]);
+
+  useEffect(() => {
+    if (activePlatform !== platform && !platforms.includes(activePlatform)) {
+      setActivePlatform(platform);
+    }
+  }, [activePlatform, platform, platforms]);
+
+  useEffect(() => {
+    writePreferences({ device, platform: activePlatform, theme: activeTheme });
+  }, [activePlatform, activeTheme, device]);
+
+  function changeTheme(nextTheme: "light" | "dark") {
+    setLocalTheme(nextTheme);
+    onThemeChange?.(nextTheme);
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className={cn("rounded-[var(--card-radius)] border bg-card", compact ? "p-3" : "p-4")}>
+      <div className="flex flex-col gap-3 border-b pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-teal-300">
-              Live preview
-            </p>
-            <p className="mt-1 text-sm text-slate-400">
-              {platformLabels[activePlatform]} · {device}
+            <p className="text-sm font-medium">Live platform preview</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Updates instantly as the content changes.
             </p>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DeviceSwitcher value={device} onChange={setDevice} />
-            <div className="flex rounded-full border border-white/10 bg-white/[0.06] p-1">
+            <div className="flex rounded-full border bg-muted p-1">
               {(["light", "dark"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => onThemeChange(mode)}
+                  onClick={() => changeTheme(mode)}
                   className={cn(
-                    "h-7 rounded-full px-3 text-xs font-medium capitalize text-slate-400 transition",
-                    theme === mode && "bg-white text-slate-950",
+                    "h-7 rounded-full px-2.5 text-xs font-medium capitalize text-muted-foreground transition",
+                    activeTheme === mode && "bg-background text-foreground shadow-soft",
                   )}
                 >
                   {mode}
@@ -82,14 +118,14 @@ export function PlatformPreviewEngine({
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {previewPlatforms.map((item) => (
+          {platforms.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setActivePlatform(item)}
               className={cn(
-                "shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-white/25 hover:text-white",
-                activePlatform === item && "border-primary bg-primary/20 text-white",
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
+                activePlatform === item && "border-[var(--violet)] bg-[var(--violet-light)] text-[var(--violet)]",
               )}
             >
               {platformLabels[item]}
@@ -98,25 +134,45 @@ export function PlatformPreviewEngine({
         </div>
       </div>
 
-      <DevicePreviewShell device={device}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`${activePlatform}-${theme}-${device}`}
-            initial={{ opacity: 0, x: 18 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -18 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="h-full"
-          >
-            {activePlatform === "LINKEDIN" ? <LinkedInPreview content={content} dark={theme === "dark"} device={device} /> : null}
-            {activePlatform === "TWITTER" ? <XPreview content={content} dark={theme === "dark"} device={device} /> : null}
-            {activePlatform === "INSTAGRAM" ? <InstagramPreview content={content} dark={theme === "dark"} device={device} /> : null}
-            {activePlatform === "FACEBOOK" ? <FacebookPreview content={content} dark={theme === "dark"} device={device} /> : null}
-            {activePlatform === "THREADS" ? <ThreadsPreview content={content} dark={theme === "dark"} device={device} /> : null}
-            {activePlatform === "COMMUNITY" ? <YouTubeCommunityPreview content={content} dark={theme === "dark"} device={device} /> : null}
-          </motion.div>
-        </AnimatePresence>
-      </DevicePreviewShell>
-    </div>
+      <div className="pt-4">
+        <DevicePreviewShell device={device}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${activePlatform}-${activeTheme}-${device}`}
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -18 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.32, 1] }}
+              className="h-full"
+            >
+              {activePlatform === "LINKEDIN" ? <LinkedInPreview content={content} dark={activeTheme === "dark"} device={device} /> : null}
+              {activePlatform === "TWITTER" ? <XPreview content={content} dark={activeTheme === "dark"} device={device} /> : null}
+              {activePlatform === "INSTAGRAM" ? <InstagramPreview content={content} dark={activeTheme === "dark"} device={device} /> : null}
+              {activePlatform === "FACEBOOK" ? <FacebookPreview content={content} dark={activeTheme === "dark"} device={device} /> : null}
+              {activePlatform === "THREADS" ? <ThreadsPreview content={content} dark={activeTheme === "dark"} device={device} /> : null}
+              {activePlatform === "COMMUNITY" ? <YouTubeCommunityPreview content={content} dark={activeTheme === "dark"} device={device} /> : null}
+            </motion.div>
+          </AnimatePresence>
+        </DevicePreviewShell>
+      </div>
+    </section>
   );
+}
+
+function readPreferences(): PreviewPreferences | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PreviewPreferences>;
+    if (!parsed.device || !parsed.platform || !parsed.theme) return null;
+    return parsed as PreviewPreferences;
+  } catch {
+    return null;
+  }
+}
+
+function writePreferences(value: PreviewPreferences) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(storageKey, JSON.stringify(value));
 }

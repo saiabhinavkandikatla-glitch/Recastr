@@ -1,9 +1,14 @@
 import { jsPDF } from "jspdf";
-import { demoProjects } from "@/lib/demo-data";
+import { getStoredProject } from "@/lib/projects/store";
+import type { Project } from "@/lib/types";
 import { stringifyContent } from "@/lib/utils";
 
-export function getExportProject(projectId: string) {
-  return demoProjects.find((project) => project.id === projectId) ?? demoProjects[0];
+export function getExportProject(projectId: string): Project {
+  const project = getStoredProject(projectId);
+  if (!project) {
+    throw new Error(`Project ${projectId} was not found for export`);
+  }
+  return project;
 }
 
 export function createCsv(projectId: string) {
