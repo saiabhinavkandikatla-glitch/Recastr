@@ -35,40 +35,52 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 
   const supabase = createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const fallback = getAuthFallback(canUseDemoUser);
+  let sessionUserEmail: string | undefined;
 
-  if (!session?.user?.email) {
-    if (canUseDemoUser) return demoUser;
-    if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
-    return null;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    sessionUserEmail = session?.user?.email;
+  } catch {
+    return fallback;
   }
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  if (!sessionUserEmail) {
+    return fallback;
+  }
 
-  if (error || !user?.email) {
-    if (canUseDemoUser) return demoUser;
-    if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
-    return null;
+  let authUser;
+  let authError;
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    authUser = user;
+    authError = error;
+  } catch {
+    return fallback;
+  }
+
+  if (authError || !authUser?.email) {
+    return fallback;
   }
 
   try {
     const dbUser = await prisma.user.upsert({
-      where: { supabaseId: user.id },
+      where: { supabaseId: authUser.id },
       update: {
-        email: user.email,
-        name: user.user_metadata?.name,
-        avatarUrl: user.user_metadata?.avatar_url,
+        email: authUser.email,
+        name: authUser.user_metadata?.name,
+        avatarUrl: authUser.user_metadata?.avatar_url,
       },
       create: {
-        supabaseId: user.id,
-        email: user.email,
-        name: user.user_metadata?.name,
-        avatarUrl: user.user_metadata?.avatar_url,
+        supabaseId: authUser.id,
+        email: authUser.email,
+        name: authUser.user_metadata?.name,
+        avatarUrl: authUser.user_metadata?.avatar_url,
         plan: "free",
         platforms: [],
       },
@@ -88,12 +100,18 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     };
   } catch {
     return {
-      id: user.id,
-      email: user.email,
-      name: user.user_metadata?.name,
-      plan: normalizePlan(user.user_metadata?.plan),
+      id: authUser.id,
+      email: authUser.email,
+      name: authUser.user_metadata?.name,
+      plan: normalizePlan(authUser.user_metadata?.plan),
     };
   }
+}
+
+function getAuthFallback(canUseDemoUser: boolean) {
+  if (canUseDemoUser) return demoUser;
+  if (process.env.NODE_ENV !== "production" && !env.requireAuth) return localDevUser;
+  return null;
 }
 
 function normalizePlan(value: unknown): Plan {

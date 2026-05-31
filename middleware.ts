@@ -40,15 +40,19 @@ export async function middleware(request: NextRequest) {
       },
     });
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const {
-      data: { user },
-    } = session ? await supabase.auth.getUser() : { data: { user: null } };
+      const {
+        data: { user },
+      } = session ? await supabase.auth.getUser() : { data: { user: null } };
 
-    hasUser = Boolean(user);
+      hasUser = Boolean(user);
+    } catch {
+      hasUser = false;
+    }
   }
 
   if (process.env.REQUIRE_AUTH === "true" && isProtectedPath(pathname) && !hasUser) {

@@ -35,14 +35,26 @@ export async function getRequestUser(request: Request): Promise<AuthenticatedUse
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) {
     const supabase = createSupabaseServerClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    let session;
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      session = currentSession;
+    } catch {
+      session = null;
+    }
 
-    const {
-      data: { user },
-      error,
-    } = session ? await supabase.auth.getUser() : { data: { user: null }, error: null };
+    let user;
+    let error;
+    try {
+      const result = session ? await supabase.auth.getUser() : { data: { user: null }, error: null };
+      user = result.data.user;
+      error = result.error;
+    } catch (authError) {
+      user = null;
+      error = authError;
+    }
 
     if (!error && user?.email) {
       return syncAuthenticatedUser(user);
@@ -56,7 +68,16 @@ export async function getRequestUser(request: Request): Promise<AuthenticatedUse
   const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data, error } = await supabase.auth.getUser(token);
+  let data;
+  let error;
+  try {
+    const result = await supabase.auth.getUser(token);
+    data = result.data;
+    error = result.error;
+  } catch (authError) {
+    data = { user: null };
+    error = authError;
+  }
   if (error || !data.user?.email) {
     throw new Response("Invalid authorization token", { status: 401 });
   }
