@@ -1,4 +1,3 @@
-import Razorpay from "razorpay";
 import { getRequestUser } from "@/lib/auth";
 import { razorpayCheckoutSchema } from "@/lib/ai/schemas";
 import { trackServerEvent } from "@/lib/analytics";
@@ -44,6 +43,7 @@ export async function POST(request: Request) {
       });
     }
 
+    const { default: Razorpay } = await import("razorpay");
     const razorpay = new Razorpay({ key_id: key, key_secret: secret });
     await trackServerEvent("checkout_started", {
       userId: user.id,
