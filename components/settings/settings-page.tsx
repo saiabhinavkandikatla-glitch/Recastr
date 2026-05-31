@@ -10,6 +10,7 @@ import {
   Check,
   CreditCard,
   Mail,
+  ReceiptText,
   UserCircle,
   Settings,
   Sparkles
@@ -301,19 +302,14 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
                   <div>
                     <h3 className="font-semibold mb-4">Billing History</h3>
-                    <div className="rounded-[16px] border border-white/5 bg-card/50 overflow-hidden">
-                      <div className="grid grid-cols-3 border-b border-white/5 bg-muted/20 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        <span>Date</span>
-                        <span>Amount</span>
-                        <span>Invoice</span>
+                    <div className="rounded-[16px] border border-dashed border-white/10 bg-card/30 px-5 py-8 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <ReceiptText className="h-5 w-5" />
                       </div>
-                      {["May 29, 2026", "Apr 29, 2026"].map((month) => (
-                        <div className="grid grid-cols-3 px-5 py-4 text-sm font-medium border-b border-white/5 last:border-b-0 hover:bg-muted/10 transition-colors" key={month}>
-                          <span>{month}</span>
-                          <span>$19.00</span>
-                          <button type="button" className="text-left text-primary hover:underline">Download PDF</button>
-                        </div>
-                      ))}
+                      <p className="mt-4 text-sm font-semibold">No invoices yet</p>
+                      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                        Real billing receipts will appear here after a successful paid subscription payment.
+                      </p>
                     </div>
                   </div>
                 </div>
