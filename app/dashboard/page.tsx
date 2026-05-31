@@ -1,7 +1,6 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { ProjectDashboard } from "@/components/dashboard/project-dashboard";
 import { getCurrentUser } from "@/lib/current-user";
-import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
 import type { DbProjectWithContent } from "@/lib/projects/serialize";
@@ -13,17 +12,20 @@ export default async function DashboardPage() {
 
   return (
     <AppShell projects={projects} title="Dashboard" user={user}>
-      <ProjectDashboard initialProjects={projects} demoLocked={user?.id === "demo-user"} />
+      <ProjectDashboard
+        initialProjects={projects}
+        demoLocked={user?.id === "demo-user"}
+        user={user}
+      />
     </AppShell>
   );
 }
 
 async function loadProjects(userId?: string): Promise<Project[]> {
-
-  if (!userId) return env.requireAuth ? [] : [];
+  if (!userId) return [];
 
   const timeout = new Promise<DbProjectWithContent[]>((_, reject) =>
-    setTimeout(() => reject(new Error("DB Timeout")), 2000),
+    setTimeout(() => reject(new Error("DB Timeout")), 8000),
   );
   try {
     const projects = await Promise.race<DbProjectWithContent[]>([
@@ -36,11 +38,8 @@ async function loadProjects(userId?: string): Promise<Project[]> {
     ]);
 
     return projects.map(serializeProject);
-  } catch {
-    if (env.demoMode || userId === "demo-user" || userId === "local-user") {
-      const { listStoredProjects } = await import("@/lib/projects/store");
-      return listStoredProjects();
-    }
+  } catch (error) {
+    console.error("Failed to load projects:", error);
     return [];
   }
 }

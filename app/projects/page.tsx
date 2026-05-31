@@ -19,11 +19,11 @@ export default async function ProjectsIndexPage() {
           <div>
             <h1 className="text-3xl font-bold font-display tracking-tight">Projects</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Every source you analyze becomes a project with hooks, generated assets, and export history.
+              Every source you analyze becomes a project. Go to the dashboard and paste a URL or text to create a new one.
             </p>
           </div>
           <Button asChild className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-6 shadow-glow shrink-0">
-            <Link href="/dashboard">
+            <Link href="/dashboard#quick-ingest">
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Link>
@@ -42,9 +42,9 @@ export default async function ProjectsIndexPage() {
               Analyze your first source from the dashboard to create a project and start generating content.
             </p>
             <Button asChild size="lg" className="mt-8 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105">
-              <Link href="/dashboard">
+              <Link href="/dashboard#quick-ingest">
                 <Plus className="mr-2 h-5 w-5" />
-                Go to dashboard
+                Start on dashboard
               </Link>
             </Button>
           </div>

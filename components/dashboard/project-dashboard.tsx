@@ -2,25 +2,33 @@
 
 import { useState, type ComponentType, type SVGProps } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Clock3, FileText, FolderOpen, Sparkles, Timer, Plus } from "lucide-react";
+import { ArrowRight, Brain, Clock3, FileText, FolderOpen, Link2, MailCheck, Sparkles, Timer, Plus } from "lucide-react";
 import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { IngestFlow } from "@/components/ingest/IngestFlow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { CurrentUser } from "@/lib/current-user";
 import type { Project } from "@/lib/types";
 
 export function ProjectDashboard({
   initialProjects,
   demoLocked = false,
+  user,
 }: {
   initialProjects: Project[];
   demoLocked?: boolean;
+  user?: CurrentUser | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | undefined>();
+  const isWelcome = searchParams.get("welcome") === "1";
+  const firstName = user?.name?.split(" ")[0] ?? user?.email.split("@")[0] ?? "there";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -39,7 +47,7 @@ export function ProjectDashboard({
     if (project.contents?.length) {
       return total + project.contents.filter((content) => Boolean(content.scheduledPost)).length;
     }
-    return total + project.outputs.filter((output) => output.approved && project.status === "SCHEDULED").length;
+    return total;
   }, 0);
 
   const timeSavedHours = Math.max(0, (contentCount * 8 + initialProjects.length * 20) / 60);
@@ -51,21 +59,21 @@ export function ProjectDashboard({
     trend: string;
     color: string;
   }> = [
-    { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "Current", color: "from-blue-500 to-cyan-500" },
-    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: "Ready to schedule", color: "from-violet-500 to-purple-500" },
-    { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: "Live", color: "from-amber-500 to-orange-500" },
+    { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "This month", color: "from-blue-500 to-cyan-500" },
+    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: contentCount > 0 ? "Ready to schedule" : "Paste a source to start", color: "from-violet-500 to-purple-500" },
+    { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "No posts scheduled", color: "from-amber-500 to-orange-500" },
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated", color: "from-emerald-500 to-teal-500" },
   ];
 
   return (
     <div className="space-y-10">
       <section>
-        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Welcome back</p>
+        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{greeting}</p>
         <h1 className="text-3xl font-bold font-display tracking-tight sm:text-4xl">
           {contentCount ? (
-            <>You have <span className="text-gradient">{contentCount} pieces</span> ready to refine.</>
+            <>{firstName}, you have <span className="text-gradient">{contentCount} pieces</span> ready.</>
           ) : (
-            "Create your first content pack."
+            <>{firstName}, paste a source to create your first pack.</>
           )}
         </h1>
       </section>
@@ -95,7 +103,43 @@ export function ProjectDashboard({
         ))}
       </div>
 
-      <div className="relative rounded-[24px] border border-white/5 bg-card/40 backdrop-blur-md p-1 shadow-lg">
+      {isWelcome ? (
+        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 flex items-start gap-3">
+          <Sparkles className="h-5 w-5 text-violet-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-violet-200">Workspace ready</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Your first project is below. Open it to review generated content, then use Schedule to plan your posts.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {initialProjects.length === 0 ? (
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          {[
+            { step: "1", label: "Paste a URL or text", icon: Link2 },
+            { step: "2", label: "AI extracts hooks", icon: Brain },
+            { step: "3", label: "Generate posts", icon: Sparkles },
+            { step: "4", label: "Schedule reminders", icon: MailCheck },
+          ].map((item, index, items) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.step} className="flex shrink-0 items-center gap-2">
+                <div className="flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1.5">
+                  <Icon className="h-3.5 w-3.5 text-violet-300" />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    <span className="font-semibold text-violet-300">{item.step}.</span> {item.label}
+                  </span>
+                </div>
+                {index < items.length - 1 ? <span className="text-xs text-muted-foreground/40">/</span> : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <section id="quick-ingest" className="relative rounded-[24px] border border-white/5 bg-card/40 backdrop-blur-md p-1 shadow-lg scroll-mt-24">
         <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
         <div className="relative z-10 bg-card rounded-[20px] p-6 sm:p-8">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -114,7 +158,7 @@ export function ProjectDashboard({
           {/* Note: passing empty array instead of initialProjects to remove demo links inside IngestFlow */}
           <IngestFlow />
         </div>
-      </div>
+      </section>
 
       <section>
         <div className="mb-6 flex items-center justify-between">
@@ -193,11 +237,13 @@ export function ProjectDashboard({
               Paste a source URL or upload a file above to generate your first content pack.
             </p>
             <div className="mt-8 flex justify-center">
-              <Button asChild size="lg" className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow">
-                <Link href="/onboarding">
-                  <Plus className="mr-2 h-5 w-5" />
-                  Create a project
-                </Link>
+              <Button
+                size="lg"
+                className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow"
+                onClick={() => document.getElementById("quick-ingest")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Paste a source above to start
               </Button>
             </div>
           </div>

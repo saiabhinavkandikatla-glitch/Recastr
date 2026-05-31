@@ -77,16 +77,24 @@ function isProtectedPath(pathname: string) {
 function withCors(request: NextRequest, response: NextResponse) {
   if (!request.nextUrl.pathname.startsWith("/api")) return response;
 
-  const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL;
-  const origin = request.headers.get("origin");
+  const allowedOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+  const origin = normalizeOrigin(request.headers.get("origin") ?? undefined);
   const isCrossOriginRequest = Boolean(origin);
+  const isLocalhost =
+    origin?.includes("localhost") ||
+    origin?.includes("127.0.0.1") ||
+    origin?.includes("[::1]");
+
+  response.headers.set("Access-Control-Allow-Headers", "authorization,content-type,x-demo-mode");
+  response.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+
+  if (process.env.NODE_ENV !== "production" && isLocalhost) {
+    response.headers.set("Access-Control-Allow-Origin", origin ?? "*");
+    return response;
+  }
 
   if (!allowedOrigin && process.env.NODE_ENV === "production" && isCrossOriginRequest) {
     return new NextResponse("CORS origin denied", { status: 403 });
-  }
-
-  if (!allowedOrigin && process.env.NODE_ENV !== "production" && isCrossOriginRequest) {
-    console.warn("NEXT_PUBLIC_APP_URL is unset; development API CORS is permissive.");
   }
 
   if (allowedOrigin && origin && origin !== allowedOrigin) {
@@ -95,11 +103,19 @@ function withCors(request: NextRequest, response: NextResponse) {
 
   if (allowedOrigin) {
     response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
-    response.headers.set("Access-Control-Allow-Headers", "authorization,content-type,x-demo-mode");
-    response.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
   }
 
   return response;
+}
+
+function normalizeOrigin(value: string | undefined) {
+  if (!value) return undefined;
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, "").replace(/\/$/, "");
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed;
+  }
 }
 
 export const config = {
