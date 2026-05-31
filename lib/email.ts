@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { env } from "@/lib/env";
 
 type WeeklyStats = {
@@ -16,12 +18,39 @@ type ScheduledPostNotificationInput = {
 };
 
 let resendClient: Resend | null = null;
-const FROM = env.RESEND_FROM_EMAIL ?? "Recastr <onboarding@resend.dev>";
+let smtpTransporter: Transporter | null = null;
+const FROM =
+  env.SMTP_FROM_EMAIL ??
+  env.RESEND_FROM_EMAIL ??
+  "Recastr <onboarding@resend.dev>";
 
 export function assertEmailConfigured() {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is required to send scheduled post notification emails.");
+  if (!hasSmtpConfig() && !env.RESEND_API_KEY) {
+    throw new Error("Configure SMTP_HOST/SMTP_USER/SMTP_PASS or RESEND_API_KEY to send scheduled post notification emails.");
   }
+}
+
+function hasSmtpConfig() {
+  return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
+}
+
+function getSmtpTransporter() {
+  assertEmailConfigured();
+  if (!hasSmtpConfig()) return null;
+  const port = Number(env.SMTP_PORT ?? 587);
+  const secure = env.SMTP_SECURE === "true" || port === 465;
+
+  smtpTransporter ??= nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port,
+    secure,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  });
+
+  return smtpTransporter;
 }
 
 function getResend() {
@@ -37,29 +66,20 @@ function getOptionalResend() {
 }
 
 export async function sendContentReadyEmail(userEmail: string, projectTitle: string) {
-  const resend = getOptionalResend();
-  if (!resend) return;
-
-  const result = await resend.emails.send({
-    from: FROM,
+  await sendEmail({
     to: userEmail,
     subject: `Your content for "${projectTitle}" is ready`,
     html: `<p>Your AI content generation for <strong>${escapeHtml(projectTitle)}</strong> has finished.</p><p><a href="${env.appUrl}/dashboard">View your content</a></p>`,
   });
-  throwIfResendFailed(result.error);
 }
 
 export async function sendWeeklyDigestEmail(userEmail: string, stats: WeeklyStats) {
-  const resend = getOptionalResend();
-  if (!resend) return;
-
-  const result = await resend.emails.send({
-    from: FROM,
+  await sendEmail({
     to: userEmail,
     subject: "Your Recastr weekly digest",
     html: `<p>This week: ${stats.projects} projects, ${stats.content} content pieces, and ${stats.scheduled} scheduled posts.</p>`,
+    optional: true,
   });
-  throwIfResendFailed(result.error);
 }
 
 export async function sendScheduleReminderEmail(
@@ -67,16 +87,12 @@ export async function sendScheduleReminderEmail(
   platform: string,
   scheduledAt: Date,
 ) {
-  const resend = getOptionalResend();
-  if (!resend) return;
-
-  const result = await resend.emails.send({
-    from: FROM,
+  await sendEmail({
     to: userEmail,
     subject: `Reminder: post going out to ${platform} soon`,
     html: `<p>Your scheduled post to <strong>${escapeHtml(platform)}</strong> is going out at ${scheduledAt.toLocaleString()}.</p>`,
+    optional: true,
   });
-  throwIfResendFailed(result.error);
 }
 
 export async function sendScheduledPostNotificationEmail({
@@ -86,16 +102,13 @@ export async function sendScheduledPostNotificationEmail({
   scheduledAt,
   projectTitle,
 }: ScheduledPostNotificationInput) {
-  const resend = getResend();
-
   const scheduledLabel = scheduledAt.toLocaleString("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Asia/Kolkata",
   });
 
-  const result = await resend.emails.send({
-    from: FROM,
+  await sendEmail({
     to: userEmail,
     subject: `Time to post on ${platform} - ${projectTitle}`,
     html: `
@@ -115,18 +128,51 @@ export async function sendScheduledPostNotificationEmail({
       </div>
     `,
   });
-  throwIfResendFailed(result.error);
 }
 
 export async function sendPublishedEmail(userEmail: string, platform: string) {
-  const resend = getOptionalResend();
-  if (!resend) return;
-
-  const result = await resend.emails.send({
-    from: FROM,
+  await sendEmail({
     to: userEmail,
     subject: `Your ${platform} post was published`,
     html: `<p>Recastr published your scheduled post to <strong>${escapeHtml(platform)}</strong>.</p>`,
+    optional: true,
+  });
+}
+
+async function sendEmail({
+  html,
+  optional = false,
+  subject,
+  to,
+}: {
+  html: string;
+  optional?: boolean;
+  subject: string;
+  to: string;
+}) {
+  const smtp = getSmtpTransporter();
+  if (smtp) {
+    await smtp.sendMail({
+      from: FROM,
+      to,
+      subject,
+      html,
+    });
+    return;
+  }
+
+  const resend = getOptionalResend();
+  if (!resend) {
+    if (optional) return;
+    assertEmailConfigured();
+    return;
+  }
+
+  const result = await resend.emails.send({
+    from: FROM,
+    to,
+    subject,
+    html,
   });
   throwIfResendFailed(result.error);
 }

@@ -19,6 +19,12 @@ const envSchema = z.object({
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM_EMAIL: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
   CRON_SECRET: z.string().optional(),
 });
 
@@ -65,6 +71,12 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL,
+  SMTP_SECURE: process.env.SMTP_SECURE,
   CRON_SECRET: process.env.CRON_SECRET,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
