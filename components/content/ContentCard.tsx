@@ -12,8 +12,11 @@ import {
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  CalendarDays,
   Check,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
   GripVertical,
   RefreshCcw,
 } from "lucide-react";
@@ -365,29 +368,243 @@ export const ContentCard = memo(function ContentCard({
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="overflow-hidden border-t border-white/10"
           >
-            <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
-              <input
-                aria-label="Schedule date and time"
-                className="h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--violet)]"
-                type="datetime-local"
-                value={scheduleValue}
-                onChange={(event) => setScheduleValue(event.target.value)}
-              />
-              <button
-                type="button"
-                onClick={handleSchedule}
-                className="inline-flex h-9 items-center gap-1 rounded-lg bg-[var(--violet)] px-3 text-sm font-medium text-white transition hover:bg-[var(--violet-hover)]"
-              >
-                Save schedule
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <SchedulePicker
+              value={scheduleValue}
+              onCancel={() => setScheduleOpen(false)}
+              onChange={setScheduleValue}
+              onConfirm={handleSchedule}
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>
     </motion.article>
   );
 });
+
+function SchedulePicker({
+  onCancel,
+  onChange,
+  onConfirm,
+  value,
+}: {
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onConfirm: () => void;
+  value: string;
+}) {
+  const selected = useMemo(() => parseScheduleValue(value), [value]);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(selected));
+  const days = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
+  const hour = selected.getHours();
+  const minute = selected.getMinutes();
+
+  useEffect(() => {
+    setCalendarMonth(startOfMonth(selected));
+  }, [selected]);
+
+  const scheduledLabel = useMemo(() => {
+    return new Intl.DateTimeFormat("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(selected);
+  }, [selected]);
+
+  function setDate(day: Date) {
+    const next = new Date(selected);
+    next.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
+    onChange(formatScheduleValue(next));
+  }
+
+  function setTime(nextHour: number, nextMinute = minute) {
+    const next = new Date(selected);
+    next.setHours(nextHour, nextMinute, 0, 0);
+    onChange(formatScheduleValue(next));
+  }
+
+  function setMinute(nextMinute: number) {
+    const next = new Date(selected);
+    next.setMinutes(nextMinute, 0, 0);
+    onChange(formatScheduleValue(next));
+  }
+
+  return (
+    <div className="bg-[#080D1B] px-4 py-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--violet)]">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Schedule reminder
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{scheduledLabel}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="h-9 rounded-lg border border-white/10 px-3 text-sm font-medium text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="h-9 rounded-lg bg-[var(--violet)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98]"
+            onClick={onConfirm}
+            type="button"
+          >
+            Save schedule
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="rounded-2xl border border-white/10 bg-background/50 p-3">
+          <div className="mb-3 flex items-center justify-between">
+            <button
+              aria-label="Previous month"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+              onClick={() => setCalendarMonth((current) => addMonths(current, -1))}
+              type="button"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <p className="text-sm font-semibold">{formatMonth(calendarMonth)}</p>
+            <button
+              aria-label="Next month"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+              onClick={() => setCalendarMonth((current) => addMonths(current, 1))}
+              type="button"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+              <span className="py-1.5" key={day}>{day}</span>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {days.map((day) => {
+              const selectedDay = isSameCalendarDay(day, selected);
+              const today = isSameCalendarDay(day, new Date());
+              const outside = day.getMonth() !== calendarMonth.getMonth();
+              const past = isPastDate(day);
+
+              return (
+                <button
+                  className={cn(
+                    "flex h-9 items-center justify-center rounded-lg text-sm font-semibold transition",
+                    selectedDay && "bg-[var(--violet)] text-white",
+                    !selectedDay && today && "border border-[var(--violet)]/60 text-[var(--violet)]",
+                    !selectedDay && !today && "text-foreground hover:bg-white/[0.06]",
+                    outside && "text-muted-foreground/45",
+                    past && "cursor-not-allowed opacity-35 hover:bg-transparent",
+                  )}
+                  disabled={past}
+                  key={day.toISOString()}
+                  onClick={() => setDate(day)}
+                  type="button"
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-background/50 p-3">
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Clock3 className="h-4 w-4 text-[var(--violet)]" />
+            Time
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[9, 13, 17, 20].map((quickHour) => (
+              <button
+                className={cn(
+                  "h-9 rounded-lg border border-white/10 text-sm font-medium transition hover:bg-white/[0.06]",
+                  hour === quickHour && minute === 0 && "border-[var(--violet)] bg-[var(--violet)]/15 text-[var(--violet)]",
+                )}
+                key={quickHour}
+                onClick={() => setTime(quickHour, 0)}
+                type="button"
+              >
+                {formatTimeLabel(quickHour, 0)}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <NumberStepper
+              label="Hour"
+              max={23}
+              min={0}
+              onChange={(nextHour) => setTime(nextHour)}
+              value={hour}
+            />
+            <span className="pt-6 text-lg font-semibold text-muted-foreground">:</span>
+            <NumberStepper
+              label="Minute"
+              max={59}
+              min={0}
+              onChange={setMinute}
+              step={5}
+              value={minute}
+            />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            You will receive an email reminder at this local time.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NumberStepper({
+  label,
+  max,
+  min,
+  onChange,
+  step = 1,
+  value,
+}: {
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  step?: number;
+  value: number;
+}) {
+  function clamp(next: number) {
+    if (next > max) return min;
+    if (next < min) return max;
+    return next;
+  }
+
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <div className="flex h-10 items-center justify-between rounded-lg border border-white/10 bg-[#070C18]">
+        <button
+          aria-label={`Decrease ${label.toLowerCase()}`}
+          className="h-full px-3 text-muted-foreground transition hover:text-foreground"
+          onClick={() => onChange(clamp(value - step))}
+          type="button"
+        >
+          -
+        </button>
+        <span className="font-mono text-sm font-semibold">{String(value).padStart(2, "0")}</span>
+        <button
+          aria-label={`Increase ${label.toLowerCase()}`}
+          className="h-full px-3 text-muted-foreground transition hover:text-foreground"
+          onClick={() => onChange(clamp(value + step))}
+          type="button"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function toPreviewPlatform(platform: ContentCardPlatform): PreviewPlatform {
   if (platform === "linkedin") return "LINKEDIN";
@@ -399,5 +616,58 @@ function toPreviewPlatform(platform: ContentCardPlatform): PreviewPlatform {
 function defaultScheduleValue() {
   const next = new Date(Date.now() + 24 * 60 * 60 * 1000);
   next.setMinutes(0, 0, 0);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}T${String(next.getHours()).padStart(2, "0")}:00`;
+  return formatScheduleValue(next);
+}
+
+function parseScheduleValue(value: string) {
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+}
+
+function formatScheduleValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function getCalendarDays(month: Date) {
+  const first = startOfMonth(month);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+function isSameCalendarDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function isPastDate(day: Date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const candidate = new Date(day);
+  candidate.setHours(0, 0, 0, 0);
+  return candidate.getTime() < today.getTime();
+}
+
+function formatMonth(date: Date) {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+}
+
+function formatTimeLabel(hour: number, minute: number) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(2026, 0, 1, hour, minute));
 }
