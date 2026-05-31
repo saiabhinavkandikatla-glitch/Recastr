@@ -102,7 +102,6 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
       user: {
         select: {
           email: true,
-          notifyScheduleReminder: true,
         },
       },
     },
@@ -111,15 +110,13 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
   if (!post) throw new Error("Scheduled post not found");
 
   try {
-    if (post.user.notifyScheduleReminder) {
-      await sendScheduledPostNotificationEmail({
-        userEmail: post.user.email,
-        platform: post.platform,
-        postBody: post.content.body,
-        scheduledAt: post.scheduledAt,
-        projectTitle: post.content.project.title,
-      });
-    }
+    await sendScheduledPostNotificationEmail({
+      userEmail: post.user.email,
+      platform: post.platform,
+      postBody: post.content.body,
+      scheduledAt: post.scheduledAt,
+      projectTitle: post.content.project.title,
+    });
 
     await prisma.scheduledPost.update({
       where: { id: post.id },
@@ -127,7 +124,7 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
     });
 
     return {
-      notified: post.user.notifyScheduleReminder,
+      notified: true,
       scheduledPostId: post.id,
       platform: post.platform,
     };

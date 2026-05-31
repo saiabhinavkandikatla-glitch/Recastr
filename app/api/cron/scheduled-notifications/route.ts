@@ -1,5 +1,6 @@
 import { err, ok } from "@/lib/api-response";
 import { apiError } from "@/lib/api/response";
+import { getRequestUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { processDueScheduledNotifications } from "@/lib/scheduled-notifications";
 
@@ -10,7 +11,11 @@ export async function GET(request: Request) {
   try {
     const authorization = request.headers.get("authorization");
     if (env.CRON_SECRET && authorization !== `Bearer ${env.CRON_SECRET}`) {
-      return err("Unauthorized cron request", "unauthorized", 401);
+      const user = await getRequestUser(request).catch(() => null);
+      if (!user) return err("Unauthorized cron request", "unauthorized", 401);
+
+      const result = await processDueScheduledNotifications({ userId: user.id, limit: 25 });
+      return ok(result);
     }
 
     const result = await processDueScheduledNotifications({ limit: 100 });

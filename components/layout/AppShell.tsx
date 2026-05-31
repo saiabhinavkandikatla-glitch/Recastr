@@ -6,6 +6,7 @@ import { CreditUpgradeModal } from "@/components/billing/CreditUpgradeModal";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { ScheduledNotificationHeartbeat } from "@/components/layout/ScheduledNotificationHeartbeat";
 import type { CurrentUser } from "@/lib/current-user";
 import type { Project } from "@/lib/types";
 
@@ -40,6 +41,7 @@ export function AppShell({
       </div>
       <CreditUpgradeModal />
       <EmailVerifiedSuccess />
+      <ScheduledNotificationHeartbeat enabled={Boolean(user)} />
       <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
