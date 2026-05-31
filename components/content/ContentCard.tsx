@@ -108,7 +108,6 @@ export const ContentCard = memo(function ContentCard({
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const editorRef = useRef<HTMLDivElement | null>(null);
   const meta = platformMeta[platform];
-  const ratio = localBody.length / meta.limit;
   const overLimit = localBody.length > meta.limit;
   const overLimitText = `${localBody.length - meta.limit} characters over ${meta.label} limit`;
   const showToneStrip = focused && mode === "edit";
@@ -138,7 +137,7 @@ export const ContentCard = memo(function ContentCard({
 
   const counterColor = cn(
     "transition-colors duration-150",
-    ratio >= 1 ? "text-red-500" : ratio >= 0.85 ? "text-[var(--status-scheduled)]" : "text-muted-foreground",
+    overLimit ? "text-red-500" : "text-muted-foreground",
   );
 
   const handleInput = useCallback((event: FormEvent<HTMLDivElement>) => {

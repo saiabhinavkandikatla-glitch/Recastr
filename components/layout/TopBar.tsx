@@ -54,8 +54,8 @@ export function TopBar({
           Back
         </Button>
       ) : null}
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center text-[14px]">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 items-center overflow-hidden text-[14px]">
           <AnimatePresence mode="popLayout">
             {breadcrumb.map((item, index) => (
               <motion.div
@@ -63,13 +63,13 @@ export function TopBar({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.2, delay: index * 0.05 }}
-                className="flex items-center"
+                className="flex min-w-0 shrink items-center"
               >
-                {index > 0 && <ChevronRight className="mx-2 h-4 w-4 text-muted-foreground/50" />}
+                {index > 0 && <ChevronRight className="mx-2 h-4 w-4 shrink-0 text-muted-foreground/50" />}
                 <span className={cn(
-                  "truncate transition-colors",
+                  "block min-w-0 truncate transition-colors",
                   index === breadcrumb.length - 1
-                    ? "font-semibold text-foreground"
+                    ? "max-w-[min(46vw,560px)] font-semibold text-foreground"
                     : "font-medium text-muted-foreground hover:text-foreground cursor-pointer"
                 )}>
                   {item}
@@ -78,18 +78,9 @@ export function TopBar({
             ))}
           </AnimatePresence>
         </div>
-        {sourceBadge && (
-          <motion.p
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="hidden truncate text-xs font-medium text-muted-foreground sm:block mt-0.5"
-          >
-            {sourceBadge}
-          </motion.p>
-        )}
       </div>
 
-      <div className="hidden items-center md:flex">
+      <div className="hidden items-center xl:flex">
         <button
           onClick={onOpenCommandPalette}
           className="group flex h-9 w-[280px] shrink-0 items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-card/50 px-3 text-sm text-muted-foreground transition-colors duration-150 hover:border-primary/50 hover:bg-card"
@@ -129,7 +120,7 @@ export function TopBar({
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-semibold text-white shadow-sm">
                 {displayName.slice(0, 1).toUpperCase()}
               </span>
-              <span className="hidden max-w-32 truncate font-medium md:inline">{displayName}</span>
+              <span className="hidden max-w-32 truncate font-medium xl:inline">{displayName}</span>
             </button>
 
             <AnimatePresence>

@@ -26,14 +26,14 @@ export function ProjectStudioTopBar({
   return (
     <div className="sticky top-0 z-30 -mx-2 -mt-4 border-b border-white/5 bg-background/80 px-2 py-4 backdrop-blur-xl">
       <div className="flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-3">
           <Button asChild className="h-9 rounded-lg px-3" variant="ghost">
             <Link href="/dashboard">
               <ArrowLeft className="h-4 w-4" />
               Dashboard
             </Link>
           </Button>
-          <h1 className="max-w-[460px] truncate text-xl font-semibold tracking-tight">{project.title}</h1>
+          <span className="sr-only">{project.title}</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
