@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -15,16 +15,18 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CurrentUser } from "@/lib/current-user";
+import { readBrowserScheduledPosts } from "@/lib/browser-schedule-store";
 import { cn } from "@/lib/utils";
-import type { Project } from "@/lib/types";
+import type { ApiResponse } from "@/lib/api-response";
+import type { Project, ScheduledPost } from "@/lib/types";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: Folder },
-  { href: "/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/tasks", label: "Tasks", icon: ListChecks },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
+  { href: "/projects", label: "Projects", icon: Folder, id: "projects" },
+  { href: "/schedule", label: "Schedule", icon: CalendarDays, id: "schedule" },
+  { href: "/tasks", label: "Tasks", icon: ListChecks, id: "tasks" },
+  { href: "/settings", label: "Settings", icon: Settings, id: "settings" },
+] as const;
 
 export function Sidebar({
   projects,
@@ -34,9 +36,19 @@ export function Sidebar({
   user?: CurrentUser | null;
 }) {
   const pathname = usePathname();
+  const scheduledCount = useScheduledCount(Boolean(user));
+  const [tasksPeekOpen, setTasksPeekOpen] = useState(false);
   // Fallback to minimal state if no user, removing "Demo creator" hardcoding
   const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
   const plan = user?.plan ?? "FREE";
+
+  useEffect(() => {
+    if (!pathname.startsWith("/tasks")) return;
+    setTasksPeekOpen(true);
+    const timeout = window.setTimeout(() => setTasksPeekOpen(false), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [pathname, scheduledCount]);
+
   return (
     <>
       <aside className="z-20 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#090E1D] text-foreground lg:flex">
@@ -56,9 +68,27 @@ export function Sidebar({
             <SidebarLink
               key={`${item.href}-${item.label}`}
               active={isActive(pathname, item.href, item.label)}
+              badge={item.id === "tasks" ? scheduledCount : 0}
               href={item.href}
               icon={item.icon}
               label={item.label}
+              onClick={() => {
+                if (item.id === "tasks") {
+                  setTasksPeekOpen(true);
+                  window.setTimeout(() => setTasksPeekOpen(false), 2200);
+                }
+              }}
+              onMouseEnter={() => {
+                if (item.id === "tasks") setTasksPeekOpen(true);
+              }}
+              onMouseLeave={() => {
+                if (item.id === "tasks" && !pathname.startsWith("/tasks")) setTasksPeekOpen(false);
+              }}
+              popover={
+                item.id === "tasks" && tasksPeekOpen ? (
+                  <TasksSchedulePeek scheduledCount={scheduledCount} />
+                ) : null
+              }
             />
           ))}
         </nav>
@@ -138,6 +168,7 @@ export function Sidebar({
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href, item.label);
+          const showBadge = item.id === "tasks" && scheduledCount > 0;
           return (
             <Link
               aria-label={item.label}
@@ -156,6 +187,11 @@ export function Sidebar({
                 active ? "bg-[var(--violet)]/15 text-[var(--violet)]" : "text-muted-foreground group-hover:bg-white/[0.06] group-hover:text-foreground"
               )}>
                 <Icon className="h-5 w-5" />
+                {showBadge ? (
+                  <span className="absolute right-[18%] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--violet)] px-1 text-[10px] font-bold leading-none text-white">
+                    {scheduledCount > 9 ? "9+" : scheduledCount}
+                  </span>
+                ) : null}
               </div>
               <span className={cn(
                 "text-[10px] font-medium transition-colors",
@@ -177,19 +213,31 @@ function SidebarLink({
   icon: Icon,
   label,
   badge = 0,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+  popover,
 }: {
   active: boolean;
   href: string;
   icon: ComponentType<{ className?: string }>;
   label: string;
   badge?: number;
+  onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  popover?: ReactNode;
 }) {
   return (
     <Link
       href={href}
       title={label}
+      onClick={onClick}
+      onFocus={onMouseEnter}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={cn(
-        "relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-all duration-200 group overflow-hidden",
+        "relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-all duration-200 group overflow-visible",
         active
           ? "bg-[var(--violet)]/15 text-[var(--violet)]"
           : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
@@ -210,14 +258,82 @@ function SidebarLink({
       <span className="relative z-10">{label}</span>
       {badge > 0 ? (
         <span className="relative z-10 ml-auto rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-primary-foreground">
-          {badge}
+          {badge > 99 ? "99+" : badge}
         </span>
       ) : null}
+
+      {popover}
 
       {/* Hover background effect */}
       {!active ? <div className="absolute inset-0 rounded-[10px] opacity-0 transition-opacity group-hover:opacity-100" /> : null}
     </Link>
   );
+}
+
+function TasksSchedulePeek({ scheduledCount }: { scheduledCount: number }) {
+  return (
+    <span className="pointer-events-none absolute left-12 top-[calc(100%+6px)] z-50 hidden rounded-2xl border border-white/10 bg-[#0B1020] px-3 py-2 text-left shadow-soft ring-1 ring-[var(--violet)]/20 lg:block">
+      <span className="block whitespace-nowrap text-xs font-semibold text-foreground">
+        {scheduledCount} scheduled {scheduledCount === 1 ? "task" : "tasks"}
+      </span>
+      <span className="mt-0.5 block whitespace-nowrap text-[11px] text-muted-foreground">
+        Click to open schedule queue
+      </span>
+    </span>
+  );
+}
+
+function useScheduledCount(enabled: boolean) {
+  const [serverPosts, setServerPosts] = useState<ScheduledPost[]>([]);
+  const [localPosts, setLocalPosts] = useState<ScheduledPost[]>([]);
+
+  useEffect(() => {
+    function syncLocalPosts() {
+      setLocalPosts(readBrowserScheduledPosts().filter(isActiveScheduledPost));
+    }
+
+    syncLocalPosts();
+    const interval = window.setInterval(syncLocalPosts, 15_000);
+    window.addEventListener("storage", syncLocalPosts);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("storage", syncLocalPosts);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+
+    async function loadScheduledCount() {
+      const response = await fetch("/api/scheduled?filter=all", { cache: "no-store" }).catch(() => null);
+      if (!response?.ok) return;
+      const payload = (await response.json().catch(() => null)) as ApiResponse<ScheduledPost[]> | null;
+      if (!payload?.data || cancelled) return;
+      setServerPosts(payload.data.filter(isActiveScheduledPost));
+    }
+
+    void loadScheduledCount();
+    const interval = window.setInterval(() => void loadScheduledCount(), 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [enabled]);
+
+  return useMemo(() => {
+    const posts = new Map<string, ScheduledPost>();
+    for (const post of [...serverPosts, ...localPosts]) {
+      posts.set(post.contentId ?? post.id, post);
+    }
+    return posts.size;
+  }, [localPosts, serverPosts]);
+}
+
+function isActiveScheduledPost(post: ScheduledPost) {
+  return ["PENDING", "SCHEDULED"].includes(post.status.toUpperCase());
 }
 
 function isActive(pathname: string, href: string, label: string) {
