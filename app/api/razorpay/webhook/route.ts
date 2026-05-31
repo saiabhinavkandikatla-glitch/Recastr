@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma/client";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const webhookSchema = z.object({
   event: z.string().optional(),

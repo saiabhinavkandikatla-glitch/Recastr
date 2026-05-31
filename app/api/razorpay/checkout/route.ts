@@ -5,6 +5,7 @@ import { trackServerEvent } from "@/lib/analytics";
 import { recordAuditLog } from "@/lib/audit-log";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const amounts = {
   PRO: {
