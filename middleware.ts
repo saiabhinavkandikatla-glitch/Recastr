@@ -20,7 +20,7 @@ export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
   if (pathname === "/login" || pathname === "/signup") return response;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   let hasUser = false;
 
@@ -59,6 +59,15 @@ export async function middleware(request: NextRequest) {
   }
 
   return withCors(request, response);
+}
+
+function normalizeSupabaseUrl(value: string | undefined) {
+  if (!value) return value;
+  return value
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\/rest\/v1\/?$/, "")
+    .replace(/\/$/, "");
 }
 
 function isProtectedPath(pathname: string) {

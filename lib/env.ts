@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_APP_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   DATABASE_URL: z.string().optional(),
@@ -23,7 +23,26 @@ const envSchema = z.object({
 
 function normalizeSupabaseUrl(value: string | undefined) {
   if (!value) return value;
-  return value.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+  return (stripEnvValue(value) ?? "").replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+}
+
+function normalizeAppUrl(value: string | undefined) {
+  const stripped = stripEnvValue(value);
+  const candidate = stripped
+    ? /^https?:\/\//i.test(stripped)
+      ? stripped
+      : `https://${stripped}`
+    : "http://localhost:3000";
+
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
+function stripEnvValue(value: string | undefined) {
+  return value?.trim().replace(/^['"]|['"]$/g, "");
 }
 
 export const env = envSchema.parse({
@@ -56,6 +75,7 @@ export const env = envSchema.parse({
 };
 
 env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL);
+env.NEXT_PUBLIC_APP_URL = normalizeAppUrl(env.NEXT_PUBLIC_APP_URL);
 env.supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 env.supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 env.demoMode = env.RECASTR_DEMO_MODE === "true";

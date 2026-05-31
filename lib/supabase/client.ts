@@ -1,7 +1,8 @@
 "use client";
 
 export const hasSupabaseBrowserConfig = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 );
 
 export const canUseLocalAuthFallback =
@@ -11,7 +12,7 @@ export async function createSupabaseBrowserClient() {
   const { createBrowserClient } = await import("@supabase/ssr");
 
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) ?? "",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     {
       auth: {
@@ -19,4 +20,13 @@ export async function createSupabaseBrowserClient() {
       },
     },
   );
+}
+
+function normalizeSupabaseUrl(value: string | undefined) {
+  if (!value) return value;
+  return value
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\/rest\/v1\/?$/, "")
+    .replace(/\/$/, "");
 }

@@ -5,7 +5,7 @@ export function createSupabaseServerClient() {
   const cookieStore = cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) ?? "",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     {
       cookies: {
@@ -24,4 +24,13 @@ export function createSupabaseServerClient() {
       },
     },
   );
+}
+
+function normalizeSupabaseUrl(value: string | undefined) {
+  if (!value) return value;
+  return value
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\/rest\/v1\/?$/, "")
+    .replace(/\/$/, "");
 }
