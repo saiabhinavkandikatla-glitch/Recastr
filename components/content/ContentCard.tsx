@@ -186,7 +186,7 @@ export const ContentCard = memo(function ContentCard({
     <motion.article
       {...(order < 8 ? cardEntrance : {})}
       className={cn(
-        "group overflow-hidden rounded-[var(--card-radius)] border border-white/10 border-l-[3px] bg-[#090E1D] text-card-foreground",
+        "group overflow-hidden rounded-2xl border border-[var(--app-line)] border-l-[3px] bg-[var(--app-surface)] text-card-foreground",
         meta.accent,
         selected && "ring-1 ring-[var(--violet)]/45",
         focused && "border-[var(--violet)] ring-1 ring-[var(--violet)]/25",
@@ -202,13 +202,13 @@ export const ContentCard = memo(function ContentCard({
         onActivate?.(id);
       }}
     >
-      <div className="flex min-h-12 items-center gap-2 border-b border-white/10 px-4">
+      <div className="flex min-h-12 items-center gap-2 border-b border-[var(--app-line)] px-4">
         <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
         <span className="text-sm font-medium text-muted-foreground">{meta.label}</span>
         <button
           type="button"
           onClick={handleRegenerate}
-          className="ml-2 hidden h-7 items-center gap-1 rounded-lg border border-white/10 px-2 text-xs text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground group-hover:flex"
+          className="ml-2 hidden h-7 items-center gap-1 rounded-lg border border-[var(--app-line)] px-2 text-xs text-muted-foreground transition hover:bg-[var(--app-panel)] hover:text-foreground group-hover:flex"
         >
           <RefreshCcw className="h-3.5 w-3.5" />
           Regenerate
@@ -220,10 +220,10 @@ export const ContentCard = memo(function ContentCard({
               {scheduledLabel}
             </span>
           ) : null}
-          <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-muted-foreground">
+            <span className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-xs text-muted-foreground">
             {contentType}
           </span>
-          <div className="flex rounded-full border border-white/10 bg-white/[0.05] p-0.5">
+          <div className="flex rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] p-0.5">
             {(["edit", "preview"] as const).map((item) => (
               <button
                 key={item}
@@ -255,7 +255,7 @@ export const ContentCard = memo(function ContentCard({
             animate={{ height: 36, opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="flex items-center gap-2 overflow-hidden border-b border-white/10 px-4"
+            className="flex items-center gap-2 overflow-hidden border-b border-[var(--app-line)] px-4"
           >
             {tones.map((item) => {
               const active = tone.toLowerCase() === item;
@@ -312,7 +312,7 @@ export const ContentCard = memo(function ContentCard({
         </span>
       </motion.div>
 
-      <div className="flex min-h-12 items-center justify-between gap-3 border-t border-white/10 px-4 py-2">
+      <div className="flex min-h-12 items-center justify-between gap-3 border-t border-[var(--app-line)] px-4 py-2">
         <div className="flex min-w-0 flex-col gap-1">
           <span className={cn("font-mono text-xs", counterColor)}>{localBody.length} / {meta.limit} chars</span>
           {overLimit ? (
@@ -351,7 +351,7 @@ export const ContentCard = memo(function ContentCard({
             type="button"
             onClick={() => setScheduleOpen((current) => !current)}
             disabled={overLimit}
-            className="hidden h-8 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+            className="hidden h-8 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 text-xs font-semibold text-foreground transition hover:bg-[var(--app-panel)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
           >
             Schedule
           </button>
@@ -372,7 +372,7 @@ export const ContentCard = memo(function ContentCard({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="overflow-hidden border-t border-white/10"
+            className="overflow-hidden border-t border-[var(--app-line)]"
           >
             <SchedulePicker
               value={scheduleValue}
@@ -434,7 +434,7 @@ function SchedulePicker({
   }
 
   return (
-    <div className="bg-[#080D1B] px-4 py-4">
+    <div className="bg-[var(--app-bg)] px-4 py-4">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--violet)]">
@@ -445,7 +445,7 @@ function SchedulePicker({
         </div>
         <div className="flex items-center gap-2">
           <button
-            className="h-9 rounded-lg border border-white/10 px-3 text-sm font-medium text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+            className="h-9 rounded-lg border border-[var(--app-line)] px-3 text-sm font-medium text-muted-foreground transition hover:bg-[var(--app-panel)] hover:text-foreground"
             onClick={onCancel}
             type="button"
           >
@@ -462,11 +462,11 @@ function SchedulePicker({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-        <div className="rounded-2xl border border-white/10 bg-background/50 p-3">
+        <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-3">
           <div className="mb-3 flex items-center justify-between">
             <button
               aria-label="Previous month"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-[var(--app-panel)] hover:text-foreground"
               onClick={() => setCalendarMonth((current) => addMonths(current, -1))}
               type="button"
             >
@@ -475,7 +475,7 @@ function SchedulePicker({
             <p className="text-sm font-semibold">{formatMonth(calendarMonth)}</p>
             <button
               aria-label="Next month"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-[var(--app-panel)] hover:text-foreground"
               onClick={() => setCalendarMonth((current) => addMonths(current, 1))}
               type="button"
             >
@@ -501,7 +501,7 @@ function SchedulePicker({
                     "flex h-9 items-center justify-center rounded-lg text-sm font-semibold transition",
                     selectedDay && "bg-[var(--violet)] text-white",
                     !selectedDay && today && "border border-[var(--violet)]/60 text-[var(--violet)]",
-                    !selectedDay && !today && "text-foreground hover:bg-white/[0.06]",
+                    !selectedDay && !today && "text-foreground hover:bg-[var(--app-panel)]",
                     outside && "text-muted-foreground/45",
                     past && "cursor-not-allowed opacity-35 hover:bg-transparent",
                   )}
@@ -517,7 +517,7 @@ function SchedulePicker({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-background/50 p-3">
+        <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-3">
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <Clock3 className="h-4 w-4 text-[var(--violet)]" />
             Time
@@ -526,7 +526,7 @@ function SchedulePicker({
             {[9, 13, 17, 20].map((quickHour) => (
               <button
                 className={cn(
-                  "h-9 rounded-lg border border-white/10 text-sm font-medium transition hover:bg-white/[0.06]",
+                  "h-9 rounded-lg border border-[var(--app-line)] text-sm font-medium transition hover:bg-[var(--app-panel)]",
                   hour === quickHour && minute === 0 && "border-[var(--violet)] bg-[var(--violet)]/15 text-[var(--violet)]",
                 )}
                 key={quickHour}
@@ -588,7 +588,7 @@ function NumberStepper({
   return (
     <div>
       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <div className="flex h-10 items-center justify-between rounded-lg border border-white/10 bg-[#070C18]">
+      <div className="flex h-10 items-center justify-between rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)]">
         <button
           aria-label={`Decrease ${label.toLowerCase()}`}
           className="h-full px-3 text-muted-foreground transition hover:text-foreground"

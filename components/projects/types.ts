@@ -1,7 +1,7 @@
 import type { ContentCardPlatform } from "@/components/content/ContentCard";
 
 export type PlatformFilter = "all" | ContentCardPlatform;
-export type ExportFormat = "pdf" | "csv" | "json" | "notion";
+export type ExportFormat = "pdf" | "csv" | "json";
 
 export const platformFilters: Array<{ value: PlatformFilter; label: string }> = [
   { value: "all", label: "All" },

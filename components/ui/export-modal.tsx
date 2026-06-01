@@ -8,13 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type ExportFormat = "pdf" | "csv" | "json" | "notion";
+type ExportFormat = "pdf" | "csv" | "json";
 
 const formats: Array<[ExportFormat, string, React.ReactNode]> = [
   ["pdf", "PDF", <FileText key="pdf" className="h-4 w-4" />],
   ["csv", "CSV", <Table key="csv" className="h-4 w-4" />],
   ["json", "JSON", <FileJson key="json" className="h-4 w-4" />],
-  ["notion", "Notion", <FileText key="notion" className="h-4 w-4" />],
 ];
 
 export function ExportModal({
@@ -30,10 +29,6 @@ export function ExportModal({
   if (!open) return null;
 
   async function download() {
-    if (format === "notion") {
-      toast.info("Notion export is coming soon");
-      return;
-    }
     const response = await fetch(`/api/export/${format}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,9 +80,7 @@ export function ExportModal({
             ))}
           </div>
           <div className="rounded-[16px] border bg-muted/30 p-4 text-sm leading-6 text-muted-foreground">
-            {format === "notion"
-              ? "Notion export is coming soon. PDF, CSV, and JSON are available now."
-              : "The export includes project name, source title, generation date, platform labels, and selected content pieces."}
+            The export includes project name, source title, generation date, platform labels, and selected content pieces.
           </div>
           <Button className="w-full" onClick={download}>
             <Download className="h-4 w-4" />

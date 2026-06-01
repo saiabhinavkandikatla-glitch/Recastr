@@ -43,9 +43,9 @@ export function CommandPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 shadow-2xl bg-[#0B1020] sm:max-w-[600px] border border-white/[0.06] rounded-[16px]">
+      <DialogContent className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-0 shadow-2xl sm:max-w-[600px]">
         <Command className="flex h-full w-full flex-col bg-transparent text-foreground">
-          <div className="flex items-center border-b px-4 border-white/5">
+          <div className="flex items-center border-b border-[var(--app-line)] px-4">
             <Sparkles className="mr-2 h-4 w-4 shrink-0 text-primary" />
             <Command.Input
               className="flex h-14 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"

@@ -1,4 +1,4 @@
-import { assertEmailConfigured, sendScheduledPostNotificationEmail } from "@/lib/email";
+import { sendScheduledPostNotificationEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma/client";
 
 const ACTIVE_STATUSES = ["pending", "scheduled", "PENDING", "SCHEDULED"];
@@ -44,7 +44,6 @@ export async function processDueScheduledNotifications({
 
 export async function notifyScheduledPost(scheduledPostId: string | undefined) {
   if (!scheduledPostId) throw new Error("scheduledPostId is required");
-  assertEmailConfigured();
 
   const existing = await prisma.scheduledPost.findUnique({
     where: { id: scheduledPostId },

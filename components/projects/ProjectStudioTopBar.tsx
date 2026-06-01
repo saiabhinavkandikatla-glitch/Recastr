@@ -24,10 +24,10 @@ export function ProjectStudioTopBar({
   onGenerateToggle: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-30 -mx-2 -mt-4 border-b border-white/[0.06] bg-[#0B1020] px-2 py-4">
+    <div className="sticky top-0 z-30 -mx-2 -mt-6 border-b border-[var(--app-line)] bg-[var(--app-bg)]/95 px-2 py-4 backdrop-blur-md">
       <div className="flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center">
         <div className="flex min-w-0 shrink-0 items-center gap-3">
-          <Button asChild className="h-9 rounded-lg px-3" variant="ghost">
+          <Button asChild className="h-9 rounded-full px-3 text-muted-foreground hover:bg-[var(--app-panel)] hover:text-foreground" variant="ghost">
             <Link href="/dashboard">
               <ArrowLeft className="h-4 w-4" />
               Dashboard
@@ -60,12 +60,12 @@ export function ProjectStudioTopBar({
         </div>
 
         <div className="flex items-center gap-2.5 min-[900px]:ml-auto">
-          <Button className="h-11 rounded-[12px] px-5 text-[15px] font-semibold" variant="secondary" onClick={onExportToggle}>
+          <Button className="h-10 rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] px-5 text-sm font-semibold hover:bg-[var(--app-panel)]" variant="secondary" onClick={onExportToggle}>
             <Download className="h-4 w-4" />
             Export
             <ChevronDown className={cn("h-3.5 w-3.5 transition", exportOpen && "rotate-180")} />
           </Button>
-          <Button onClick={onGenerateToggle} className="h-11 rounded-[12px] bg-[var(--violet)] px-5 text-[15px] font-semibold text-white hover:bg-[var(--violet-hover)]">
+          <Button onClick={onGenerateToggle} className="h-10 rounded-full bg-[var(--violet)] px-5 text-sm font-semibold text-white hover:bg-[var(--violet-hover)]">
             + Generate more
           </Button>
         </div>
@@ -76,11 +76,11 @@ export function ProjectStudioTopBar({
 
 function filterPillClass(filter: PlatformFilter, active: boolean) {
   const base =
-    "relative h-10 rounded-full px-5 text-[15px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+    "relative h-10 rounded-full px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
   if (active) return cn(base, "bg-[var(--violet)] text-white");
   return cn(
     base,
-    "border border-white/10 bg-white/[0.045] text-muted-foreground hover:border-white/20 hover:bg-white/[0.075] hover:text-foreground",
+    "border border-[var(--app-line)] bg-[var(--app-surface)] text-muted-foreground hover:border-[var(--app-line-strong)] hover:bg-[var(--app-panel)] hover:text-foreground",
     filter === "all" && "text-foreground",
   );
 }

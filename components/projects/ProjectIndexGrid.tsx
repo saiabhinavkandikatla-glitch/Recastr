@@ -26,7 +26,7 @@ export function ProjectIndexGrid({
           <button
             key={project.id}
             type="button"
-            className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6 text-left transition-colors duration-200 hover:border-[var(--app-line-strong)]"
             onClick={() => {
               if (demoLocked) {
                 setSelectedProjectTitle(project.title);
@@ -36,13 +36,11 @@ export function ProjectIndexGrid({
               router.push(`/projects/${project.id}`);
             }}
           >
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 to-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-
             <div className="mb-5 flex items-start justify-between gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <Badge variant="muted" className="bg-muted text-xs capitalize">{project.sourceType.toLowerCase()}</Badge>
+              <Badge variant="muted" className="border-[var(--app-line)] bg-[var(--app-panel)] text-xs capitalize text-muted-foreground">{project.sourceType.toLowerCase()}</Badge>
             </div>
 
             <h2 className="line-clamp-2 text-xl font-bold font-display transition-colors group-hover:text-primary">{project.title}</h2>

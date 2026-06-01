@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import type { ComponentType } from "react";
 import {
   ArrowRight,
   Check,
@@ -19,7 +18,6 @@ import {
 const navLinks = [
   { label: "Workflow", href: "#workflow" },
   { label: "Outputs", href: "#outputs" },
-  { label: "Stories", href: "#stories" },
   { label: "Pricing", href: "#pricing" },
 ] as const;
 
@@ -77,26 +75,6 @@ const outputPlatforms = [
   },
 ] as const;
 
-const stories = [
-  {
-    name: "Marcus O.",
-    role: "Podcast host, 80k DLs/mo",
-    quote:
-      "I used to spend Sundays clipping. Now I drop the episode in Recastr and ship for the week.",
-  },
-  {
-    name: "Lena W.",
-    role: "Solo creator",
-    quote:
-      "The hook scoring is the unlock. I finally understand why some posts hit and others die.",
-  },
-  {
-    name: "Diego R.",
-    role: "Founder, B2B SaaS",
-    quote:
-      "Replaced three freelancers. The LinkedIn tone matches my voice better than my own drafts.",
-  },
-] as const;
 
 const plans = [
   {
@@ -145,7 +123,7 @@ const plans = [
 const faqs = [
   {
     q: "Does Recastr auto-post to social platforms?",
-    a: "Yes. Recastr can schedule and publish directly to connected platforms. You can also use email reminders for manual posting.",
+    a: "No. Recastr schedules email reminders with the full post text so you can review, copy, and publish manually without connecting social account tokens.",
   },
   {
     q: "What sources can I use?",
@@ -174,6 +152,21 @@ const footerLinks = {
   Company: ["About", "Manifesto", "Careers", "Press"],
   Resources: ["Hook Library", "Docs", "Support", "Status"],
 } as const;
+
+const footerHref: Record<string, string> = {
+  Workflow: "#workflow",
+  Outputs: "#outputs",
+  Pricing: "#pricing",
+  Changelog: "/login",
+  About: "/login",
+  Manifesto: "/login",
+  Careers: "mailto:hello@recastr.app",
+  Press: "mailto:hello@recastr.app",
+  "Hook Library": "/login",
+  Docs: "/login",
+  Support: "mailto:hello@recastr.app",
+  Status: "/login",
+};
 
 /* ─────────── ANIMATED COUNTER ─────────── */
 function AnimatedCounter({
@@ -293,12 +286,12 @@ export function LandingPage() {
             >
               Sign in
             </Link>
-            <Link
-              href="/signup"
+            <a
+              href="#cta"
               className="inline-flex h-9 items-center rounded-full bg-[var(--landing-fg)] px-4 text-[13px] font-semibold text-[var(--landing-bg)] transition-all hover:opacity-90"
             >
               Start free
-            </Link>
+            </a>
 
             {/* Mobile menu button */}
             <button
@@ -375,13 +368,13 @@ export function LandingPage() {
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link
-              href="/signup"
+            <a
+              href="#cta"
               className="group inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-accent)] px-7 text-sm font-semibold text-white transition-all hover:brightness-110"
             >
               Try with a demo project
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+            </a>
             <a
               href="#workflow"
               className="inline-flex h-12 items-center justify-center rounded-full border border-[var(--landing-line)] px-7 text-sm font-medium text-[var(--landing-fg)] transition-colors hover:bg-[var(--landing-panel)]"
@@ -421,20 +414,32 @@ export function LandingPage() {
       </section>
 
       {/* ─────── FEATURED IN ─────── */}
-      <section className="border-y border-[var(--landing-line)] bg-[var(--landing-soft)]">
+      <section className="border-y border-[var(--landing-line)] bg-[var(--landing-soft)] overflow-hidden">
         <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-6 px-5 py-10 sm:flex-row sm:gap-10 sm:px-6">
-          <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--landing-muted)]">
+          <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--landing-muted)] z-10">
             As featured by
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 sm:gap-x-10">
-            {featuredIn.map((name) => (
-              <span
-                key={name}
-                className="text-sm font-medium text-[var(--landing-muted)]/60 transition-colors hover:text-[var(--landing-muted)]"
-              >
-                {name}
-              </span>
-            ))}
+          <div className="flex flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)] gap-10 [--gap:2.5rem]">
+            <div className="flex shrink-0 animate-marquee items-center justify-around gap-10 py-1">
+              {featuredIn.map((name) => (
+                <span
+                  key={name}
+                  className="whitespace-nowrap text-sm font-medium text-[var(--landing-muted)]/60 transition-colors hover:text-[var(--landing-muted)]"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+            <div aria-hidden="true" className="flex shrink-0 animate-marquee items-center justify-around gap-10 py-1">
+              {featuredIn.map((name) => (
+                <span
+                  key={`duplicate-${name}`}
+                  className="whitespace-nowrap text-sm font-medium text-[var(--landing-muted)]/60 transition-colors hover:text-[var(--landing-muted)]"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -509,40 +514,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ─────── STORIES ─────── */}
-      <section id="stories" className="scroll-mt-20">
-        <div className="mx-auto max-w-[1200px] px-5 py-24 sm:px-6">
-          <SectionHeader
-            eyebrow="The Stories"
-            title="Creators who got their weekends back."
-          />
-
-          <div className="mt-14 grid gap-4 md:grid-cols-3">
-            {stories.map(({ name, role, quote }) => (
-              <article
-                key={name}
-                className="flex flex-col rounded-2xl border border-[var(--landing-line)] bg-[var(--landing-panel)] p-6"
-              >
-                <blockquote className="flex-1 text-[15px] leading-relaxed italic text-[var(--landing-fg)]/90">
-                  &ldquo;{quote}&rdquo;
-                </blockquote>
-                <div className="mt-8 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--landing-accent)]/10 font-semibold text-[var(--landing-accent)] text-sm">
-                    {name[0]}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{name}</p>
-                    <p className="text-xs text-[var(--landing-muted)]">
-                      {role}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ─────── PRICING ─────── */}
       <section
         id="pricing"
@@ -593,8 +564,8 @@ export function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href="/signup"
+                  <a
+                    href="#cta"
                     className={`mt-8 inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold transition-all ${
                       featured
                         ? "bg-[var(--landing-accent)] text-white hover:brightness-110"
@@ -602,7 +573,7 @@ export function LandingPage() {
                     }`}
                   >
                     {cta}
-                  </Link>
+                  </a>
                 </article>
               )
             )}
@@ -624,7 +595,7 @@ export function LandingPage() {
       </section>
 
       {/* ─────── FINAL CTA ─────── */}
-      <section className="mx-auto max-w-[1200px] px-5 pb-24 sm:px-6">
+      <section id="cta" className="mx-auto max-w-[1200px] px-5 pb-24 sm:px-6 scroll-mt-20">
         <div className="relative overflow-hidden rounded-3xl bg-[var(--landing-fg)] p-8 text-[var(--landing-bg)] sm:p-14">
           {/* Subtle accent */}
           <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-violet-400/20 blur-[80px]" />
@@ -694,7 +665,7 @@ export function LandingPage() {
                   {links.map((link) => (
                     <li key={link}>
                       <a
-                        href="#"
+                        href={footerHref[link]}
                         className="text-[13px] text-[var(--landing-muted)]/70 transition-colors hover:text-[var(--landing-fg)]"
                       >
                         {link}

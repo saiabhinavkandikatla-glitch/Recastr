@@ -57,12 +57,11 @@ export function ProjectDashboard({
     value: string;
     icon: ComponentType<{ className?: string }>;
     trend: string;
-    color: string;
   }> = [
-    { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "This month", color: "from-blue-500 to-cyan-500" },
-    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: contentCount > 0 ? "Ready to schedule" : "None yet", color: "from-violet-500 to-purple-500" },
-    { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "None scheduled", color: "from-amber-500 to-orange-500" },
-    { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated", color: "from-emerald-500 to-teal-500" },
+    { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "This month" },
+    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: contentCount > 0 ? "Ready to schedule" : "None yet" },
+    { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "None scheduled" },
+    { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated" },
   ];
   const pipelineSteps = [
     { step: "1", label: "Paste a URL or text", icon: Link2 },
@@ -74,10 +73,10 @@ export function ProjectDashboard({
   return (
     <div className="space-y-10">
       <section>
-        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{greeting}</p>
-        <h1 className="text-3xl font-bold font-display tracking-tight sm:text-4xl">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{greeting}</p>
+        <h1 className="max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">
           {contentCount ? (
-            <>{firstName}, you have <span className="text-violet-400">{contentCount} pieces</span> ready.</>
+            <>{firstName}, you have <span className="text-[var(--violet)]">{contentCount} pieces</span> ready.</>
           ) : (
             <>{firstName}, paste a source below to get started.</>
           )}
@@ -85,35 +84,33 @@ export function ProjectDashboard({
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {metrics.map(({ icon: Icon, label, trend, value, color }, index) => (
+        {metrics.map(({ icon: Icon, label, trend, value }, index) => (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] p-5"
+            className="group relative overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5"
             initial={{ opacity: 0, y: 20 }}
             key={label}
             transition={{ delay: index * 0.08, duration: 0.4, ease: "easeOut" }}
           >
-            <div className={`absolute right-0 top-0 h-24 w-24 -translate-y-8 translate-x-8 rounded-full bg-gradient-to-br ${color} opacity-10 blur-2xl transition-opacity group-hover:opacity-20`} />
-
             <div className="flex items-center justify-between relative z-10">
               <p className="text-sm font-medium text-muted-foreground">{label}</p>
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${color} text-white shadow-sm`}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
                 <Icon className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-6 flex items-end justify-between relative z-10">
-              <p className="text-3xl font-bold font-display">{value}</p>
-              <Badge variant="muted" className="bg-muted text-xs font-medium border-0">{trend}</Badge>
+              <p className="font-display text-3xl font-semibold">{value}</p>
+              <Badge variant="muted" className="border-[var(--app-line)] bg-[var(--app-panel)] text-xs font-medium text-muted-foreground">{trend}</Badge>
             </div>
           </motion.div>
         ))}
       </div>
 
       {isWelcome ? (
-        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 flex items-start gap-3">
-          <Sparkles className="h-5 w-5 text-violet-400 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-4">
+          <Sparkles className="h-5 w-5 text-[var(--violet)] mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-violet-200">Your workspace is ready!</p>
+            <p className="text-sm font-semibold">Your workspace is ready!</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Your first project is in Recent projects below. Open it to review generated content,
               then use Schedule on any card. You will get an email reminder when it is time to post.
@@ -122,13 +119,12 @@ export function ProjectDashboard({
         </div>
       ) : null}
 
-      <section id="source-ingest" className="relative rounded-xl border border-white/[0.06] bg-[#0B1020] p-1 shadow-lg scroll-mt-24">
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
-        <div className="relative z-10 bg-card rounded-xl p-6 sm:p-8">
+      <section id="source-ingest" className="relative scroll-mt-24 rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6 sm:p-8">
+        <div className="relative z-10">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--app-panel)] text-[var(--violet)]">
                   <Zap className="h-3 w-3" />
                 </div>
                 <h2 className="text-xl font-bold font-display">Quick Ingest</h2>
@@ -143,10 +139,10 @@ export function ProjectDashboard({
               const Icon = item.icon;
               return (
                 <div key={item.step} className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1">
-                    <Icon className="h-3.5 w-3.5 text-violet-300" />
+                  <div className="flex items-center gap-1.5 rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] px-3 py-1">
+                    <Icon className="h-3.5 w-3.5 text-[var(--violet)]" />
                     <span className="text-xs text-muted-foreground">
-                      <span className="font-semibold text-violet-300">{item.step}.</span> {item.label}
+                      <span className="font-semibold text-[var(--violet)]">{item.step}.</span> {item.label}
                     </span>
                   </div>
                   {index < pipelineSteps.length - 1 ? (
@@ -171,7 +167,7 @@ export function ProjectDashboard({
             <p className="text-sm text-muted-foreground mt-1">Continue editing, exporting, or scheduling generated assets.</p>
           </div>
           {initialProjects.length > 0 && (
-            <Button variant="ghost" asChild className="hidden sm:flex text-primary hover:text-primary hover:bg-primary/10">
+            <Button variant="ghost" asChild className="hidden text-[var(--violet)] hover:bg-[var(--app-panel)] hover:text-[var(--violet)] sm:flex">
               <Link href="/projects">View all <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           )}
@@ -188,7 +184,7 @@ export function ProjectDashboard({
               >
                 <button
                   type="button"
-                  className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5 text-left transition-colors duration-200 hover:border-[var(--app-line-strong)]"
                   onClick={() => {
                     if (demoLocked) {
                       setSelectedProjectTitle(project.title);
@@ -198,10 +194,8 @@ export function ProjectDashboard({
                     router.push(`/projects/${project.id}`);
                   }}
                 >
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <Badge variant="muted" className="bg-muted capitalize text-xs">{project.sourceType.toLowerCase()}</Badge>
@@ -215,7 +209,11 @@ export function ProjectDashboard({
                   <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
                     <div className="flex -space-x-2">
                       {["twitter", "linkedin", "instagram"].map((platform, i) => (
-                        <div key={platform} className={`h-6 w-6 rounded-full border-2 border-card bg-[var(--platform-${platform})] flex items-center justify-center text-white z-[${3-i}]`}>
+                        <div
+                          key={platform}
+                          className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--app-surface)] text-white"
+                          style={{ background: platformColor(platform), zIndex: 3 - i }}
+                        >
                           <span className="text-[8px] font-bold">{platform.charAt(0).toUpperCase()}</span>
                         </div>
                       ))}
@@ -229,8 +227,8 @@ export function ProjectDashboard({
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-white/20 bg-[#0B1020] p-12 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-6">
+          <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-12 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--app-panel)] text-[var(--violet)] mb-6">
               <FolderOpen className="h-8 w-8" />
             </div>
             <h3 className="text-2xl font-bold font-display">No projects yet</h3>
@@ -240,7 +238,7 @@ export function ProjectDashboard({
             <div className="mt-8 flex justify-center">
               <Button
                 size="lg"
-                className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8"
+                className="rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]"
                 onClick={() => document.getElementById("source-ingest")?.scrollIntoView({ behavior: "smooth", block: "center" })}
               >
                 <Plus className="mr-2 h-5 w-5" />
@@ -263,6 +261,12 @@ function formatHours(hours: number) {
   if (hours <= 0) return "0 hrs";
   if (hours < 1) return `${Math.round(hours * 60)} min`;
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hrs`;
+}
+
+function platformColor(platform: string) {
+  if (platform === "twitter") return "var(--platform-twitter)";
+  if (platform === "linkedin") return "var(--platform-linkedin)";
+  return "var(--platform-instagram)";
 }
 
 // Icon definition for Zap missing from Lucide imports

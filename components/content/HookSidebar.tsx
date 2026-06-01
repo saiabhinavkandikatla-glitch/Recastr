@@ -51,8 +51,8 @@ export const HookSidebar = memo(function HookSidebar({
           variants={hookVariants}
           onClick={() => onSelect(null)}
           className={cn(
-            "w-full rounded-[12px] border border-white/10 bg-white/[0.045] px-3 py-3 text-left text-[15px] font-semibold text-card-foreground transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
-            selectedHookId === null && "border-[var(--violet)] border-l-[3px] bg-[var(--violet)]/15",
+            "w-full rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] px-3 py-3 text-left text-[15px] font-semibold text-card-foreground transition hover:border-[var(--app-line-strong)] hover:bg-[var(--app-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
+            selectedHookId === null && "border-[var(--violet)] border-l-[3px] bg-[var(--violet-muted)]",
           )}
         >
           All content ({contentCount})
@@ -68,8 +68,8 @@ export const HookSidebar = memo(function HookSidebar({
               variants={hookVariants}
               onClick={() => onSelect(hook.id)}
               className={cn(
-                "group relative w-full overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.045] p-4 text-left transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
-                selected && "border-[var(--violet)] border-l-[3px] bg-[var(--violet)]/15",
+                "group relative w-full overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-4 text-left transition hover:border-[var(--app-line-strong)] hover:bg-[var(--app-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)]",
+                selected && "border-[var(--violet)] border-l-[3px] bg-[var(--violet-muted)]",
               )}
             >
               <div className="flex items-center justify-between gap-3">

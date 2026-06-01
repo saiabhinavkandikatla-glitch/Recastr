@@ -32,7 +32,7 @@ export function WelcomeScreen() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.32, 1] }}
-        className="rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 shadow-2xl"
+        className="rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8"
       >
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Sparkles className="h-7 w-7" />
@@ -44,7 +44,7 @@ export function WelcomeScreen() {
           We will set up your workspace in a few quick questions, then take you to the dashboard so the flow feels calm instead of dumping you into a demo project.
         </p>
         <Button
-          className="mt-7 rounded-xl bg-[var(--violet)] px-6 font-bold text-white hover:opacity-90"
+          className="mt-7 rounded-full bg-[var(--violet)] px-6 font-bold text-white hover:bg-[var(--violet-hover)]"
           onClick={() => router.push("/onboarding?setup=1")}
         >
           Get started
@@ -67,7 +67,7 @@ export function WelcomeScreen() {
                 hidden: { opacity: 0, y: 18 },
                 show: { opacity: 1, y: 0, transition: { duration: 0.24 } },
               }}
-              className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-6"
+              className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6"
             >
               <Icon className="h-6 w-6 text-primary" />
               <h2 className="mt-4 text-lg font-bold">{card.title}</h2>

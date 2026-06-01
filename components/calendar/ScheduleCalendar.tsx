@@ -105,8 +105,8 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
 
   return (
     <div className="space-y-4">
-      <section className="rounded-[18px] border border-white/10 bg-card/45 shadow-soft">
-        <div className="flex flex-col gap-3 border-b border-white/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <section className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+        <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="mb-1.5 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5 text-primary" />
@@ -122,11 +122,11 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
           </div>
 
           <div className="flex flex-wrap gap-2 sm:items-center lg:justify-end">
-            <div className="inline-flex rounded-xl border border-white/10 bg-background/50 p-0.5">
+            <div className="inline-flex rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] p-1">
               {(["month", "week", "day"] as const).map((option) => (
                 <button
                   className={cn(
-                    "relative h-8 min-w-16 rounded-lg px-3 text-xs font-semibold capitalize transition-colors",
+                    "relative h-8 min-w-16 rounded-full px-3 text-xs font-semibold capitalize transition-colors",
                     view === option ? "text-white" : "text-muted-foreground hover:text-foreground",
                   )}
                   key={option}
@@ -135,7 +135,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
                 >
                   {view === option ? (
                     <motion.span
-                      className="absolute inset-0 rounded-lg bg-primary"
+                      className="absolute inset-0 rounded-full bg-[var(--violet)]"
                       layoutId="schedule-view-active"
                       transition={{ duration: 0.2, ease: [0.16, 1, 0.32, 1] }}
                     />
@@ -145,10 +145,10 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               ))}
             </div>
 
-            <div className="inline-flex rounded-xl border border-white/10 bg-background/50 p-0.5">
+            <div className="inline-flex rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] p-1">
               <Button
                 aria-label="Previous period"
-                className="h-8 w-8 rounded-lg"
+                className="h-8 w-8 rounded-full"
                 onClick={() => move("prev")}
                 size="icon"
                 variant="ghost"
@@ -156,7 +156,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
-                className="h-8 rounded-lg px-3 text-xs"
+                className="h-8 rounded-full px-3 text-xs"
                 onClick={() => setCursor(new Date())}
                 size="sm"
                 variant="ghost"
@@ -165,7 +165,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               </Button>
               <Button
                 aria-label="Next period"
-                className="h-8 w-8 rounded-lg"
+                className="h-8 w-8 rounded-full"
                 onClick={() => move("next")}
                 size="icon"
                 variant="ghost"
@@ -174,7 +174,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               </Button>
             </div>
 
-            <Button asChild className="h-9 rounded-lg bg-primary px-3 text-xs text-white hover:bg-primary/90">
+            <Button asChild className="h-9 rounded-full bg-[var(--violet)] px-4 text-xs text-white hover:bg-[var(--violet-hover)]">
               <Link href="/dashboard#source-ingest">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Create post
@@ -187,7 +187,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
           <div className="min-w-0">
             <div
               className={cn(
-                "hidden border-b border-white/10 bg-muted/10 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:grid",
+                "hidden border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:grid",
                 view === "day" ? "grid-cols-1" : "grid-cols-7",
               )}
             >
@@ -218,7 +218,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
             </div>
           </div>
 
-          <aside className="border-t border-white/10 bg-background/25 xl:border-l xl:border-t-0">
+          <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)]/35 xl:border-l xl:border-t-0">
             <div className="space-y-4 p-3">
               <PanelBlock
                 action={
@@ -289,11 +289,11 @@ function CalendarDay({
   return (
     <div
       className={cn(
-        "group min-h-[92px] border-b border-white/10 p-2 transition-colors md:border-r",
-        view === "day" && "min-h-[320px]",
-        view === "week" && "min-h-[220px]",
-        currentMonth ? "bg-card/25 hover:bg-muted/15" : "bg-background/30 text-muted-foreground/60",
-        today && "bg-primary/5",
+        "group min-h-[78px] border-b border-[var(--app-line)] p-2 transition-colors md:border-r md:border-[var(--app-line)]",
+        view === "day" && "min-h-[260px]",
+        view === "week" && "min-h-[170px]",
+        currentMonth ? "bg-[var(--app-surface)] hover:bg-[var(--app-panel)]/65" : "bg-[var(--app-bg)]/35 text-muted-foreground/60",
+        today && "bg-[var(--violet-muted)]",
       )}
     >
       <div className="mb-1.5 flex items-start justify-between gap-2">
@@ -312,7 +312,7 @@ function CalendarDay({
         </div>
 
         {posts.length ? (
-          <Badge className="h-5 rounded-full bg-background/70 px-1.5 text-[10px] text-muted-foreground ring-white/10" variant="muted">
+          <Badge className="h-5 rounded-full border-[var(--app-line)] bg-[var(--app-panel)] px-1.5 text-[10px] text-muted-foreground" variant="muted">
             {posts.length}
           </Badge>
         ) : null}
@@ -334,13 +334,13 @@ function CalendarDay({
         </AnimatePresence>
 
         {hiddenCount > 0 ? (
-          <p className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-center text-[10px] font-medium text-primary">
+          <p className="rounded-md border border-[var(--app-line)] bg-[var(--app-panel)] px-1.5 py-0.5 text-center text-[10px] font-medium text-[var(--violet)]">
             +{hiddenCount} more
           </p>
         ) : null}
 
         {!posts.length ? (
-          <p className="hidden rounded-md border border-dashed border-white/10 px-2 py-2 text-center text-[10px] text-muted-foreground group-hover:block">
+          <p className="hidden rounded-md border border-dashed border-[var(--app-line)] px-2 py-2 text-center text-[10px] text-muted-foreground group-hover:block">
             Empty
           </p>
         ) : null}
@@ -353,7 +353,7 @@ function CalendarPostChip({ dense, post }: { dense: boolean; post: ScheduledPost
   const date = getPostDate(post);
 
   return (
-    <div className="rounded-lg border border-white/10 bg-background/65 px-2 py-1.5 transition-colors hover:border-primary/30">
+    <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)]/70 px-2 py-1.5 transition-colors hover:border-[var(--app-line-strong)]">
       <div className="flex min-w-0 items-center gap-2">
         <span className={cn("h-2 w-2 shrink-0 rounded-full", platformDot(post.platform))} />
         <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{format(date, "h:mm a")}</span>
@@ -370,7 +370,7 @@ function AgendaItem({ post }: { post: ScheduledPost }) {
   const date = getPostDate(post);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-background/60 p-2.5">
+    <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-surface)] p-2.5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn("h-2 w-2 shrink-0 rounded-full", platformDot(post.platform))} />
@@ -385,7 +385,7 @@ function AgendaItem({ post }: { post: ScheduledPost }) {
 
 function HistoryItem({ post }: { post: ScheduledPost }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-background/60 p-2.5">
+    <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-surface)] p-2.5">
       <div className="mb-1 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn("h-2 w-2 shrink-0 rounded-full", platformDot(post.platform))} />
@@ -400,7 +400,7 @@ function HistoryItem({ post }: { post: ScheduledPost }) {
 
 function EmptyPanel({ body, title }: { body: string; title: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-white/10 bg-background/40 p-3">
+    <div className="rounded-xl border border-dashed border-[var(--app-line)] bg-[var(--app-bg)]/55 p-3">
       <p className="text-xs font-semibold">{title}</p>
       <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{body}</p>
     </div>
@@ -409,7 +409,7 @@ function EmptyPanel({ body, title }: { body: string; title: string }) {
 
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-white/10 bg-background/55 px-2.5 text-[11px]">
+    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-[var(--app-line)] bg-[var(--app-bg)]/55 px-2.5 text-[11px]">
       <span className="font-semibold text-foreground">{value}</span>
       <span>{label}</span>
     </span>
@@ -433,7 +433,7 @@ function PanelBlock({
     <section>
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
-          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/45">
+          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
             {icon}
           </div>
           <div className="min-w-0">
@@ -456,7 +456,7 @@ function StatusPill({ status }: { status: ScheduledPost["status"] }) {
     return <Badge className="border-red-500/20 bg-red-500/10 text-red-300">Failed</Badge>;
   }
   if (status === "CANCELLED") {
-    return <Badge className="border-white/10 bg-muted text-muted-foreground">Cancelled</Badge>;
+    return <Badge className="border-[var(--app-line)] bg-[var(--app-panel)] text-muted-foreground">Cancelled</Badge>;
   }
   return <Badge className="border-primary/20 bg-primary/10 text-primary">Done</Badge>;
 }

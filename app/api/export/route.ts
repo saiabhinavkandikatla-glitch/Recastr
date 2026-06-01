@@ -1,7 +1,6 @@
 import { getRequestUser } from "@/lib/auth";
 import { exportSchema } from "@/lib/ai/schemas";
 import { createCsv, createJson, createPdf } from "@/lib/exporters";
-import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { trackServerEvent } from "@/lib/analytics";
 import { recordUsageEvent } from "@/lib/usage";
 
@@ -40,10 +39,7 @@ export async function POST(request: Request) {
       return Response.json(JSON.parse(await createJson(payload.projectId, user.id, payload.contentIds)));
     }
 
-    const job = await addRecastrJob(jobNames.exportNotion, {
-      projectId: payload.projectId,
-    });
-    return Response.json({ jobId: job.id });
+    return Response.json({ error: "Unsupported export format", code: "unsupported_export_format" }, { status: 400 });
   } catch (error) {
     return Response.json(
       {

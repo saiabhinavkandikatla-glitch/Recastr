@@ -13,7 +13,6 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import type { CurrentUser } from "@/lib/current-user";
 import { readBrowserScheduledPosts } from "@/lib/browser-schedule-store";
 import { cn } from "@/lib/utils";
@@ -51,8 +50,8 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="z-20 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r border-white/[0.06] bg-[#080D1A] text-foreground lg:flex">
-        <div className="flex h-[var(--topbar-height)] items-center gap-2.5 border-b border-white/[0.06] px-5">
+      <aside className="z-20 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-text)] lg:flex">
+        <div className="flex h-[var(--topbar-height)] items-center gap-2.5 border-b border-[var(--app-line)] px-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--violet)]">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
@@ -92,7 +91,7 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="border-y border-white/[0.06] px-5 py-4">
+        <div className="border-y border-[var(--app-line)] px-5 py-4">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Recent Projects
@@ -111,10 +110,10 @@ export function Sidebar({
                 href={`/projects/${project.id}`}
                 key={project.id}
                 className={cn(
-                  "group relative flex gap-3 rounded-lg border border-transparent p-2 transition-all duration-200",
+                  "group relative flex gap-3 rounded-lg border border-transparent p-2 transition-colors duration-200",
                   active
-                    ? "border-white/[0.08] bg-white/[0.04]"
-                    : "hover:bg-white/[0.03]"
+                    ? "border-[var(--app-line-strong)] bg-[var(--app-panel)]"
+                    : "hover:bg-[var(--app-surface)]"
                 )}
               >
                 <div className="relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-lg">
@@ -140,12 +139,12 @@ export function Sidebar({
           })}
         </div>
 
-        <div className="border-t border-white/[0.06] p-4">
+        <div className="border-t border-[var(--app-line)] p-4">
           {user ? (
-            <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]">
+            <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-surface)] p-3 transition-colors hover:border-[var(--app-line-strong)]">
               <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--violet)]/15 text-sm font-semibold text-violet-400">
                 {displayName.slice(0, 1).toUpperCase()}
-                <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-[1.5px] border-[#080D1A] bg-emerald-400" />
+                <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-[1.5px] border-[var(--app-bg)] bg-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{displayName}</p>
@@ -161,7 +160,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-white/[0.06] bg-[#080D1A] px-2 lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-[var(--app-line)] bg-[var(--app-bg)] px-2 lg:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href, item.label);
@@ -181,7 +180,7 @@ export function Sidebar({
               )}
               <div className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300",
-                active ? "bg-[var(--violet)]/15 text-[var(--violet)]" : "text-muted-foreground group-hover:bg-white/[0.06] group-hover:text-foreground"
+                active ? "bg-[var(--violet)]/15 text-[var(--violet)]" : "text-muted-foreground group-hover:bg-[var(--app-surface)] group-hover:text-foreground"
               )}>
                 <Icon className="h-5 w-5" />
                 {showBadge ? (
@@ -236,8 +235,8 @@ function SidebarLink({
       className={cn(
         "relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-all duration-200 group overflow-visible",
         active
-          ? "bg-[var(--violet)]/15 text-[var(--violet)]"
-          : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+          ? "bg-[var(--app-panel)] text-[var(--violet)]"
+          : "text-muted-foreground hover:bg-[var(--app-surface)] hover:text-foreground"
       )}
     >
       {active && (
@@ -269,7 +268,7 @@ function SidebarLink({
 
 function TasksSchedulePeek({ scheduledCount }: { scheduledCount: number }) {
   return (
-    <span className="pointer-events-none absolute left-12 top-[calc(100%+6px)] z-50 hidden rounded-2xl border border-white/10 bg-[#0B1020] px-3 py-2 text-left shadow-soft ring-1 ring-[var(--violet)]/20 lg:block">
+    <span className="pointer-events-none absolute left-12 top-[calc(100%+6px)] z-50 hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] px-3 py-2 text-left shadow-2xl lg:block">
       <span className="block whitespace-nowrap text-xs font-semibold text-foreground">
         {scheduledCount} scheduled {scheduledCount === 1 ? "task" : "tasks"}
       </span>
@@ -304,7 +303,7 @@ function useScheduledCount(enabled: boolean) {
     let cancelled = false;
 
     async function loadScheduledCount() {
-      const response = await fetch("/api/scheduled?filter=all", { cache: "no-store" }).catch(() => null);
+      const response = await fetch("/api/scheduled?filter=upcoming", { cache: "no-store" }).catch(() => null);
       if (!response?.ok) return;
       const payload = (await response.json().catch(() => null)) as ApiResponse<ScheduledPost[]> | null;
       if (!payload?.data || cancelled) return;
@@ -325,7 +324,9 @@ function useScheduledCount(enabled: boolean) {
     const fingerprints = new Set<string>();
     let count = 0;
 
-    for (const post of [...serverPosts, ...localPosts]) {
+    const source = enabled ? serverPosts : localPosts;
+
+    for (const post of source) {
       const contentId = post.contentId?.trim();
       const fingerprint = getScheduledFingerprint(post);
       if ((contentId && contentIds.has(contentId)) || (fingerprint && fingerprints.has(fingerprint))) {
@@ -337,7 +338,7 @@ function useScheduledCount(enabled: boolean) {
     }
 
     return count;
-  }, [localPosts, serverPosts]);
+  }, [enabled, localPosts, serverPosts]);
 }
 
 function isActiveScheduledPost(post: ScheduledPost) {

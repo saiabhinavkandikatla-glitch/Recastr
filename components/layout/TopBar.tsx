@@ -41,11 +41,11 @@ export function TopBar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/10 bg-[#090E1D] px-4 sm:px-6">
+    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-[var(--app-line)] bg-[var(--app-bg)]/95 px-4 backdrop-blur-md sm:px-6">
       {depth > 1 ? (
         <Button
           aria-label="Go back"
-          className="hidden h-9 gap-1.5 rounded-full px-3 sm:inline-flex"
+          className="hidden h-9 gap-1.5 rounded-full px-3 text-[var(--app-muted)] hover:bg-[var(--app-panel)] hover:text-[var(--app-text)] sm:inline-flex"
           onClick={() => router.back()}
           size="sm"
           variant="ghost"
@@ -83,12 +83,12 @@ export function TopBar({
       <div className="hidden items-center xl:flex">
         <button
           onClick={onOpenCommandPalette}
-          className="group flex h-9 w-[280px] shrink-0 items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-card/50 px-3 text-sm text-muted-foreground transition-colors duration-150 hover:border-primary/50 hover:bg-card"
+          className="group flex h-9 w-[280px] shrink-0 items-center gap-2 overflow-hidden rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] px-3 text-sm text-[var(--app-muted)] transition-colors duration-150 hover:border-[var(--app-line-strong)] hover:text-[var(--app-text)]"
         >
           <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-primary" />
           <span className="flex-1 text-left">Search or jump to...</span>
-          <kbd className="inline-flex h-5 items-center gap-1 rounded border border-border/50 bg-background px-1.5 font-mono text-[10px] font-medium">
-            <span className="text-xs">⌘</span>K
+          <kbd className="inline-flex h-5 items-center rounded border border-[var(--app-line)] bg-[var(--app-panel)] px-1.5 font-mono text-[10px] font-medium">
+            Ctrl K
           </kbd>
         </button>
       </div>
@@ -98,10 +98,10 @@ export function TopBar({
           aria-label="Notifications"
           size="icon"
           variant="ghost"
-          className="relative h-9 w-9 rounded-full hover:bg-muted/80"
+          className="relative h-9 w-9 rounded-full hover:bg-[var(--app-panel)]"
         >
-          <Bell className="h-[18px] w-[18px] text-muted-foreground transition-colors hover:text-foreground" />
-          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 ring-2 ring-background" />
+          <Bell className="h-[18px] w-[18px] text-[var(--app-muted)] transition-colors hover:text-[var(--app-text)]" />
+          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-[var(--violet)] ring-2 ring-[var(--app-bg)]" />
         </Button>
 
         <div className="hidden sm:block">
@@ -115,9 +115,9 @@ export function TopBar({
               aria-expanded={menuOpen}
               aria-label="Open user menu"
               onClick={() => setMenuOpen((current) => !current)}
-              className="flex h-9 items-center gap-2 rounded-full border border-border/50 bg-card/50 pl-1 pr-3 text-sm transition-all hover:bg-card hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              className="flex h-9 items-center gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] pl-1 pr-3 text-sm transition-colors hover:border-[var(--app-line-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-semibold text-white shadow-sm">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--violet)] text-xs font-semibold text-white">
                 {displayName.slice(0, 1).toUpperCase()}
               </span>
               <span className="hidden max-w-32 truncate font-medium xl:inline">{displayName}</span>
@@ -130,11 +130,11 @@ export function TopBar({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 top-12 w-64 overflow-hidden rounded-[16px] border border-border/50 bg-[#0B1020] shadow-2xl origin-top-right"
+                  className="absolute right-0 top-12 w-64 origin-top-right overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] shadow-2xl"
                 >
-                  <div className="border-b border-border/50 p-4">
+                  <div className="border-b border-[var(--app-line)] p-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-sm font-bold text-white shadow-sm">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-bold text-white">
                         {displayName.slice(0, 1).toUpperCase()}
                       </span>
                       <div className="min-w-0">
@@ -142,7 +142,7 @@ export function TopBar({
                         <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </div>
-                    <Badge className="mt-3 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20" variant="muted">
+                    <Badge className="mt-3 border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--app-muted)] hover:bg-[var(--app-panel)]" variant="muted">
                       {user.plan} Plan
                     </Badge>
                   </div>
@@ -156,7 +156,7 @@ export function TopBar({
                       Profile settings
                     </Link>
                   </div>
-                  <div className="border-t border-border/50 p-2 bg-muted/20">
+                  <div className="border-t border-[var(--app-line)] bg-[var(--app-bg)]/50 p-2">
                     <LogoutButton />
                   </div>
                 </motion.div>

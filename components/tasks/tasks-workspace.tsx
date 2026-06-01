@@ -213,20 +213,20 @@ export function TasksWorkspace({
         </p>
       </div>
 
-      <div className="flex w-full md:w-auto p-1 bg-[#0B1020] rounded-[16px] border border-white/[0.06] relative z-10">
+      <div className="relative z-10 flex w-full rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] p-1 md:w-auto">
         {tabs.map((item) => (
           <button
             key={item.id}
             onClick={() => changeTab(item.id)}
             className={cn(
-              "relative flex-1 md:flex-none flex items-center justify-center gap-2 h-10 px-6 rounded-[12px] text-sm font-medium transition-colors z-10",
-              tab === item.id ? "text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              "relative z-10 flex h-10 flex-1 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium transition-colors md:flex-none",
+              tab === item.id ? "text-white" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {tab === item.id && (
               <motion.div
                 layoutId="task-tab-indicator"
-                className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm -z-10"
+                className="absolute inset-0 -z-10 rounded-full bg-[var(--violet)]"
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               />
             )}
@@ -290,14 +290,14 @@ function ScheduledTab({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 px-4 rounded-[16px] border border-white/[0.06] bg-[#0B1020]">
+      <div className="flex flex-col justify-between gap-4 rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-2 px-4 sm:flex-row sm:items-center">
         <p className="text-sm font-medium text-muted-foreground">Posts scheduled to go out.</p>
-        <div className="flex flex-wrap gap-1 bg-card/50 p-1 rounded-xl border border-white/[0.06]">
+        <div className="flex flex-wrap gap-1 rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] p-1">
           {(["upcoming", "today", "week", "all"] as const).map((item) => (
             <button
               className={cn(
-                "h-7 rounded-[8px] px-3 text-xs font-medium capitalize transition-colors",
-                filter === item ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                "h-7 rounded-full px-3 text-xs font-medium capitalize transition-colors",
+                filter === item ? "bg-[var(--violet)] text-white" : "text-muted-foreground hover:text-foreground",
               )}
               key={item}
               onClick={() => onFilterChange(item)}
@@ -323,20 +323,20 @@ function ScheduledTab({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="rounded-xl border border-white/[0.06] bg-[#0B1020] overflow-hidden shadow-lg"
+            className="overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)]"
             key={day}
           >
-            <div className="border-b border-white/[0.06] bg-muted/20 px-5 py-3">
+            <div className="border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-5 py-3">
               <p className="text-sm font-bold text-foreground">{day}</p>
             </div>
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-[var(--app-line)]">
               {dayPosts.map((post) => {
                 const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
                 const body = getScheduledBody(post, content);
                 return (
-                  <div className="grid gap-4 px-5 py-4 md:grid-cols-[120px_140px_1fr_auto] md:items-center hover:bg-muted/10 transition-colors" key={post.id}>
+                  <div className="grid gap-4 px-5 py-4 transition-colors hover:bg-[var(--app-panel)]/55 md:grid-cols-[120px_140px_1fr_auto] md:items-center" key={post.id}>
                     <div className="space-y-1">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-background/50 px-2.5 py-1 font-mono text-xs font-semibold border border-white/[0.06]">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-bg)]/70 px-2.5 py-1 font-mono text-xs font-semibold">
                         <Clock3 className="h-3 w-3 text-muted-foreground" />
                         {format(new Date(post.publishAt), "h:mma")}
                       </span>
@@ -396,21 +396,21 @@ function HistoryTab({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-lg">
-      <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 border-b border-white/[0.06] bg-muted/20 px-5 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+    <div className="overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+      <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-5 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
         <span>Date & time</span>
         <span>Platform</span>
         <span>Content preview</span>
         <span>Status</span>
         <span>Actions</span>
       </div>
-      <div className="divide-y divide-white/[0.06]">
+      <div className="divide-y divide-[var(--app-line)]">
         {posts.map((post) => {
           const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
           const body = getScheduledBody(post, content);
           return (
-            <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 px-5 py-4 text-sm hover:bg-muted/10 transition-colors items-center" key={post.id}>
-              <span className="font-mono text-xs font-medium text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-white/[0.06] w-max">
+            <div className="grid grid-cols-[160px_140px_1fr_120px_130px] items-center gap-4 px-5 py-4 text-sm transition-colors hover:bg-[var(--app-panel)]/55" key={post.id}>
+              <span className="w-max rounded-md border border-[var(--app-line)] bg-[var(--app-bg)]/70 px-2 py-1 font-mono text-xs font-medium text-muted-foreground">
                 {format(new Date(post.publishAt), "MMM d, h:mma")}
               </span>
               <span className="flex items-center gap-2 font-bold text-xs">
@@ -446,7 +446,7 @@ function HistoryTab({
           );
         })}
       </div>
-      <div className="flex items-center justify-between border-t border-white/[0.06] px-5 py-4 text-sm text-muted-foreground bg-[#0B1020]">
+      <div className="flex items-center justify-between border-t border-[var(--app-line)] bg-[var(--app-bg)]/35 px-5 py-4 text-sm text-muted-foreground">
         <span className="font-medium">Showing {posts.length} rows</span>
         <div className="flex gap-2">
           <Button disabled size="sm" variant="secondary" className="rounded-xl h-8">Previous</Button>
@@ -520,7 +520,7 @@ function ScheduledPostDialog({
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="z-[70] max-h-[86vh] max-w-2xl overflow-y-auto rounded-[24px] border-white/10 bg-card shadow-soft">
+      <DialogContent className="z-[70] max-h-[86vh] max-w-2xl overflow-y-auto rounded-3xl border-[var(--app-line)] bg-[var(--app-surface)] shadow-soft">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className={cn("h-2.5 w-2.5 rounded-full", platformClass(post.platform))} />
@@ -531,7 +531,7 @@ function ScheduledPostDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+          <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/70 p-4">
             <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">{body}</p>
           </div>
           <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-3">
@@ -571,7 +571,7 @@ function InfoPill({
   value: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-background/50 p-3">
+    <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)]/60 p-3">
       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
       <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
     </div>
@@ -606,7 +606,7 @@ async function copyScheduledContent(body: string) {
 
 function LoadingState({ label }: { label: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-8">
+    <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8">
       <div className="space-y-3 animate-pulse">
         <div className="h-4 w-40 rounded bg-muted" />
         <div className="h-16 rounded-xl bg-muted/60" />
@@ -631,12 +631,12 @@ function EmptyState({
   subline: string;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-white/10 bg-[#0B1020] p-12 text-center">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/5 text-primary mb-6">{icon}</div>
+    <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-12 text-center">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--app-panel)] text-primary">{icon}</div>
       <h2 className="text-2xl font-bold font-display">{headline}</h2>
       <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">{subline}</p>
       {actionHref && actionLabel ? (
-        <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105">
+        <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]">
           <Link href={actionHref}>{actionLabel}</Link>
         </Button>
       ) : null}
@@ -668,6 +668,8 @@ function platformClass(platform: Platform) {
   if (platform === "TWITTER") return "bg-[var(--platform-twitter)]";
   if (platform === "LINKEDIN") return "bg-[var(--platform-linkedin)]";
   if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "bg-[var(--platform-instagram)]";
+  if (platform === "FACEBOOK") return "bg-blue-500";
+  if (platform === "THREADS") return "bg-zinc-200 text-zinc-950";
   return "bg-[var(--platform-youtube)]";
 }
 
@@ -675,6 +677,8 @@ function platformLabel(platform: Platform) {
   if (platform === "TWITTER") return "Twitter / X";
   if (platform === "LINKEDIN") return "LinkedIn";
   if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "Instagram";
+  if (platform === "FACEBOOK") return "Facebook";
+  if (platform === "THREADS") return "Threads";
   return "YouTube";
 }
 
@@ -740,19 +744,9 @@ function replaceScheduledGroup(
   const statusSet = new Set(statuses.map(normalizePostStatus));
   const normalizedCurrent = current.map(normalizeScheduledPost);
   const normalizedIncoming = incoming.map(normalizeScheduledPost);
-  const incomingIds = new Set(normalizedIncoming.map((post) => post.id));
-  const incomingContentIds = new Set(normalizedIncoming.map((post) => post.contentId).filter(Boolean));
-  const optimistic = normalizedCurrent.filter(
-    (post) =>
-      isEphemeralScheduleId(post.id) &&
-      statusSet.has(post.status) &&
-      !incomingIds.has(post.id) &&
-      (!post.contentId || !incomingContentIds.has(post.contentId)),
-  );
   return [
     ...normalizedCurrent.filter((post) => !statusSet.has(post.status)),
     ...normalizedIncoming,
-    ...optimistic,
   ].sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
 }
 

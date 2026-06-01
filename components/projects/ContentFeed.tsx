@@ -50,13 +50,13 @@ export function ContentFeed({
 
   if (contentCount === 0) {
     return (
-      <div className="rounded-[16px] border border-dashed bg-card/60 p-10 text-center">
+      <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-10 text-center">
         <Sparkles className="mx-auto h-8 w-8 text-primary" />
         <h3 className="mt-4 text-lg font-medium">No cards for this filter yet</h3>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           Clear the hook filter or generate more content from the right drawer.
         </p>
-        <Button className="mt-5 bg-[var(--violet)] text-white hover:bg-[var(--violet-dark)]" onClick={onGenerateMore}>
+        <Button className="mt-5 rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={onGenerateMore}>
           <Plus className="h-4 w-4" />
           Generate more
         </Button>
@@ -179,12 +179,12 @@ function ContentCardAdapter({
 
 function PlatformLabel({ platform }: { platform: ContentCardPlatform }) {
   return (
-    <div className="sticky top-0 z-[5] -mx-1 bg-[#0B1020]/95 px-1 py-2">
+    <div className="sticky top-0 z-[5] -mx-1 bg-[var(--app-bg)]/95 px-1 py-2 backdrop-blur-sm">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className={cn("h-2 w-2 rounded-full", platformDot(platform))} />
         <span className="font-medium text-foreground">{platformLabels[platform]}</span>
         <span className="hidden sm:inline">Generated assets</span>
-        <span className="h-px flex-1 bg-white/10" />
+        <span className="h-px flex-1 bg-[var(--app-line)]" />
       </div>
     </div>
   );

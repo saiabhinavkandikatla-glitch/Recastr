@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Portal } from "@radix-ui/react-portal";
-import { Download, FileText, Table, FileJson, Mail } from "lucide-react";
+import { Download, FileJson, FileText, Table } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ const exportOptions: Array<{ value: ExportFormat; label: string; icon: ReactNode
   { value: "pdf", label: "PDF", icon: <FileText className="h-4 w-4" /> },
   { value: "csv", label: "CSV", icon: <Table className="h-4 w-4" /> },
   { value: "json", label: "JSON", icon: <FileJson className="h-4 w-4" /> },
-  { value: "notion", label: "Notion", icon: <Mail className="h-4 w-4" /> },
 ];
 
 export function ExportInlinePanel({
@@ -36,14 +35,7 @@ export function ExportInlinePanel({
   projectId: string;
   onClose: () => void;
 }) {
-  const [email, setEmail] = useState("");
-
   async function download() {
-    if (format === "notion") {
-      toast.info(email ? "Notion invite saved" : "Notion export is coming soon");
-      return;
-    }
-
     const response = await fetch(`/api/export/${format}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,7 +76,7 @@ export function ExportInlinePanel({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -8, scale: 0.98 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
-        className="fixed right-4 top-[calc(var(--topbar-height)+68px)] z-[90] max-h-[min(640px,calc(100vh-96px))] w-[min(900px,calc(100vw-32px))] overflow-hidden rounded-[18px] border border-white/[0.06] bg-[#0B1020] shadow-soft sm:right-6"
+        className="fixed right-4 top-[calc(var(--topbar-height)+68px)] z-[90] max-h-[min(640px,calc(100vh-96px))] w-[min(900px,calc(100vw-32px))] overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] shadow-soft sm:right-6"
       >
       <div className="grid max-h-[inherit] gap-4 overflow-y-auto p-4 lg:grid-cols-[220px_1fr_220px]">
         <div className="space-y-2">
@@ -94,7 +86,7 @@ export function ExportInlinePanel({
               type="button"
               onClick={() => onFormatChange(option.value)}
               className={cn(
-                "flex w-full items-center gap-2 rounded-[10px] border px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground",
+                "flex w-full items-center gap-2 rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)]/55 px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground",
                 format === option.value && "border-primary bg-primary/10 text-primary",
               )}
             >
@@ -107,7 +99,7 @@ export function ExportInlinePanel({
           {contents.map((content) => (
             <label
               key={content.id}
-              className="flex cursor-pointer items-start gap-3 rounded-[10px] border p-3 text-sm"
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)]/55 p-3 text-sm"
             >
               <input
                 checked={selectedIds.includes(content.id)}
@@ -126,27 +118,14 @@ export function ExportInlinePanel({
             </label>
           ))}
         </div>
-        <div className="rounded-[12px] border bg-muted/30 p-4">
+        <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/55 p-4">
           <p className="text-sm font-medium">Export preview</p>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {format === "notion"
-              ? "Notion export is coming soon. Leave an email and we will wire it to your workspace."
-              : `${selectedIds.length} pieces will be exported as ${format.toUpperCase()} with platform labels and source metadata.`}
+            {selectedIds.length} pieces will be exported as {format.toUpperCase()} with platform labels and source metadata.
           </p>
-          {format === "notion" ? (
-            <div className="mt-4 space-y-2">
-              <input
-                className="h-9 w-full rounded-[8px] border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                placeholder="you@company.com"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
-          ) : null}
-          <Button className="mt-4 w-full" onClick={download}>
+          <Button className="mt-4 w-full rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={download}>
             <Download className="h-4 w-4" />
-            {format === "notion" ? "Join waitlist" : "Download"}
+            Download
           </Button>
         </div>
       </div>

@@ -6,7 +6,6 @@ import { Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProgressJob } from "@/components/ui/progress-job";
 import { StreamingText } from "@/components/ui/streaming-text";
 import { ToneSelector } from "@/components/ui/tone-selector";
 import { emitCreditExhausted } from "@/lib/client-api";
@@ -29,7 +28,6 @@ export function GeneratePanel({ project }: { project: Project }) {
   const [tone, setTone] = useState("casual");
   const [wordCount, setWordCount] = useState(160);
   const [stream, setStream] = useState("");
-  const [jobId, setJobId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   async function generate() {
@@ -88,12 +86,6 @@ export function GeneratePanel({ project }: { project: Project }) {
     }
     setIsGenerating(false);
     toast.success("Generation complete");
-  }
-
-  function batchGenerate() {
-    const id = `demo-job-${Date.now()}`;
-    setJobId(id);
-    toast.success("Batch generation started");
   }
 
   return (
@@ -155,22 +147,19 @@ export function GeneratePanel({ project }: { project: Project }) {
             <Sparkles className="h-4 w-4" />
             {isGenerating ? "Generating..." : "Regenerate"}
           </Button>
-          <Button className="w-full" onClick={batchGenerate} variant="secondary">
-            Generate all 30 days
-          </Button>
         </CardContent>
       </Card>
 
       <div className="space-y-4">
         <StreamingText text={stream || "Streaming output will appear here token by token."} />
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => toast.success("Accepted all generated drafts")}>Accept all</Button>
-          <Button variant="outline" onClick={() => setStream("")}>
-            <Trash2 className="h-4 w-4" />
-            Discard all
-          </Button>
-        </div>
-        {jobId ? <ProgressJob jobId={jobId} /> : null}
+        {stream ? (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setStream("")}>
+              <Trash2 className="h-4 w-4" />
+              Clear preview
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 
 export function VerifyEmailBanner({ email }: { email?: string }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-background px-6 text-foreground">
-      <section className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 text-center shadow-soft">
+    <main className="grid min-h-screen place-items-center bg-[var(--app-bg)] px-6 text-foreground">
+      <section className="w-full max-w-lg overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           <MailCheck className="h-7 w-7" />
         </div>
@@ -21,7 +21,7 @@ export function VerifyEmailBanner({ email }: { email?: string }) {
           workspace. After verification, you can continue with the password you just created.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild className="rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white">
+          <Button asChild className="rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]">
             <Link href="/login">Go to sign in</Link>
           </Button>
           <Button asChild className="rounded-xl" variant="outline">

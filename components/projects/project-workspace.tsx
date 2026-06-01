@@ -15,7 +15,6 @@ import {
 import { toast } from "sonner";
 import { HookSidebar } from "@/components/content/HookSidebar";
 import { Button } from "@/components/ui/button";
-import { isBrowserLocalContentId, upsertBrowserScheduledPost } from "@/lib/browser-schedule-store";
 import { assertApiOk, readApiJson } from "@/lib/client-api";
 import { getPlatformCharacterLimit, normalizePlatformCopy } from "@/lib/platform-limits";
 import { cn } from "@/lib/utils";
@@ -78,7 +77,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
     onSuccess: () => toast.success("Post scheduled. You will receive an email reminder when it is time to post."),
     onError: (error) => {
       if (error instanceof Error && error.message === "credit_exhausted") return;
-      toast.error("Schedule failed");
+      toast.error(error instanceof Error ? error.message : "Schedule failed");
     },
   });
 
@@ -156,21 +155,6 @@ export function ProjectWorkspace({ project }: { project: Project }) {
         toast.error(`Shorten this ${platformLabels[toCardPlatform(content.platform)]} post to ${limit} characters before scheduling.`);
         return;
       }
-      setScheduledDates((current) => ({ ...current, [id]: date }));
-      if (isBrowserLocalContentId(id)) {
-        upsertBrowserScheduledPost({
-          id: `browser-scheduled-${id}`,
-          outputId: id,
-          contentId: id,
-          platform: content.platform,
-          publishAt: date.toISOString(),
-          scheduledAt: date.toISOString(),
-          status: "PENDING",
-          title: content.body,
-          publishedAt: null,
-          failReason: null,
-        });
-      }
       scheduleMutation.mutate({
         contentId: id,
         projectId: project.id,
@@ -181,6 +165,10 @@ export function ProjectWorkspace({ project }: { project: Project }) {
         originalBody: content.originalBody,
         contentType: content.contentType,
         tone: content.tone,
+      }, {
+        onSuccess: () => {
+          setScheduledDates((current) => ({ ...current, [id]: date }));
+        },
       });
     },
     [contents, project.id, project.title, scheduleMutation],
@@ -255,7 +243,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
           ) : null}
         </AnimatePresence>
 
-        <div className="grid gap-6 border-t border-white/10 pt-6 min-[700px]:grid-cols-[248px_minmax(0,1fr)]">
+        <div className="grid gap-6 border-t border-[var(--app-line)] pt-6 min-[700px]:grid-cols-[248px_minmax(0,1fr)]">
           <HookSidebar
             hooks={hooks}
             selectedHookId={selectedHookId}
@@ -279,13 +267,13 @@ export function ProjectWorkspace({ project }: { project: Project }) {
                 onGenerateMore={() => setDrawerOpen(true)}
               />
             ) : (
-              <div className="rounded-[16px] border border-dashed bg-card/60 p-10 text-center">
+              <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-10 text-center">
                 <Sparkles className="mx-auto h-8 w-8 text-primary" />
                 <h3 className="mt-4 text-lg font-medium">No cards for this filter yet</h3>
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   Clear the hook filter or generate more content from the right drawer.
                 </p>
-                <Button className="mt-5" onClick={() => setDrawerOpen(true)}>
+                <Button className="mt-5 rounded-full bg-[var(--violet)] px-5 text-white hover:bg-[var(--violet-hover)]" onClick={() => setDrawerOpen(true)}>
                   <Plus className="h-4 w-4" />
                   Generate more
                 </Button>

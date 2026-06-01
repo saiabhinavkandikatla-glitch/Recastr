@@ -67,7 +67,7 @@ export function OutputTabs({
   onExport,
 }: {
   project: Project;
-  onExport: (format: "pdf" | "csv" | "json" | "notion") => void;
+  onExport: (format: "pdf" | "csv" | "json") => void;
 }) {
   const [outputs, setOutputs] = useState(project.outputs);
   const [activePlatform, setActivePlatform] = useState<StudioPlatform>("TWITTER");

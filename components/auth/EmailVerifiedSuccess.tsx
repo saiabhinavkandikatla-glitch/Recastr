@@ -42,7 +42,7 @@ export function EmailVerifiedSuccess() {
         if (!nextOpen) clearVerifiedParam();
       }}
     >
-      <DialogContent className="max-w-md overflow-hidden rounded-[24px] border border-white/10 bg-card p-0 text-center shadow-soft">
+      <DialogContent className="max-w-md overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-0 text-center shadow-soft">
         <div className="p-8">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500/15 text-green-500">
             <CheckCircle2 className="h-8 w-8" />
@@ -60,10 +60,10 @@ export function EmailVerifiedSuccess() {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button className="rounded-xl bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={goToDashboard}>
+            <Button className="rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={goToDashboard}>
               Go to dashboard
             </Button>
-            <Button className="rounded-xl" onClick={clearVerifiedParam} variant="secondary">
+            <Button className="rounded-full" onClick={clearVerifiedParam} variant="secondary">
               Stay here
             </Button>
           </div>

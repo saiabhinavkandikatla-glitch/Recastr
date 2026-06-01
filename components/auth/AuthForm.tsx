@@ -162,11 +162,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   }
 
   return (
-    <main className="flex min-h-screen bg-[#060A14] text-foreground">
+    <main className="flex min-h-screen bg-[var(--app-bg)] text-foreground">
       {/* Left side — Brand panel */}
-      <div className="hidden lg:flex w-[52%] flex-col justify-between p-12 relative bg-[#080D1A] border-r border-white/[0.06]">
+      <div className="relative hidden w-[52%] flex-col justify-between border-r border-[var(--app-line)] bg-[var(--app-bg)] p-12 lg:flex">
         {/* Subtle top accent line */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+        <div className="absolute left-0 right-0 top-0 h-px bg-[var(--app-line)]" />
 
         <div className="relative z-10 flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--violet)]">
@@ -183,7 +183,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             Turn one recording into<br />
             30 days of content.
           </h1>
-          <p className="text-base leading-relaxed text-[#94A3B8] mb-10">
+          <p className="mb-10 text-base leading-relaxed text-muted-foreground">
             Join thousands of creators who repurposed their podcasts, videos, and articles into platform-native posts.
           </p>
 
@@ -202,7 +202,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                     <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
-                <p className="text-sm text-[#CBD5E1]">{feature}</p>
+                <p className="text-sm text-foreground/85">{feature}</p>
               </div>
             ))}
           </div>
@@ -210,8 +210,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
         {/* Testimonial */}
         <div className="relative z-10">
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-            <p className="text-sm leading-relaxed text-[#94A3B8] italic">
+          <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5">
+            <p className="text-sm leading-relaxed text-muted-foreground italic">
               &ldquo;Replaced three freelancers. The LinkedIn tone matches my voice better than my own drafts.&rdquo;
             </p>
             <div className="mt-4 flex items-center gap-2.5">
@@ -219,8 +219,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 D
               </div>
               <div>
-                <p className="text-xs font-medium text-[#E2E8F0]">Diego R.</p>
-                <p className="text-[11px] text-[#64748B]">Founder, B2B SaaS</p>
+                <p className="text-xs font-medium text-foreground">Diego R.</p>
+                <p className="text-[11px] text-muted-foreground">Founder, B2B SaaS</p>
               </div>
             </div>
           </div>
@@ -228,7 +228,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       </div>
 
       {/* Right side — Auth Form */}
-      <div className="flex w-full lg:w-[48%] flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20 bg-[#060A14]">
+      <div className="flex w-full flex-col justify-center bg-[var(--app-bg)] px-6 py-12 sm:px-12 lg:w-[48%] lg:px-16 xl:px-20">
         <div className="mx-auto w-full max-w-[400px]">
           {/* Mobile logo */}
           <div className="mb-10 flex lg:hidden items-center justify-center gap-2.5">
@@ -241,23 +241,23 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             <h2 className="text-2xl font-semibold font-display tracking-tight mb-2">
               {isSignup ? "Create an account" : "Welcome back"}
             </h2>
-            <p className="text-sm text-[#94A3B8]">
+            <p className="text-sm text-muted-foreground">
               {isSignup ? "We'll verify your email before opening your workspace." : "Enter your credentials to access your workspace."}
             </p>
           </div>
 
-          <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-6">
+          <div className="rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6">
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {isSignup ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-xs font-medium text-[#94A3B8]">
+                  <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">
                     Name
                   </Label>
                   <Input
                     id="name"
                     autoComplete="name"
                     placeholder="John Doe"
-                    className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
+                    className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
                     {...register("name")}
                   />
                   {errors.name ? <p className="text-xs text-red-400">{errors.name.message}</p> : null}
@@ -265,7 +265,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               ) : null}
 
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-[#94A3B8]">
+                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
                   Email
                 </Label>
                 <Input
@@ -273,14 +273,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
-                  className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
+                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
                   {...register("email")}
                 />
                 {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-medium text-[#94A3B8]">
+                <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
                   Password
                 </Label>
                 <Input
@@ -288,7 +288,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   type="password"
                   autoComplete={isSignup ? "new-password" : "current-password"}
                   placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
-                  className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
+                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
                   {...register("password", {
                     required: "Enter your password",
                     minLength: { value: 8, message: "Use at least 8 characters" },
@@ -299,7 +299,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
               {isSignup ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirmPassword" className="text-xs font-medium text-[#94A3B8]">
+                  <Label htmlFor="confirmPassword" className="text-xs font-medium text-muted-foreground">
                     Confirm password
                   </Label>
                   <Input
@@ -307,7 +307,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Repeat your password"
-                    className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
+                    className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
                     {...register("confirmPassword")}
                   />
                   {errors.confirmPassword ? <p className="text-xs text-red-400">{errors.confirmPassword.message}</p> : null}
@@ -316,7 +316,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
               <Button
                 className={cn(
-                  "w-full h-11 rounded-lg bg-[var(--violet)] text-white hover:brightness-110 font-semibold text-sm transition-all",
+                  "h-11 w-full rounded-full bg-[var(--violet)] text-sm font-semibold text-white transition-colors hover:bg-[var(--violet-hover)]",
                   isSubmitting && "opacity-80"
                 )}
                 disabled={isSubmitting}
@@ -328,14 +328,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               </Button>
             </form>
 
-            <div className="my-5 flex items-center gap-3 text-[11px] text-[#475569] uppercase tracking-widest font-medium">
-              <span className="h-px flex-1 bg-white/[0.06]" />
+            <div className="my-5 flex items-center gap-3 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+              <span className="h-px flex-1 bg-[var(--app-line)]" />
               Or
-              <span className="h-px flex-1 bg-white/[0.06]" />
+              <span className="h-px flex-1 bg-[var(--app-line)]" />
             </div>
 
             <Button
-              className="w-full h-11 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-sm font-medium transition-colors"
+              className="h-11 w-full rounded-full border border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm font-medium transition-colors hover:bg-[var(--app-panel)]"
               onClick={continueWithGoogle}
               type="button"
               variant="outline"
@@ -362,7 +362,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             </Button>
           </div>
 
-          <p className="mt-6 text-center text-sm text-[#64748B]">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
             <Link
               className="font-medium text-violet-400 hover:text-violet-300 transition-colors"

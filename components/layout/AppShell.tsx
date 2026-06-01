@@ -26,7 +26,7 @@ export function AppShell({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0B1020] text-foreground">
+    <div className="flex h-screen overflow-hidden bg-[var(--app-bg)] text-[var(--app-text)]">
       <Sidebar projects={projects} user={user} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden relative z-10">
         <TopBar
@@ -36,7 +36,7 @@ export function AppShell({
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-6">
-          <div className="mx-auto w-full max-w-[1480px] px-4 pt-4 sm:px-6 lg:px-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 lg:px-8">{children}</div>
         </main>
       </div>
       <CreditUpgradeModal />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, Download, FileJson, FileText, Send } from "lucide-react";
+import { Clipboard, Download, FileJson, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ExportMenu({
@@ -8,7 +8,7 @@ export function ExportMenu({
   onExport,
 }: {
   onCopyAll?: () => void;
-  onExport: (format: "pdf" | "csv" | "json" | "notion") => void;
+  onExport: (format: "pdf" | "csv" | "json") => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -23,10 +23,6 @@ export function ExportMenu({
       <Button variant="secondary" size="sm" onClick={() => onExport("json")}>
         <FileJson className="h-3.5 w-3.5" />
         JSON
-      </Button>
-      <Button variant="secondary" size="sm" onClick={() => onExport("notion")}>
-        <Send className="h-3.5 w-3.5" />
-        Notion
       </Button>
       <Button variant="secondary" size="sm" onClick={onCopyAll} disabled={!onCopyAll}>
         <Clipboard className="h-3.5 w-3.5" />

@@ -102,8 +102,8 @@ export function CreatePasswordForm() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-background px-6 py-12 text-foreground">
-      <section className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 shadow-soft">
+    <main className="grid min-h-screen place-items-center bg-[var(--app-bg)] px-6 py-12 text-foreground">
+      <section className="w-full max-w-lg overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           {verified ? <CheckCircle2 className="h-7 w-7" /> : <KeyRound className="h-7 w-7" />}
         </div>
@@ -160,7 +160,7 @@ export function CreatePasswordForm() {
               </Label>
               <Input
                 autoComplete="new-password"
-                className="h-12 rounded-xl border-white/10 bg-muted/40 focus-visible:ring-primary/50"
+                className="h-12 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 focus-visible:ring-primary/50"
                 id="password"
                 placeholder="At least 8 characters"
                 type="password"
@@ -175,7 +175,7 @@ export function CreatePasswordForm() {
               </Label>
               <Input
                 autoComplete="new-password"
-                className="h-12 rounded-xl border-white/10 bg-muted/40 focus-visible:ring-primary/50"
+                className="h-12 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 focus-visible:ring-primary/50"
                 id="confirmPassword"
                 placeholder="Repeat your password"
                 type="password"
@@ -185,7 +185,7 @@ export function CreatePasswordForm() {
             </div>
 
             <Button
-              className="h-12 w-full rounded-xl bg-[var(--violet)] text-base font-bold text-white hover:opacity-90"
+              className="h-12 w-full rounded-full bg-[var(--violet)] text-base font-bold text-white hover:bg-[var(--violet-hover)]"
               disabled={isSubmitting}
               type="submit"
             >

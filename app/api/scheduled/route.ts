@@ -52,6 +52,7 @@ export async function GET(request: Request) {
         .filter((post) => {
           const scheduledAt = new Date(post.publishAt);
           const timestamp = scheduledAt.getTime();
+          if (filter === "upcoming") return timestamp >= now;
           if (filter === "today") return scheduledAt.toDateString() === new Date().toDateString();
           if (filter === "week") return timestamp >= now && timestamp <= now + week;
           return true;

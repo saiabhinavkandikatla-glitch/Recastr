@@ -60,6 +60,15 @@ type NotificationPreferences = {
   notifyMarketing: boolean;
 };
 
+type ProfileSettings = {
+  name: string | null;
+  email: string;
+  creatorType: string | null;
+  tonePref: string;
+  platforms: string[];
+  avatarUrl: string | null;
+};
+
 const contentFormats = ["Twitter / X", "LinkedIn", "Instagram", "YouTube Shorts", "Threads", "Facebook"];
 
 export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null }) {
@@ -69,6 +78,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const [activeTab, setActiveTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "profile");
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [plan, setPlan] = useState<Plan>(currentUser?.plan ?? "FREE");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [passwordChangeSending, setPasswordChangeSending] = useState(false);
   const [profile, setProfile] = useState({
     name: currentUser?.name ?? "Creator",
@@ -85,6 +95,10 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const usageQuery = useQuery({
     queryKey: ["usage"],
     queryFn: () => fetchApiData<UsageSummary>("/api/usage"),
+  });
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => fetchApiData<ProfileSettings>("/api/user/profile"),
   });
   const notificationsQuery = useQuery({
     queryKey: ["notification-preferences"],
@@ -135,6 +149,16 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   }, [currentUser?.email, currentUser?.name, currentUser?.plan]);
 
   useEffect(() => {
+    if (!profileQuery.data) return;
+    setProfile({
+      name: profileQuery.data.name ?? "",
+      email: profileQuery.data.email,
+      creatorType: profileQuery.data.creatorType ?? "Founder",
+      defaultTone: toTitleCase(profileQuery.data.tonePref || "casual"),
+    });
+  }, [profileQuery.data]);
+
+  useEffect(() => {
     if (isSettingsTab(requestedTab)) setActiveTab(requestedTab);
   }, [requestedTab]);
 
@@ -159,6 +183,39 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
     await queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
     toast.success("Notification preference saved");
+  }
+
+  async function saveProfile() {
+    const trimmedName = profile.name.trim();
+    if (!trimmedName) {
+      toast.error("Name is required");
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          creatorType: profile.creatorType,
+          defaultTone: profile.defaultTone,
+          platforms: contentFormats,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<ProfileSettings> | null;
+
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Failed to save profile");
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Profile saved");
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   async function requestPasswordChange() {
@@ -193,7 +250,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-[16px] border border-white/[0.06] bg-[#0B1020] p-1.5">
+      <div className="flex flex-wrap gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] p-1.5">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -202,14 +259,14 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
               type="button"
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "relative flex h-10 items-center gap-2 rounded-[12px] px-5 text-sm font-medium transition-colors z-10",
-                activeTab === tab.value ? "text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                "relative z-10 flex h-10 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors",
+                activeTab === tab.value ? "text-white" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {activeTab === tab.value && (
                 <motion.div
                   layoutId="settings-tab-indicator"
-                  className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm -z-10"
+                  className="absolute inset-0 -z-10 rounded-full bg-[var(--violet)]"
                   initial={false}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
@@ -230,8 +287,8 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
           transition={{ duration: 0.2 }}
         >
           {activeTab === "profile" && (
-            <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden">
-              <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center gap-2">
+            <div className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+              <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
                 <UserCircle className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold font-display">Profile Settings</h2>
               </div>
@@ -241,22 +298,24 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                     {profile.name.slice(0, 1).toUpperCase() || "C"}
                   </div>
                   <div>
-                    <Button variant="secondary" className="rounded-full shadow-sm">Upload photo</Button>
-                    <p className="mt-2 text-xs text-muted-foreground">JPG or PNG, up to 2MB.</p>
+                    <p className="text-sm font-semibold">Workspace avatar</p>
+                    <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
+                      Recastr uses your initials for now. Image uploads are hidden until storage is connected.
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <Field label="Full name">
                     <Input
-                      className="h-11 rounded-xl bg-muted/30 border-white/10 focus:ring-primary"
+                      className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/55 focus:ring-primary"
                       value={profile.name}
                       onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))}
                     />
                   </Field>
                   <Field label="Email">
                     <Input
-                      className="h-11 rounded-xl bg-muted/30 border-white/10 opacity-70"
+                      className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/55 opacity-70"
                       readOnly
                       value={profile.email}
                     />
@@ -264,7 +323,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   <Field label="Creator type">
                     <div className="relative">
                       <select
-                        className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-muted/30 px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                        className="h-11 w-full appearance-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)]/55 px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
                         value={profile.creatorType}
                         onChange={(event) => setProfile((current) => ({ ...current, creatorType: event.target.value }))}
                       >
@@ -280,7 +339,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   <Field label="Default tone">
                     <div className="relative">
                       <select
-                        className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-muted/30 px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                        className="h-11 w-full appearance-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)]/55 px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
                         value={profile.defaultTone}
                         onChange={(event) => setProfile((current) => ({ ...current, defaultTone: event.target.value }))}
                       >
@@ -295,14 +354,14 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   </Field>
                 </div>
 
-                <div className="pt-4 border-t border-white/[0.06]">
+                <div className="border-t border-[var(--app-line)] pt-4">
                   <p className="mb-1 text-sm font-semibold">Content formats</p>
                   <p className="mb-3 text-xs text-muted-foreground">
                     Choose what Recastr generates. Publishing connections are managed separately.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {contentFormats.map((platform) => (
-                      <Badge key={platform} className="bg-primary/10 text-primary border-0 py-1.5 px-3 rounded-lg font-medium">
+                    <Badge key={platform} className="rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] px-3 py-1.5 font-medium text-primary">
                         <Check className="mr-1.5 h-3.5 w-3.5" />
                         {platform}
                       </Badge>
@@ -310,7 +369,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   </div>
                 </div>
 
-                <div className="rounded-[18px] border border-white/10 bg-muted/10 p-5">
+                <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -338,11 +397,13 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
                 <div className="pt-4 flex justify-end">
                   <Button
-                    onClick={() => toast.success("Profile updated")}
+                    disabled={profileSaving}
+                    onClick={() => void saveProfile()}
                     size="lg"
                     className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105"
                   >
-                    Save changes
+                    {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {profileSaving ? "Saving..." : "Save changes"}
                   </Button>
                 </div>
               </div>
@@ -351,20 +412,19 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
           {activeTab === "billing" && (
             <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-              <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden h-fit">
-                <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center gap-2">
+              <div className="h-fit overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+                <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
                   <CreditCard className="h-5 w-5 text-primary" />
                   <h2 className="text-lg font-bold font-display">Current Plan</h2>
                 </div>
                 <div className="p-6 sm:p-8 space-y-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-gradient-to-br from-primary/10 to-transparent p-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 h-32 w-32 bg-primary/20 blur-[50px] -translate-y-1/2 translate-x-1/4 rounded-full" />
+                  <div className="relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-6 sm:flex-row sm:items-center">
                     <div className="relative z-10">
                       <p className="text-sm font-semibold uppercase tracking-wider text-primary">Your Plan</p>
                       <h2 className="mt-1 text-3xl font-bold font-display">{PLAN_RULES[plan].label}</h2>
                       <p className="mt-2 text-sm text-muted-foreground">Next billing: June 29, 2026</p>
                     </div>
-                    <Badge variant="success" className="bg-green-500/20 text-green-500 border-0 text-sm py-1 relative z-10 self-start sm:self-center">Active</Badge>
+                    <Badge variant="success" className="relative z-10 self-start border-0 bg-green-500/15 py-1 text-sm text-green-400 sm:self-center">Active</Badge>
                   </div>
 
                   <div className="space-y-6">
@@ -376,7 +436,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
                   <div>
                     <h3 className="font-semibold mb-4">Billing History</h3>
-                    <div className="rounded-[16px] border border-dashed border-white/10 bg-[#0B1020] px-5 py-8 text-center">
+                    <div className="rounded-2xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-bg)]/45 px-5 py-8 text-center">
                       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <ReceiptText className="h-5 w-5" />
                       </div>
@@ -389,18 +449,18 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden h-fit">
-                <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center justify-between">
+              <div className="h-fit overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+                <div className="flex items-center justify-between border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-bold font-display">Upgrade</h2>
                   </div>
-                  <div className="flex rounded-lg border border-white/10 bg-muted/50 p-1">
+                  <div className="flex rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] p-1">
                     {(["monthly", "annual"] as const).map((option) => (
                       <button
                         key={option}
                         onClick={() => setInterval(option)}
-                        className={cn("h-7 rounded-md px-3 text-xs font-semibold capitalize transition-all", interval === option ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                        className={cn("h-7 rounded-full px-3 text-xs font-semibold capitalize transition-all", interval === option ? "bg-[var(--app-panel)] text-foreground" : "text-muted-foreground hover:text-foreground")}
                       >
                         {option}
                       </button>
@@ -415,10 +475,9 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
                     return (
                       <div className={cn(
-                        "rounded-[16px] border p-5 transition-all relative overflow-hidden",
-                        isCurrent ? "border-primary/50 bg-primary/5" : "border-white/[0.06] bg-card/50 hover:border-white/20"
+                        "relative overflow-hidden rounded-2xl border p-5 transition-colors",
+                        isCurrent ? "border-primary/50 bg-primary/5" : "border-[var(--app-line)] bg-[var(--app-bg)]/45 hover:border-[var(--app-line-strong)]"
                       )} key={planName}>
-                        {isCurrent && <div className="absolute top-0 right-0 w-16 h-16 bg-primary/20 blur-2xl rounded-full" />}
                         <div className="flex items-start justify-between relative z-10">
                           <div>
                             <h3 className="font-bold text-lg font-display">{rule.label}</h3>
@@ -460,12 +519,12 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
           )}
 
           {activeTab === "notifications" && (
-            <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden max-w-3xl">
-              <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center gap-2">
+            <div className="max-w-3xl overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+              <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
                 <Mail className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold font-display">Email Preferences</h2>
               </div>
-              <div className="divide-y divide-white/[0.06]">
+              <div className="divide-y divide-[var(--app-line)]">
                 {[
                   ["notifyContentReady", "Email when content is ready", "Send an email after an analysis or generation job finishes."],
                   ["notifyWeeklyDigest", "Weekly digest email", "Summarize usage, exports, and scheduled content every week."],
@@ -474,7 +533,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                 ].map(([key, label, helper]) => {
                   const prefKey = key as keyof NotificationPreferences;
                   return (
-                  <div className="flex items-center justify-between gap-6 px-6 py-5 hover:bg-muted/5 transition-colors" key={key}>
+                  <div className="flex items-center justify-between gap-6 px-6 py-5 transition-colors hover:bg-[var(--app-panel)]/55" key={key}>
                     <div>
                       <p className="text-base font-semibold">{label}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
@@ -526,13 +585,11 @@ function UsageBar({ metric }: { metric: UsageMetric }) {
         <span>{metric.label}</span>
         <span className="text-muted-foreground">{metric.value}</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-muted/50 border border-white/[0.06]">
+      <div className="h-2 overflow-hidden rounded-full border border-[var(--app-line)] bg-[var(--app-bg)]">
         <div
-          className="relative h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 transition-[width] duration-500 ease-out"
+          className="h-full rounded-full bg-[var(--violet)] transition-[width] duration-500 ease-out"
           style={{ width: `${percent}%` }}
-        >
-          <div className="absolute inset-0 bg-white/20 animate-shimmer" />
-        </div>
+        />
       </div>
     </div>
   );
@@ -549,6 +606,14 @@ function getUnlimitedUsagePercent(used: number) {
 
 function isSettingsTab(value: string | null): value is SettingsTab {
   return value === "profile" || value === "billing" || value === "notifications";
+}
+
+function toTitleCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => `${word.slice(0, 1).toUpperCase()}${word.slice(1).toLowerCase()}`)
+    .join(" ");
 }
 
 async function fetchApiData<T>(url: string): Promise<T> {

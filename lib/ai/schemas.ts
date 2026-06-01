@@ -96,7 +96,7 @@ export const toneSchema = z.object({
 
 export const exportSchema = z.object({
   projectId: z.string(),
-  format: z.enum(["pdf", "csv", "json", "notion"]),
+  format: z.enum(["pdf", "csv", "json"]),
   contentIds: z.array(z.string()).default([]),
 });
 

@@ -88,6 +88,16 @@
     --landing-soft: #0D1324;
     --landing-line: rgba(148, 163, 184, 0.16);
     --landing-accent: #7C3AED;
+
+    /* Minimal app shell palette */
+    --app-bg: #080D18;
+    --app-surface: #0B1020;
+    --app-panel: #0F1628;
+    --app-panel-strong: #111827;
+    --app-line: rgba(148, 163, 184, 0.14);
+    --app-line-strong: rgba(148, 163, 184, 0.22);
+    --app-text: #F8FAFC;
+    --app-muted: #94A3B8;
   }
 
   .dark {
@@ -212,7 +222,8 @@
 }
 
 .dark .content-card {
-  @apply border-white/[0.06] shadow-xl shadow-black/20;
+  border-color: var(--app-line);
+  box-shadow: none;
 }
 
 /* Animations */

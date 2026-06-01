@@ -90,12 +90,17 @@ const config = {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(calc(-100% - var(--gap)))" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         pulseRing: "pulseRing 1.6s ease-in-out infinite",
         streamIn: "streamIn 0.28s ease-out both",
+        marquee: "marquee 20s linear infinite",
       },
     },
   },

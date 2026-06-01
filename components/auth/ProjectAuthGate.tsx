@@ -13,7 +13,7 @@ export function ProjectAuthGate({ project }: { project: Project }) {
 
   return (
     <section className="mx-auto flex min-h-[calc(100vh-160px)] max-w-3xl items-center justify-center px-4 py-12">
-      <div className="w-full rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 text-center shadow-soft">
+      <div className="w-full rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--violet)] text-white">
           <LockKeyhole className="h-6 w-6" />
         </div>
@@ -23,11 +23,11 @@ export function ProjectAuthGate({ project }: { project: Project }) {
           Demo mode lets you preview the product shell. Create a free account to open full projects, edit all {pieceCount} generated pieces, export, and schedule content.
         </p>
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-          <Button className="rounded-xl bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={() => setOpen(true)}>
+          <Button className="rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={() => setOpen(true)}>
             <Sparkles className="h-4 w-4" />
             Create free account
           </Button>
-          <Button asChild className="rounded-xl" variant="secondary">
+          <Button asChild className="rounded-full" variant="secondary">
             <Link href="/dashboard">Back to dashboard</Link>
           </Button>
         </div>

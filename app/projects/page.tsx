@@ -34,15 +34,15 @@ export default async function ProjectsIndexPage() {
         {projects.length ? (
           <ProjectIndexGrid projects={projects} demoLocked={user?.id === "demo-user"} />
         ) : (
-          <div className="rounded-xl border border-dashed border-white/20 bg-[#0B1020] p-16 text-center mt-8">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary mb-6">
+          <div className="mt-8 rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-16 text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--app-panel)] text-primary">
               <FolderOpen className="h-10 w-10" />
             </div>
             <h2 className="text-2xl font-bold font-display">No projects yet</h2>
             <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
               Analyze your first source from the dashboard to create a project and start generating content.
             </p>
-            <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105">
+            <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]">
               <Link href="/dashboard#source-ingest">
                 <Plus className="mr-2 h-5 w-5" />
                 Start on dashboard
