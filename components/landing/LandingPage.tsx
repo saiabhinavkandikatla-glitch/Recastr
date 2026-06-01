@@ -286,12 +286,12 @@ export function LandingPage() {
             >
               Sign in
             </Link>
-            <a
-              href="#cta"
+            <Link
+              href="/login"
               className="inline-flex h-9 items-center rounded-full bg-[var(--landing-fg)] px-4 text-[13px] font-semibold text-[var(--landing-bg)] transition-all hover:opacity-90"
             >
-              Start free
-            </a>
+              Start now
+            </Link>
 
             {/* Mobile menu button */}
             <button
@@ -368,13 +368,13 @@ export function LandingPage() {
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <a
-              href="#cta"
+            <Link
+              href="/login"
               className="group inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-accent)] px-7 text-sm font-semibold text-white transition-all hover:brightness-110"
             >
-              Try with a demo project
+              Start now
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </a>
+            </Link>
             <a
               href="#workflow"
               className="inline-flex h-12 items-center justify-center rounded-full border border-[var(--landing-line)] px-7 text-sm font-medium text-[var(--landing-fg)] transition-colors hover:bg-[var(--landing-panel)]"
@@ -611,23 +611,15 @@ export function LandingPage() {
             prison.
           </p>
 
-          <form
-            className="relative mt-8 flex max-w-md flex-col gap-3 sm:flex-row"
-            onSubmit={(e) => e.preventDefault()}
-          >
-            <input
-              type="email"
-              placeholder="your@studio.com"
-              className="h-12 flex-1 rounded-full border border-[var(--landing-bg)]/10 bg-[var(--landing-bg)]/5 px-5 text-sm text-[var(--landing-bg)] placeholder:text-[var(--landing-bg)]/40 outline-none focus:border-[var(--landing-accent)] focus:ring-2 focus:ring-[var(--landing-accent)]/20 transition-all"
-            />
-            <button
-              type="submit"
-              className="group inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-bg)] px-6 text-sm font-semibold text-[var(--landing-fg)] transition-all hover:opacity-90"
+          <div className="relative mt-8 flex max-w-md">
+            <Link
+              href="/login"
+              className="group inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-bg)] px-7 text-sm font-semibold text-[var(--landing-fg)] transition-all hover:opacity-90"
             >
-              Get my pack
+              Start now
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          </form>
+            </Link>
+          </div>
         </div>
       </section>
 
