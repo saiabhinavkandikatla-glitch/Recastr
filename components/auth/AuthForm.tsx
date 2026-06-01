@@ -208,23 +208,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           </div>
         </div>
 
-        {/* Testimonial */}
-        <div className="relative z-10">
-          <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5">
-            <p className="text-sm leading-relaxed text-muted-foreground italic">
-              &ldquo;Replaced three freelancers. The LinkedIn tone matches my voice better than my own drafts.&rdquo;
-            </p>
-            <div className="mt-4 flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/15 text-xs font-semibold text-violet-400">
-                D
-              </div>
-              <div>
-                <p className="text-xs font-medium text-foreground">Diego R.</p>
-                <p className="text-[11px] text-muted-foreground">Founder, B2B SaaS</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Right side — Auth Form */}
