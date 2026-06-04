@@ -184,7 +184,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             30 days of content.
           </h1>
           <p className="mb-10 text-base leading-relaxed text-muted-foreground">
-            Join thousands of creators who repurposed their podcasts, videos, and articles into platform-native posts.
+            Turn podcasts, videos, and articles into editable drafts you can review, schedule, and post manually.
           </p>
 
           <div className="space-y-4">

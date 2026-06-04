@@ -66,10 +66,10 @@ export function XPreview({
                 {index === 0 && content.mediaType === "carousel" ? <XMediaGrid slides={content.carouselSlides} dark={dark} /> : null}
 
                 <XActionRow
-                  comments={index === 0 ? "128" : "24"}
-                  reposts={index === 0 ? "482" : "61"}
-                  likes={index === 0 ? "3.8K" : "428"}
-                  views={index === 0 ? "84K" : "12K"}
+                  comments=""
+                  reposts=""
+                  likes=""
+                  views=""
                 />
               </div>
             </article>
@@ -78,9 +78,7 @@ export function XPreview({
 
         {desktop ? (
           <footer className="border-t border-[#eff3f4] px-4 py-3 text-[14px] text-[#71767b] dark:border-[#2f3336]">
-            <span className="font-bold text-inherit">84.2K</span> Views
-            <span className="px-2">-</span>
-            <span>11:42 AM - May 30, 2026</span>
+            Preview only. Engagement appears after you publish manually.
           </footer>
         ) : null}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -30,20 +30,20 @@ const workflow = [
   },
   {
     step: "02",
-    title: "Mine viral hooks",
-    body: "Hook Intelligence scores every moment for retention, surprise, and shareability.",
+    title: "Extract hooks",
+    body: "Recastr pulls out strong angles and gives you hook options to review.",
     icon: Zap,
   },
   {
     step: "03",
-    title: "Generate a month",
-    body: "30 days of tweets, threads, LinkedIn, Reel scripts, and captions — written in your voice.",
+    title: "Draft platform posts",
+    body: "Generate short posts, LinkedIn drafts, captions, scripts, and community updates from the same source.",
     icon: Edit3,
   },
   {
     step: "04",
-    title: "Edit, approve, ship",
-    body: "Inline editor with counters, tone rewrites, diff view, and one-click export.",
+    title: "Review and schedule",
+    body: "Edit the drafts, check character counts, then schedule an email reminder when it is time to post.",
     icon: Send,
   },
 ] as const;
@@ -51,27 +51,27 @@ const workflow = [
 const outputPlatforms = [
   {
     name: "Twitter / X Thread",
-    badge: "9/10 VIRAL SCORE",
-    quote: "Most founders chase reach. The ones who win chase resonance.",
-    details: "6 follow-up tweets generated • 2 alt hooks • 1 CTA variation",
+    badge: "SHORT POST",
+    quote: "Turn the strongest idea into a concise post with a clear next step.",
+    details: "Draft copy, character count, and platform preview.",
   },
   {
     name: "Reel Script",
-    badge: "HOOK IN 1.2s",
-    quote: "Hook in 1.2s. Payoff at 0:18. Loop at 0:27.",
-    details: "Includes 1s b-roll cue, on-screen text, and caption.",
+    badge: "SCRIPT DRAFT",
+    quote: "Convert the source into a short talking-point script for video.",
+    details: "Opening line, body beats, and caption draft.",
   },
   {
     name: "LinkedIn",
-    badge: "PATTERN BREAK",
-    quote: "Pattern-broken openers that don't sound like LinkedIn.",
-    details: "Personal anecdote frame • Contrarian opener • Stat hook + reframe",
+    badge: "LONG FORM",
+    quote: "Shape the idea into a professional post you can edit before publishing.",
+    details: "Readable structure, post body, and preview.",
   },
   {
     name: "Instagram Caption",
-    badge: "3 TONES",
-    quote: "Warm. Playful. Direct. Switch tone with one click.",
-    details: "Tone variations: Warm, Punchy, Authoritative, Curious",
+    badge: "CAPTION",
+    quote: "Draft caption copy from the same source without rewriting from scratch.",
+    details: "Caption body, hashtags when useful, and preview.",
   },
 ] as const;
 
@@ -85,7 +85,7 @@ const plans = [
     features: [
       "3 demo projects",
       "All output formats",
-      "Watermarked exports",
+      "Manual copy and export",
     ],
     cta: "Start free",
     featured: false,
@@ -99,7 +99,7 @@ const plans = [
       "8 sources per month",
       "Tone rewrites",
       "PDF, CSV, JSON exports",
-      "Notion queue",
+      "Scheduled email reminders",
     ],
     cta: "Go Creator",
     featured: true,
@@ -110,10 +110,10 @@ const plans = [
     period: "/month — for teams",
     description: "For agencies and team workflows.",
     features: [
-      "Unlimited sources",
+      "Higher source limits",
       "Brand voice training",
-      "Team approvals",
-      "API access",
+      "Team workspace planning",
+      "Priority support",
     ],
     cta: "Talk to us",
     featured: false,
@@ -139,14 +139,6 @@ const faqs = [
   },
 ] as const;
 
-const featuredIn = [
-  "Product Hunt",
-  "The Hustle",
-  "Indie Hackers",
-  "Morning Brew",
-  "Lenny's Newsletter",
-] as const;
-
 const footerLinks = {
   Product: ["Workflow", "Outputs", "Pricing", "Changelog"],
   Company: ["About", "Manifesto", "Careers", "Press"],
@@ -167,52 +159,6 @@ const footerHref: Record<string, string> = {
   Support: "mailto:hello@recastr.app",
   Status: "/login",
 };
-
-/* ─────────── ANIMATED COUNTER ─────────── */
-function AnimatedCounter({
-  target,
-  suffix = "",
-  duration = 2000,
-}: {
-  target: number;
-  suffix?: string;
-  duration?: number;
-}) {
-  const [count, setCount] = useState(0);
-  const [hasAnimated, setHasAnimated] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          setHasAnimated(true);
-          const startTime = performance.now();
-          const animate = (now: number) => {
-            const elapsed = now - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setCount(Math.floor(eased * target));
-            if (progress < 1) requestAnimationFrame(animate);
-          };
-          requestAnimationFrame(animate);
-        }
-      },
-      { threshold: 0.3 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [target, duration, hasAnimated]);
-
-  return (
-    <span ref={ref}>
-      {count.toLocaleString()}
-      {suffix}
-    </span>
-  );
-}
 
 /* ─────────── FAQ ITEM ─────────── */
 function FaqItem({ question, answer }: { question: string; answer: string }) {
@@ -383,62 +329,31 @@ export function LandingPage() {
             </a>
           </div>
 
-          {/* Metrics strip */}
+          {/* Honest product facts */}
           <div className="mt-20 grid gap-8 border-t border-[var(--landing-line)] pt-8 sm:grid-cols-3">
             <div>
               <p className="text-3xl font-semibold tracking-tight text-[var(--landing-fg)]">
-                <AnimatedCounter target={12} suffix="K+" />
+                4 inputs
               </p>
               <p className="mt-1.5 text-[13px] font-medium uppercase tracking-[0.12em] text-[var(--landing-muted)]">
-                Creators
+                URL, audio, blog, text
               </p>
             </div>
             <div>
               <p className="text-3xl font-semibold tracking-tight text-[var(--landing-fg)]">
-                <AnimatedCounter target={30} /> days
+                Manual review
               </p>
               <p className="mt-1.5 text-[13px] font-medium uppercase tracking-[0.12em] text-[var(--landing-muted)]">
-                Per upload
+                Before anything posts
               </p>
             </div>
             <div>
               <p className="text-3xl font-semibold tracking-tight text-[var(--landing-fg)]">
-                <AnimatedCounter target={5} /> platforms
+                Email reminders
               </p>
               <p className="mt-1.5 text-[13px] font-medium uppercase tracking-[0.12em] text-[var(--landing-muted)]">
-                Out of the box
+                For scheduled drafts
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─────── FEATURED IN ─────── */}
-      <section className="border-y border-[var(--landing-line)] bg-[var(--landing-soft)] overflow-hidden">
-        <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-6 px-5 py-10 sm:flex-row sm:gap-10 sm:px-6">
-          <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--landing-muted)] z-10">
-            As featured by
-          </p>
-          <div className="flex flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)] gap-10 [--gap:2.5rem]">
-            <div className="flex shrink-0 animate-marquee items-center justify-around gap-10 py-1">
-              {featuredIn.map((name) => (
-                <span
-                  key={name}
-                  className="whitespace-nowrap text-sm font-medium text-[var(--landing-muted)]/60 transition-colors hover:text-[var(--landing-muted)]"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-            <div aria-hidden="true" className="flex shrink-0 animate-marquee items-center justify-around gap-10 py-1">
-              {featuredIn.map((name) => (
-                <span
-                  key={`duplicate-${name}`}
-                  className="whitespace-nowrap text-sm font-medium text-[var(--landing-muted)]/60 transition-colors hover:text-[var(--landing-muted)]"
-                >
-                  {name}
-                </span>
-              ))}
             </div>
           </div>
         </div>
@@ -449,7 +364,7 @@ export function LandingPage() {
         <div className="mx-auto max-w-[1200px] px-5 py-24 sm:px-6">
           <SectionHeader
             eyebrow="The Workflow"
-            title="From one upload to a whole quarter of posts."
+            title="From one source to ready-to-review drafts."
           />
 
           <div className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-[var(--landing-line)] bg-[var(--landing-line)] sm:grid-cols-2 lg:grid-cols-4">
@@ -538,7 +453,7 @@ export function LandingPage() {
                 >
                   {featured && (
                     <span className="absolute -top-3 left-6 rounded-full bg-[var(--landing-accent)] px-3 py-0.5 text-[11px] font-semibold text-white">
-                      Most Loved
+                      Recommended
                     </span>
                   )}
                   <h3 className="text-base font-semibold">{name}</h3>
