@@ -334,8 +334,8 @@ function ScheduledTab({
                 const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
                 const body = getScheduledBody(post, content);
                 return (
-                  <div className="grid gap-4 px-5 py-4 transition-colors hover:bg-[var(--app-panel)]/55 md:grid-cols-[120px_140px_1fr_auto] md:items-center" key={post.id}>
-                    <div className="space-y-1">
+                  <div className="grid gap-4 px-5 py-4 transition-colors hover:bg-[var(--app-panel)]/55 md:grid-cols-[160px_140px_minmax(0,1fr)_auto] md:items-center" key={post.id}>
+                    <div className="flex flex-col items-start gap-1">
                       <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-bg)]/70 px-2.5 py-1 font-mono text-xs font-semibold">
                         <Clock3 className="h-3 w-3 text-muted-foreground" />
                         {format(new Date(post.publishAt), "h:mma")}
@@ -589,7 +589,7 @@ function CountdownTimer({ date }: { date: string }) {
   }, []);
 
   return (
-    <span className={cn("text-[11px] font-semibold", isExpired ? "text-amber-400" : "text-cyan-300")}>
+    <span className={cn("block whitespace-nowrap text-[11px] font-semibold", isExpired ? "text-amber-400" : "text-cyan-300")}>
       {isExpired ? "Due now" : `${formatDistanceToNow(target, { addSuffix: false })} left`}
     </span>
   );
