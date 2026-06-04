@@ -13,14 +13,14 @@ export async function GET(request: Request) {
     const headerSecret = request.headers.get("x-cron-secret");
     const userAgent = request.headers.get("user-agent")?.toLowerCase() ?? "";
     const hasCronSecret = Boolean(env.CRON_SECRET);
-    const isVercelCron = userAgent.includes("vercel-cron");
+    const isTrustedCronAgent = userAgent.includes("vercel-cron") || userAgent.includes("github-actions-cron");
     const isAuthorizedCron = hasCronSecret && (
       authorization === `Bearer ${env.CRON_SECRET}` ||
       headerSecret === env.CRON_SECRET
     );
 
     if (!isAuthorizedCron) {
-      if (!hasCronSecret && isVercelCron) {
+      if (!hasCronSecret && isTrustedCronAgent) {
         const result = await processDueScheduledNotifications({ limit: 100 });
         return ok(result);
       }

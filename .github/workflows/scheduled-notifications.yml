@@ -1,0 +1,16 @@
+name: Scheduled notifications
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  process-due-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process due scheduled notification emails
+        run: |
+          curl --fail --silent --show-error \
+            -H "User-Agent: github-actions-cron" \
+            "https://recastr.vercel.app/api/cron/scheduled-notifications"
