@@ -11,13 +11,20 @@ export async function GET(request: Request) {
   try {
     const authorization = request.headers.get("authorization");
     const headerSecret = request.headers.get("x-cron-secret");
+    const userAgent = request.headers.get("user-agent")?.toLowerCase() ?? "";
     const hasCronSecret = Boolean(env.CRON_SECRET);
+    const isVercelCron = userAgent.includes("vercel-cron");
     const isAuthorizedCron = hasCronSecret && (
       authorization === `Bearer ${env.CRON_SECRET}` ||
       headerSecret === env.CRON_SECRET
     );
 
     if (!isAuthorizedCron) {
+      if (!hasCronSecret && isVercelCron) {
+        const result = await processDueScheduledNotifications({ limit: 100 });
+        return ok(result);
+      }
+
       const user = await getRequestUser(request).catch(() => null);
       if (!user) {
         const message = hasCronSecret
