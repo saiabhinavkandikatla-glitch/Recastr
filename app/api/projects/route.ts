@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
-import { serializeProject } from "@/lib/projects/serialize";
+import { projectShellSelect, serializeProject, serializeProjectShell } from "@/lib/projects/serialize";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
 import { assertCanCreateProject, planLimitErrorResponse } from "@/lib/plan-limits";
@@ -27,8 +27,20 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json(projects.map(serializeProject));
-  } catch {
-    return NextResponse.json([]);
+  } catch (error) {
+    console.error("Failed to load full projects:", error);
+    try {
+      const projects = await prisma.project.findMany({
+        where: { userId: user.id },
+        select: projectShellSelect,
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json(projects.map(serializeProjectShell));
+    } catch (fallbackError) {
+      console.error("Failed to load project shells:", fallbackError);
+      return NextResponse.json([]);
+    }
   }
 }
 

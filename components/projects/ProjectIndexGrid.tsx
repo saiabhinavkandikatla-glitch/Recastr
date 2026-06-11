@@ -45,7 +45,7 @@ export function ProjectIndexGrid({
 
             <h2 className="line-clamp-2 text-xl font-bold font-display transition-colors group-hover:text-primary">{project.title}</h2>
             <p className="mt-2 flex-1 text-sm font-medium text-muted-foreground">
-              {project.contents?.length ?? project.outputs.length} generated pieces
+              {formatGeneratedCount(project)}
             </p>
 
             <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
@@ -67,4 +67,9 @@ export function ProjectIndexGrid({
       />
     </>
   );
+}
+
+function formatGeneratedCount(project: Project) {
+  const count = project.contents?.length ?? project.outputs.length;
+  return count > 0 ? `${count} generated pieces` : "Open content pack";
 }

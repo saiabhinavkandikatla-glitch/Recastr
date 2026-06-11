@@ -7,8 +7,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import { listStoredProjects } from "@/lib/projects/store";
-import type { DbProjectShell } from "@/lib/projects/serialize";
-import type { Platform, Project } from "@/lib/types";
+import type { Project } from "@/lib/types";
 
 export default async function ProjectsIndexPage() {
   const user = await getCurrentUser();
@@ -63,16 +62,11 @@ async function loadProjects(userId?: string): Promise<Project[]> {
   try {
     const projects = await prisma.project.findMany({
       where: { userId },
-      select: {
-        ...projectShellSelect,
-        contents: {
-          select: { id: true },
-        },
-      },
+      select: projectShellSelect,
       orderBy: { createdAt: "desc" },
       take: 48,
     });
-    return mergeProjects(projects.map(serializeProjectIndex), storedProjects);
+    return mergeProjects(projects.map(serializeProjectShell), storedProjects);
   } catch (error) {
     console.error("Failed to load projects index:", error);
     return storedProjects;
@@ -88,29 +82,4 @@ function mergeProjects(primary: Project[], fallback: Project[]) {
       return true;
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-type ProjectIndexRow = DbProjectShell & {
-  contents: Array<{ id: string }>;
-};
-
-function serializeProjectIndex(project: ProjectIndexRow): Project {
-  const shell = serializeProjectShell(project);
-  return {
-    ...shell,
-    contents: project.contents.map((content, index) => ({
-      id: content.id,
-      projectId: project.id,
-      platform: "TWITTER" as Platform,
-      contentType: "Post",
-      body: "",
-      originalBody: "",
-      tone: "casual",
-      approved: false,
-      order: index,
-      scheduledPost: null,
-      createdAt: project.createdAt.toISOString(),
-    })),
-    outputs: [],
-  };
 }

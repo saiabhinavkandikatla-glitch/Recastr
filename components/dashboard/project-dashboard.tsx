@@ -42,6 +42,7 @@ export function ProjectDashboard({
     (total, project) => total + (project.contents?.length ?? project.outputs.length),
     0,
   );
+  const projectLabel = `${initialProjects.length} ${initialProjects.length === 1 ? "project" : "projects"}`;
 
   const scheduledCount = initialProjects.reduce((total, project) => {
     if (project.contents?.length) {
@@ -77,6 +78,8 @@ export function ProjectDashboard({
         <h1 className="max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">
           {contentCount ? (
             <>{firstName}, you have <span className="text-[var(--violet)]">{contentCount} pieces</span> ready.</>
+          ) : initialProjects.length ? (
+            <>{firstName}, you have <span className="text-[var(--violet)]">{projectLabel}</span> ready.</>
           ) : (
             <>{firstName}, paste a source below to get started.</>
           )}
@@ -203,7 +206,7 @@ export function ProjectDashboard({
 
                   <h3 className="line-clamp-2 text-lg font-bold font-display group-hover:text-primary transition-colors">{project.title}</h3>
                   <p className="mt-2 text-sm font-medium text-muted-foreground flex-1">
-                    Generated {project.contents?.length ?? project.outputs.length} pieces
+                    {formatGeneratedCount(project)}
                   </p>
 
                   <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
@@ -267,6 +270,11 @@ function platformColor(platform: string) {
   if (platform === "twitter") return "var(--platform-twitter)";
   if (platform === "linkedin") return "var(--platform-linkedin)";
   return "var(--platform-instagram)";
+}
+
+function formatGeneratedCount(project: Project) {
+  const count = project.contents?.length ?? project.outputs.length;
+  return count > 0 ? `Generated ${count} pieces` : "Open content pack";
 }
 
 // Icon definition for Zap missing from Lucide imports
