@@ -19,9 +19,13 @@ function getScheduledPostMap() {
   return globalForProjects.recastrScheduledPosts;
 }
 
-export function listStoredProjects() {
+export function listStoredProjects({
+  includeFallback = true,
+}: {
+  includeFallback?: boolean;
+} = {}) {
   const projects = Array.from(getProjectMap().values());
-  if (projects.length === 0) {
+  if (projects.length === 0 && includeFallback) {
     projects.push(
       getStoredProject("demo-founder-podcast")!,
       getStoredProject("demo-ai-youtube")!,

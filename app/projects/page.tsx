@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
+import { listStoredProjects } from "@/lib/projects/store";
 import type { DbProjectShell } from "@/lib/projects/serialize";
 import type { Platform, Project } from "@/lib/types";
 
@@ -57,6 +58,7 @@ export default async function ProjectsIndexPage() {
 
 async function loadProjects(userId?: string): Promise<Project[]> {
   if (!userId) return [];
+  const storedProjects = listStoredProjects({ includeFallback: false });
 
   try {
     const projects = await prisma.project.findMany({
@@ -70,10 +72,22 @@ async function loadProjects(userId?: string): Promise<Project[]> {
       orderBy: { createdAt: "desc" },
       take: 48,
     });
-    return projects.map(serializeProjectIndex);
-  } catch {
-    return [];
+    return mergeProjects(projects.map(serializeProjectIndex), storedProjects);
+  } catch (error) {
+    console.error("Failed to load projects index:", error);
+    return storedProjects;
   }
+}
+
+function mergeProjects(primary: Project[], fallback: Project[]) {
+  const seen = new Set<string>();
+  return [...primary, ...fallback]
+    .filter((project) => {
+      if (seen.has(project.id)) return false;
+      seen.add(project.id);
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 type ProjectIndexRow = DbProjectShell & {

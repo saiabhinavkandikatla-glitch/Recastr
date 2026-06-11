@@ -27,7 +27,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
   const user = await getCurrentUser();
   const project = await findProject(params.id, user?.id);
   if (!project) notFound();
-  const shellProjects = listStoredProjects();
+  const shellProjects = listStoredProjects({ includeFallback: false });
 
   return (
     <AppShell projects={shellProjects.length ? shellProjects : [project]} title="Projects" sourceBadge={project.title} user={user}>
