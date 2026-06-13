@@ -36,8 +36,12 @@ type RawContent = {
     id: string;
     contentId: string;
     platform: string;
+    postingMethod?: string;
     scheduledAt: Date;
     status: string;
+    timezone?: string;
+    verificationRequired?: boolean;
+    verifiedByUser?: boolean;
     publishedAt?: Date | null;
     failReason?: string | null;
   } | null;
@@ -103,8 +107,12 @@ export const projectContentSelect = {
       id: true,
       contentId: true,
       platform: true,
+      postingMethod: true,
       scheduledAt: true,
       status: true,
+      timezone: true,
+      verificationRequired: true,
+      verifiedByUser: true,
       publishedAt: true,
       failReason: true,
     },
@@ -184,10 +192,14 @@ function serializeContent(content: RawContent): ContentPiece {
           outputId: content.scheduledPost.contentId,
           contentId: content.scheduledPost.contentId,
           platform: normalizePlatform(content.scheduledPost.platform),
+          postingMethod: normalizePostingMethod(content.scheduledPost.postingMethod),
           publishAt: content.scheduledPost.scheduledAt.toISOString(),
           scheduledAt: content.scheduledPost.scheduledAt.toISOString(),
           status: normalizePostStatus(content.scheduledPost.status),
           title: content.contentType ?? content.outputType ?? "Post",
+          timezone: content.scheduledPost.timezone,
+          verificationRequired: content.scheduledPost.verificationRequired,
+          verifiedByUser: content.scheduledPost.verifiedByUser,
           publishedAt: content.scheduledPost.publishedAt?.toISOString() ?? null,
           failReason: content.scheduledPost.failReason ?? null,
         }
@@ -272,6 +284,10 @@ function normalizePostStatus(value: string): PostStatus {
     return upper;
   }
   return "PENDING";
+}
+
+function normalizePostingMethod(value: string | undefined) {
+  return value === "direct_post" ? "direct_post" : "email_reminder";
 }
 
 function normalizeSourceType(value: string | undefined): SourceType {

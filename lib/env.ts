@@ -27,6 +27,7 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM_EMAIL: z.string().optional(),
   SMTP_SECURE: z.string().optional(),
+  POSTING_CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
 });
 
@@ -111,6 +112,7 @@ export const env = envSchema.parse({
   SMTP_PASS: process.env.SMTP_PASS,
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL,
   SMTP_SECURE: process.env.SMTP_SECURE,
+  POSTING_CREDENTIAL_ENCRYPTION_KEY: process.env.POSTING_CREDENTIAL_ENCRYPTION_KEY,
   CRON_SECRET: process.env.CRON_SECRET,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;

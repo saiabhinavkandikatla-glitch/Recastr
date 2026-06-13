@@ -21,6 +21,7 @@ export async function processDueScheduledNotifications({
   const duePosts = await prisma.scheduledPost.findMany({
     where: {
       ...(userId ? { userId } : {}),
+      postingMethod: "email_reminder",
       scheduledAt: { lte: now },
       OR: [
         { status: { in: ACTIVE_STATUSES } },
@@ -57,10 +58,18 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
 
   const existing = await prisma.scheduledPost.findUnique({
     where: { id: scheduledPostId },
-    select: { id: true, status: true, scheduledAt: true, updatedAt: true },
+    select: { id: true, postingMethod: true, status: true, scheduledAt: true, updatedAt: true },
   });
 
   if (!existing) throw new Error("Scheduled post not found");
+
+  if (existing.postingMethod !== "email_reminder") {
+    return {
+      skipped: true,
+      reason: `posting_method_${existing.postingMethod}`,
+      scheduledPostId,
+    };
+  }
 
   const normalizedStatus = existing.status.toLowerCase();
   const processingIsStale =
@@ -90,6 +99,7 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
   const claim = await prisma.scheduledPost.updateMany({
     where: {
       id: scheduledPostId,
+      postingMethod: "email_reminder",
       OR: [
         { status: { in: RETRYABLE_STATUSES } },
         { status: { in: ["processing", "PROCESSING"] }, updatedAt: { lte: new Date(Date.now() - PROCESSING_STALE_AFTER_MS) } },
@@ -140,7 +150,15 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
 
     await prisma.scheduledPost.update({
       where: { id: post.id },
-      data: { status: "notified", publishedAt: new Date(), failReason: null },
+      data: { attempts: { increment: 1 }, status: "notified", publishedAt: new Date(), failReason: null },
+    });
+    await prisma.postHistory.create({
+      data: {
+        platform: post.platform,
+        postedAt: new Date(),
+        scheduledPostId: post.id,
+        status: "sent_email",
+      },
     });
 
     return {
@@ -156,8 +174,17 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
 }
 
 async function markScheduledPostFailed(id: string, message: string) {
-  await prisma.scheduledPost.update({
+  const post = await prisma.scheduledPost.update({
     where: { id },
-    data: { status: "failed", failReason: message },
+    data: { attempts: { increment: 1 }, status: "failed", failReason: message },
+    select: { id: true, platform: true },
+  });
+  await prisma.postHistory.create({
+    data: {
+      errorDetails: message,
+      platform: post.platform,
+      scheduledPostId: post.id,
+      status: "failed",
+    },
   });
 }

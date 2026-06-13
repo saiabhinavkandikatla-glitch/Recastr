@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, Dispatch, ReactNode, SetStateAction } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -16,6 +16,7 @@ import {
   QrCode,
   ReceiptText,
   ShieldCheck,
+  Send,
   UserCircle,
   Settings,
   Sparkles
@@ -31,10 +32,11 @@ import { PLAN_RULES } from "@/lib/plans";
 import type { Plan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type SettingsTab = "profile" | "billing" | "notifications";
+type SettingsTab = "profile" | "posting" | "billing" | "notifications";
 
 const tabs: Array<{ value: SettingsTab; label: string; icon: ComponentType<{ className?: string }> }> = [
   { value: "profile", label: "Profile", icon: UserCircle },
+  { value: "posting", label: "Posting", icon: Send },
   { value: "billing", label: "Workspace billing", icon: CreditCard },
   { value: "notifications", label: "Notifications", icon: Bell },
 ];
@@ -93,6 +95,33 @@ type ProfileSettings = {
   avatarUrl: string | null;
 };
 
+type PostingPlatform = "twitter" | "linkedin" | "instagram" | "facebook";
+
+type PostingPreference = {
+  defaultPostingMethod: "email_reminder" | "direct_post";
+  postVerificationRequired: boolean;
+  timezone: string;
+};
+
+type PostingAccountSummary = {
+  connectedAt: string | null;
+  expiresAt: string | null;
+  handle: string | null;
+  isActive: boolean;
+  label: string;
+  lastError: string | null;
+  lastTestedAt: string | null;
+  platform: PostingPlatform;
+};
+
+type PostingCredentialForm = {
+  accessToken: string;
+  apiKey: string;
+  apiSecret: string;
+  handle: string;
+  refreshToken: string;
+};
+
 type MfaStatus = {
   currentLevel: "aal1" | "aal2";
   factors: Array<{
@@ -111,6 +140,12 @@ type MfaEnrollment = {
 };
 
 const contentFormats = ["Twitter / X", "LinkedIn", "Instagram", "YouTube Shorts", "Threads", "Facebook"];
+const postingPlatforms: Array<{ platform: PostingPlatform; label: string; helper: string }> = [
+  { platform: "twitter", label: "Twitter / X", helper: "Short posts and threads." },
+  { platform: "linkedin", label: "LinkedIn", helper: "Founder posts and professional updates." },
+  { platform: "instagram", label: "Instagram", helper: "Captions, carousel copy, and reel hooks." },
+  { platform: "facebook", label: "Facebook", helper: "Page posts and community updates." },
+];
 
 export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null }) {
   const searchParams = useSearchParams();
@@ -131,6 +166,16 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     creatorType: "Founder",
     defaultTone: "Casual",
   });
+  const [postingPreference, setPostingPreference] = useState<PostingPreference>({
+    defaultPostingMethod: "email_reminder",
+    postVerificationRequired: true,
+    timezone: "Asia/Kolkata",
+  });
+  const [postingCredentialForms, setPostingCredentialForms] = useState<Record<PostingPlatform, PostingCredentialForm>>(
+    () => createEmptyPostingCredentialForms(),
+  );
+  const [postingSavingPlatform, setPostingSavingPlatform] = useState<PostingPlatform | null>(null);
+  const [postingPreferenceSaving, setPostingPreferenceSaving] = useState(false);
   const [notifications, setNotifications] = useState<NotificationPreferences>({
     notifyContentReady: true,
     notifyWeeklyDigest: true,
@@ -148,6 +193,14 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: () => fetchApiData<ProfileSettings>("/api/user/profile"),
+  });
+  const postingPreferenceQuery = useQuery({
+    queryKey: ["posting-preferences"],
+    queryFn: () => fetchApiData<PostingPreference>("/api/posting/preferences"),
+  });
+  const postingAccountsQuery = useQuery({
+    queryKey: ["posting-accounts"],
+    queryFn: () => fetchApiData<PostingAccountSummary[]>("/api/posting/accounts"),
   });
   const notificationsQuery = useQuery({
     queryKey: ["notification-preferences"],
@@ -216,6 +269,10 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   }, [requestedTab]);
 
   useEffect(() => {
+    if (postingPreferenceQuery.data) setPostingPreference(postingPreferenceQuery.data);
+  }, [postingPreferenceQuery.data]);
+
+  useEffect(() => {
     if (notificationsQuery.data) setNotifications(notificationsQuery.data);
   }, [notificationsQuery.data]);
 
@@ -245,6 +302,88 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
     await queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
     toast.success("Notification preference saved");
+  }
+
+  async function updatePostingPreference(patch: Partial<PostingPreference>) {
+    const previous = postingPreference;
+    const next = { ...postingPreference, ...patch };
+    setPostingPreference(next);
+    setPostingPreferenceSaving(true);
+
+    try {
+      const response = await fetch("/api/posting/preferences", {
+        body: JSON.stringify(patch),
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH",
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<PostingPreference> | null;
+      if (!response.ok || payload?.error) {
+        setPostingPreference(previous);
+        toast.error(payload?.error?.message ?? "Could not save posting preference");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["posting-preferences"] });
+      toast.success("Posting preference saved");
+    } finally {
+      setPostingPreferenceSaving(false);
+    }
+  }
+
+  async function savePostingAccount(platform: PostingPlatform) {
+    const form = postingCredentialForms[platform];
+    if (!form.accessToken.trim() && !form.apiKey.trim()) {
+      toast.error("Add an access token or API key first");
+      return;
+    }
+
+    setPostingSavingPlatform(platform);
+    try {
+      const response = await fetch("/api/posting/accounts", {
+        body: JSON.stringify({
+          accessToken: form.accessToken.trim() || undefined,
+          apiKey: form.apiKey.trim() || undefined,
+          apiSecret: form.apiSecret.trim() || undefined,
+          handle: form.handle.trim() || undefined,
+          platform,
+          refreshToken: form.refreshToken.trim() || undefined,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH",
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<PostingAccountSummary> | null;
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Could not save platform credentials");
+        return;
+      }
+
+      setPostingCredentialForms((current) => ({
+        ...current,
+        [platform]: { accessToken: "", apiKey: "", apiSecret: "", handle: "", refreshToken: "" },
+      }));
+      await queryClient.invalidateQueries({ queryKey: ["posting-accounts"] });
+      toast.success(`${platformLabel(platform)} credentials saved`);
+    } finally {
+      setPostingSavingPlatform(null);
+    }
+  }
+
+  async function disconnectPostingAccount(platform: PostingPlatform) {
+    setPostingSavingPlatform(platform);
+    try {
+      const response = await fetch(`/api/posting/accounts?platform=${encodeURIComponent(platform)}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<{ disconnected: boolean }> | null;
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Could not disconnect platform");
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["posting-accounts"] });
+      toast.success(`${platformLabel(platform)} disconnected`);
+    } finally {
+      setPostingSavingPlatform(null);
+    }
   }
 
   async function saveProfile() {
@@ -670,6 +809,188 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
             </div>
           )}
 
+          {activeTab === "posting" && (
+            <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+              <div className="h-fit overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+                <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
+                  <Send className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold font-display">Posting Workflow</h2>
+                </div>
+                <div className="space-y-6 p-6">
+                  <div>
+                    <p className="text-sm font-semibold">Default posting method</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Email reminders are live today. Direct posting is available only after credentials are connected and the posting worker is enabled.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {([
+                      ["email_reminder", "Email reminder", "Send the full post to your inbox when it is time to publish."],
+                      ["direct_post", "Direct post", "Use connected platform credentials for automatic publishing."],
+                    ] as const).map(([method, label, helper]) => (
+                      <button
+                        className={cn(
+                          "rounded-2xl border p-4 text-left transition-colors",
+                          postingPreference.defaultPostingMethod === method
+                            ? "border-primary/60 bg-primary/10"
+                            : "border-[var(--app-line)] bg-[var(--app-bg)]/45 hover:border-[var(--app-line-strong)]",
+                        )}
+                        disabled={postingPreferenceSaving}
+                        key={method}
+                        onClick={() => void updatePostingPreference({ defaultPostingMethod: method })}
+                        type="button"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold">{label}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{helper}</p>
+                          </div>
+                          {postingPreference.defaultPostingMethod === method ? (
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          ) : null}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <Field label="Timezone">
+                    <Input
+                      className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/55"
+                      onBlur={() => void updatePostingPreference({ timezone: postingPreference.timezone || "Asia/Kolkata" })}
+                      onChange={(event) => setPostingPreference((current) => ({ ...current, timezone: event.target.value }))}
+                      placeholder="Asia/Kolkata"
+                      value={postingPreference.timezone}
+                    />
+                  </Field>
+
+                  <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-4">
+                    <div>
+                      <p className="text-sm font-semibold">Require review before direct posting</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Keep this on to prevent accidental automatic publishing.
+                      </p>
+                    </div>
+                    <button
+                      aria-label="Require review before direct posting"
+                      className={cn(
+                        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                        postingPreference.postVerificationRequired ? "bg-primary" : "bg-muted-foreground/30",
+                      )}
+                      disabled={postingPreferenceSaving}
+                      onClick={() => void updatePostingPreference({ postVerificationRequired: !postingPreference.postVerificationRequired })}
+                      type="button"
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all",
+                          postingPreference.postVerificationRequired ? "left-[22px]" : "left-[2px]",
+                        )}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+                <div className="flex flex-col gap-1 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
+                  <h2 className="text-lg font-bold font-display">Platform Credentials</h2>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Store credentials only for platforms you want to enable later for direct posting.
+                  </p>
+                </div>
+                <div className="grid gap-4 p-6 lg:grid-cols-2">
+                  {postingPlatforms.map(({ helper, label, platform }) => {
+                    const account = postingAccountsQuery.data?.find((item) => item.platform === platform);
+                    const form = postingCredentialForms[platform];
+                    const saving = postingSavingPlatform === platform;
+                    const connected = Boolean(account?.isActive);
+
+                    return (
+                      <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-5" key={platform}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-green-400" : "bg-muted-foreground")} />
+                              <h3 className="font-bold">{label}</h3>
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{helper}</p>
+                          </div>
+                          <Badge className={cn("rounded-full border-0", connected ? "bg-green-500/15 text-green-300" : "bg-muted text-muted-foreground")}>
+                            {connected ? "Connected" : "Not connected"}
+                          </Badge>
+                        </div>
+
+                        {connected ? (
+                          <div className="mt-5 space-y-4">
+                            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-surface)] p-3">
+                              <p className="text-xs font-semibold">{account?.handle || "Handle not set"}</p>
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                Connected {account?.connectedAt ? formatDateTime(account.connectedAt) : "recently"}
+                              </p>
+                              {account?.lastError ? <p className="mt-2 text-xs text-red-300">{account.lastError}</p> : null}
+                            </div>
+                            <Button
+                              className="rounded-xl"
+                              disabled={saving}
+                              onClick={() => void disconnectPostingAccount(platform)}
+                              type="button"
+                              variant="destructive"
+                            >
+                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                              Disconnect
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="mt-5 grid gap-3">
+                            <Input
+                              className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
+                              onChange={(event) => updatePostingCredentialForm(platform, "handle", event.target.value, setPostingCredentialForms)}
+                              placeholder="@handle or page name"
+                              value={form.handle}
+                            />
+                            <Input
+                              className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
+                              onChange={(event) => updatePostingCredentialForm(platform, "accessToken", event.target.value, setPostingCredentialForms)}
+                              placeholder="Access token or API token"
+                              type="password"
+                              value={form.accessToken}
+                            />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <Input
+                                className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
+                                onChange={(event) => updatePostingCredentialForm(platform, "apiKey", event.target.value, setPostingCredentialForms)}
+                                placeholder="API key"
+                                type="password"
+                                value={form.apiKey}
+                              />
+                              <Input
+                                className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
+                                onChange={(event) => updatePostingCredentialForm(platform, "apiSecret", event.target.value, setPostingCredentialForms)}
+                                placeholder="API secret"
+                                type="password"
+                                value={form.apiSecret}
+                              />
+                            </div>
+                            <Button
+                              className="mt-1 rounded-xl bg-[var(--violet)] text-white"
+                              disabled={saving}
+                              onClick={() => void savePostingAccount(platform)}
+                              type="button"
+                            >
+                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                              Save credentials
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === "billing" && (
             <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
               <div className="h-fit overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
@@ -897,7 +1218,43 @@ function getUnlimitedUsagePercent(used: number) {
 }
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === "profile" || value === "billing" || value === "notifications";
+  return value === "profile" || value === "posting" || value === "billing" || value === "notifications";
+}
+
+function createEmptyPostingCredentialForms(): Record<PostingPlatform, PostingCredentialForm> {
+  return {
+    facebook: { accessToken: "", apiKey: "", apiSecret: "", handle: "", refreshToken: "" },
+    instagram: { accessToken: "", apiKey: "", apiSecret: "", handle: "", refreshToken: "" },
+    linkedin: { accessToken: "", apiKey: "", apiSecret: "", handle: "", refreshToken: "" },
+    twitter: { accessToken: "", apiKey: "", apiSecret: "", handle: "", refreshToken: "" },
+  };
+}
+
+function updatePostingCredentialForm(
+  platform: PostingPlatform,
+  key: keyof PostingCredentialForm,
+  value: string,
+  setForms: Dispatch<SetStateAction<Record<PostingPlatform, PostingCredentialForm>>>,
+) {
+  setForms((current) => ({
+    ...current,
+    [platform]: {
+      ...current[platform],
+      [key]: value,
+    },
+  }));
+}
+
+function platformLabel(platform: PostingPlatform) {
+  return postingPlatforms.find((item) => item.platform === platform)?.label ?? platform;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
 }
 
 function toTitleCase(value: string) {

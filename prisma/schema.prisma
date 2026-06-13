@@ -37,6 +37,8 @@ model User {
   billingSubscriptions   BillingSubscription[]
   billingInvoices        BillingInvoice[]
   billingEvents          BillingEvent[]
+  platformCredentials    UserPlatformCredential[]
+  postingPreference      UserPostingPreference?
 
   @@index([plan, createdAt])
 }
@@ -135,13 +137,71 @@ model ScheduledPost {
   content     Content   @relation(fields: [contentId], references: [id])
   platform    String
   scheduledAt DateTime
+  postingMethod String    @default("email_reminder")
+  timezone    String      @default("Asia/Kolkata")
+  verificationRequired Boolean @default(false)
+  verifiedByUser Boolean  @default(false)
+  verifiedAt   DateTime?
+  platformPostId String?
   status      String    @default("pending")
   publishedAt DateTime?
   failReason  String?
+  attempts    Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  history      PostHistory[]
 
   @@index([userId, status, scheduledAt])
+  @@index([userId, postingMethod, status, scheduledAt])
+}
+
+model PostHistory {
+  id              String        @id @default(cuid())
+  scheduledPostId String
+  scheduledPost   ScheduledPost @relation(fields: [scheduledPostId], references: [id], onDelete: Cascade)
+  platform        String
+  status          String
+  engagementMetrics Json?
+  postedAt        DateTime?
+  errorDetails    String?
+  createdAt       DateTime      @default(now())
+
+  @@index([scheduledPostId, createdAt])
+  @@index([platform, status, createdAt])
+}
+
+model UserPlatformCredential {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform       String
+  accessToken    String    @db.Text
+  refreshToken   String?   @db.Text
+  apiKey         String?   @db.Text
+  apiSecret      String?   @db.Text
+  handle         String?
+  platformUserId String?
+  isActive       Boolean   @default(true)
+  connectedAt    DateTime  @default(now())
+  expiresAt      DateTime?
+  lastTestedAt   DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, platform])
+  @@index([userId, isActive])
+}
+
+model UserPostingPreference {
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultPostingMethod     String   @default("email_reminder")
+  timezone                 String   @default("Asia/Kolkata")
+  postVerificationRequired Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 model BrandVoice {

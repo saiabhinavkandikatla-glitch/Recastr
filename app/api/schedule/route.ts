@@ -51,10 +51,14 @@ export async function GET(request: Request) {
             outputId: post.contentId,
             contentId: post.contentId,
             platform: post.platform,
+            postingMethod: post.postingMethod as "email_reminder" | "direct_post",
             publishAt: post.scheduledAt.toISOString(),
             scheduledAt: post.scheduledAt.toISOString(),
             status: post.status.toUpperCase(),
             title: post.content.contentType,
+            timezone: post.timezone,
+            verificationRequired: post.verificationRequired,
+            verifiedByUser: post.verifiedByUser,
           })),
           ...localPosts,
         ],
@@ -78,6 +82,17 @@ export async function POST(request: Request) {
     }
     await assertCanScheduleReminder(user, payload.platform);
 
+    if (payload.postingMethod === "direct_post") {
+      return Response.json(
+        {
+          error: "Direct posting is not enabled yet. Use email reminders for now.",
+          code: "direct_posting_not_enabled",
+          status: 409,
+        },
+        { status: 409 },
+      );
+    }
+
     const contentId = payload.contentId ?? payload.outputId ?? "";
     if (env.demoMode && !env.requireAuth) {
       const post = createStoredScheduledPost({
@@ -90,6 +105,7 @@ export async function POST(request: Request) {
           contentId,
           outputId: contentId,
           platform: payload.platform,
+          postingMethod: payload.postingMethod,
           scheduledPostId: post.id,
           publishAt: post.publishAt,
           scheduledAt: post.scheduledAt,
@@ -137,16 +153,27 @@ export async function POST(request: Request) {
       where: { contentId },
       update: {
         platform: payload.platform,
+        postingMethod: payload.postingMethod,
         scheduledAt,
+        timezone: payload.timezone,
+        verificationRequired: payload.verificationRequired,
+        verifiedByUser: payload.postingMethod === "email_reminder",
+        verifiedAt: payload.postingMethod === "email_reminder" ? new Date() : null,
         status: "pending",
         publishedAt: null,
         failReason: null,
+        attempts: 0,
       },
       create: {
         contentId,
         userId: user.id,
         platform: payload.platform,
+        postingMethod: payload.postingMethod,
         scheduledAt,
+        timezone: payload.timezone,
+        verificationRequired: payload.verificationRequired,
+        verifiedByUser: payload.postingMethod === "email_reminder",
+        verifiedAt: payload.postingMethod === "email_reminder" ? new Date() : null,
         status: "pending",
       },
     });
@@ -171,11 +198,15 @@ export async function POST(request: Request) {
         contentId: scheduledPost.contentId,
         outputId: scheduledPost.contentId,
         platform: scheduledPost.platform,
+        postingMethod: scheduledPost.postingMethod,
         scheduledPostId: scheduledPost.id,
         publishAt: scheduledAt.toISOString(),
         scheduledAt: scheduledAt.toISOString(),
         status: scheduledPost.status.toUpperCase(),
         title: payload.contentType ?? "Post",
+        timezone: scheduledPost.timezone,
+        verificationRequired: scheduledPost.verificationRequired,
+        verifiedByUser: scheduledPost.verifiedByUser,
       },
       { status: 201 },
     );

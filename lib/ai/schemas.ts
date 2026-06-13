@@ -112,6 +112,9 @@ export const scheduleSchema = z.object({
   publishAt: z.string().datetime().optional(),
   scheduledAt: z.string().datetime().optional(),
   platform: z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "YOUTUBE", "CAROUSEL", "COMMUNITY", "STORY"]),
+  postingMethod: z.enum(["email_reminder", "direct_post"]).default("email_reminder"),
+  timezone: z.string().trim().min(1).max(80).default("Asia/Kolkata"),
+  verificationRequired: z.boolean().default(false),
 }).refine((value) => value.contentId || value.outputId, {
   message: "contentId is required",
   path: ["contentId"],

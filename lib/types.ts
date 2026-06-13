@@ -87,10 +87,14 @@ export type ScheduledPost = {
   outputId: string;
   contentId?: string;
   platform: Platform;
+  postingMethod?: "email_reminder" | "direct_post";
   publishAt: string;
   scheduledAt?: string;
   status: PostStatus;
   title: string;
+  timezone?: string;
+  verificationRequired?: boolean;
+  verifiedByUser?: boolean;
   publishedAt?: string | null;
   failReason?: string | null;
 };
