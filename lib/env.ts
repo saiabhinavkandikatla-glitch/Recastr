@@ -8,9 +8,10 @@ const envSchema = z.object({
   DIRECT_URL: z.string().optional(),
   RECASTR_DEMO_MODE: z.string().default("false"),
   REQUIRE_AUTH: z.string().default("true"),
-  OPENAI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  REDIS_URL: z.string().optional(),
+  QSTASH_TOKEN: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   RAZORPAY_KEY_ID: z.string().optional(),
@@ -29,6 +30,10 @@ const envSchema = z.object({
   SMTP_SECURE: z.string().optional(),
   POSTING_CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  TWITTER_CLIENT_ID: z.string().optional(),
+  TWITTER_CLIENT_SECRET: z.string().optional(),
+  LINKEDIN_CLIENT_ID: z.string().optional(),
+  LINKEDIN_CLIENT_SECRET: z.string().optional(),
 });
 
 function normalizeSupabaseUrl(value: string | undefined) {
@@ -93,7 +98,7 @@ export const env = envSchema.parse({
   DIRECT_URL: process.env.DIRECT_URL,
   RECASTR_DEMO_MODE: process.env.RECASTR_DEMO_MODE,
   REQUIRE_AUTH: process.env.REQUIRE_AUTH,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   REDIS_URL: process.env.REDIS_URL,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
@@ -114,14 +119,22 @@ export const env = envSchema.parse({
   SMTP_SECURE: process.env.SMTP_SECURE,
   POSTING_CREDENTIAL_ENCRYPTION_KEY: process.env.POSTING_CREDENTIAL_ENCRYPTION_KEY,
   CRON_SECRET: process.env.CRON_SECRET,
+  TWITTER_CLIENT_ID: process.env.TWITTER_CLIENT_ID,
+  TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET,
+  LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID,
+  LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;
   demoMode: boolean;
   requireAuth: boolean;
   appUrl: string;
-  openaiKey: string | undefined;
+  geminiKey: string | undefined;
   redisUrl: string | undefined;
+  twitterClientId: string | undefined;
+  twitterClientSecret: string | undefined;
+  linkedinClientId: string | undefined;
+  linkedinClientSecret: string | undefined;
 };
 
 env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL);
@@ -131,8 +144,12 @@ env.supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 env.demoMode = env.RECASTR_DEMO_MODE === "true";
 env.requireAuth = env.REQUIRE_AUTH === "true";
 env.appUrl = env.NEXT_PUBLIC_APP_URL;
-env.openaiKey = env.OPENAI_API_KEY;
+env.geminiKey = env.GEMINI_API_KEY;
 env.redisUrl = env.REDIS_URL;
+env.twitterClientId = env.TWITTER_CLIENT_ID;
+env.twitterClientSecret = env.TWITTER_CLIENT_SECRET;
+env.linkedinClientId = env.LINKEDIN_CLIENT_ID;
+env.linkedinClientSecret = env.LINKEDIN_CLIENT_SECRET;
 
 export function isDemoMode() {
   return env.demoMode;
@@ -157,7 +174,7 @@ if (process.env.NODE_ENV === "production" && !isNextProductionBuild) {
 
   const leakedServerSecrets = [
     ["NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY", process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY],
-    ["NEXT_PUBLIC_OPENAI_API_KEY", process.env.NEXT_PUBLIC_OPENAI_API_KEY],
+    ["NEXT_PUBLIC_GEMINI_API_KEY", process.env.NEXT_PUBLIC_GEMINI_API_KEY],
     ["NEXT_PUBLIC_RAZORPAY_KEY_SECRET", process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET],
     ["NEXT_PUBLIC_DATABASE_URL", process.env.NEXT_PUBLIC_DATABASE_URL],
   ].filter(([, value]) => Boolean(value));

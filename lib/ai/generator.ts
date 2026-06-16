@@ -1,5 +1,4 @@
-import { ChatOpenAI } from "@langchain/openai";
-import { StructuredOutputParser } from "@langchain/core/output_parsers";
+import { getGeminiClient } from "@/lib/ai/client";
 import { nanoid } from "nanoid";
 import { buildGenerationPrompt, chunkTranscript, SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { generatedArraySchema } from "@/lib/ai/schemas";
@@ -23,40 +22,51 @@ const allPlatforms: Platform[] = [
 export async function generateContentSuite(
   request: GenerationRequest,
 ): Promise<SocialOutput[]> {
-  const parser = StructuredOutputParser.fromZodSchema(generatedArraySchema);
-  const formatInstructions = parser.getFormatInstructions();
   const transcriptChunks = chunkTranscript(request.transcript);
 
-  if (env.openaiKey && !env.demoMode) {
-    const model = new ChatOpenAI({
-      model: "gpt-4o",
-      temperature: 0.7,
-      apiKey: env.openaiKey,
-    });
-    const platform = request.platform ?? "TWITTER";
-    const prompt = [
-      SYSTEM_PROMPT.replace("[TONE]", request.tone).replace("[AUDIENCE]", request.audience),
-      buildGenerationPrompt({
+  if (env.geminiKey && !env.demoMode) {
+    const gemini = getGeminiClient();
+    if (gemini) {
+      const platform = request.platform ?? "TWITTER";
+      const systemInstructions = SYSTEM_PROMPT.replace("[TONE]", request.tone).replace("[AUDIENCE]", request.audience);
+      const userPrompt = buildGenerationPrompt({
         ...request,
         platform,
         transcript: transcriptChunks[0],
-      }),
-      formatInstructions,
-    ].join("\n\n");
+      });
+      const formatInstructions = `You must return a JSON array of objects. Each object must have: content (string), hook_score (number 1-10), estimated_engagement (string), platform_tips (array of strings). Return exactly 3 variations.`;
+      const fullPrompt = `${systemInstructions}\n\n${userPrompt}\n\n${formatInstructions}`;
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const response = await model.invoke(prompt + retryConstraint(attempt, platform));
-      const parsed = await parser.parse(String(response.content));
-      const outputs = parsed.map((item, index) =>
-        toOutput(
-          request.projectId ?? "generated",
-          platform,
-          `${platform} variation ${index + 1}`,
-          normalizeGeneratedContent(platform, item.content),
-        ),
-      );
-      const valid = outputs.every((output) => validatePlatformLimit(output.platform, stringifyContent(output.content)));
-      if (valid) return outputs;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const response = await gemini.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: "user", parts: [{ text: fullPrompt + retryConstraint(attempt, platform) }] }],
+            config: {
+              temperature: 0.7,
+              responseMimeType: "application/json",
+            },
+          });
+
+          const parsed = generatedArraySchema.parse(JSON.parse(response.text ?? "[]"));
+          const outputs = parsed.map((item, index) =>
+            toOutput(
+              request.projectId ?? "generated",
+              platform,
+              `${platform} variation ${index + 1}`,
+              normalizeGeneratedContent(platform, item.content),
+            ),
+          );
+          const valid = outputs.every((output) => validatePlatformLimit(output.platform, stringifyContent(output.content)));
+          if (valid) return outputs;
+        } catch (error) {
+          console.error(`Gemini API Error (generateContentSuite attempt ${attempt + 1}):`, error);
+          if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
+            throw new Error("Invalid Gemini API Key - Please get a valid key starting with 'AIzaSy' from Google AI Studio.");
+          }
+          throw new Error("Failed to generate suite with Gemini. Please check your API key.");
+        }
+      }
     }
   }
 
@@ -104,49 +114,36 @@ function toOutput(
   content: unknown,
 ): SocialOutput {
   return {
-    id: `${projectId}-${platform.toLowerCase()}-${nanoid(8)}`,
+    id: `output-${nanoid(10)}`,
     projectId,
     platform,
     outputType,
+    tone: "professional",
     content,
     originalContent: content,
-    tone: "Professional",
     approved: false,
     createdAt: new Date().toISOString(),
   };
 }
 
-function validatePlatformLimit(platform: Platform, text: string) {
-  if (platform === "TWITTER") return text.length <= getPlatformCharacterLimit(platform);
-  if (platform === "LINKEDIN") return text.length <= 3000;
-  return true;
-}
-
-function retryConstraint(attempt: number, platform: Platform) {
+function retryConstraint(attempt: number, platform: Platform): string {
   if (attempt === 0) return "";
-  if (platform === "TWITTER") {
-    return "\nRetry constraint: every single tweet must be under 280 characters.";
-  }
-  if (platform === "LINKEDIN") {
-    return "\nRetry constraint: keep every LinkedIn post under 3000 characters.";
-  }
-  return "\nRetry constraint: make the JSON valid and keep copy concise.";
+  const limit = getPlatformCharacterLimit(platform);
+  return `\n\nIMPORTANT: Each variation must be strictly under ${limit} characters. This is attempt ${attempt + 1}.`;
 }
 
-function normalizeGeneratedContent(platform: Platform, content: unknown) {
-  if (typeof content === "string") {
-    return normalizePlatformCopy(platform, content);
-  }
+function validatePlatformLimit(platform: Platform, content: string): boolean {
+  const limit = getPlatformCharacterLimit(platform);
+  return content.length <= limit * 1.15;
+}
 
+function normalizeGeneratedContent(platform: Platform, content: unknown): unknown {
+  if (typeof content === "string") return normalizePlatformCopy(platform, content);
   if (content && typeof content === "object" && "content" in content) {
     const value = (content as { content?: unknown }).content;
     if (typeof value === "string") {
-      return {
-        ...content,
-        content: normalizePlatformCopy(platform, value),
-      };
+      return { ...content, content: normalizePlatformCopy(platform, value) };
     }
   }
-
   return content;
 }

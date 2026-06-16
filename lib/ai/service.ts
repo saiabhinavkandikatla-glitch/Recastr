@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { getOpenAIClient } from "@/lib/openai/client";
+import { getGeminiClient } from "@/lib/ai/client";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject } from "@/lib/projects/store";
@@ -49,43 +49,54 @@ const platformPrompt: Record<Platform, string> = {
 };
 
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
-  if (!env.openaiKey) return fallbackSummary;
+  if (!env.geminiKey) return fallbackSummary;
 
-  const openai = getOpenAIClient();
-  if (!openai) return fallbackSummary;
+  const gemini = getGeminiClient();
+  if (!gemini) return fallbackSummary;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    temperature: 0.35,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an expert content analyst. Return only valid JSON with tldr, takeaways, hooks, detectedTone, topics, and targetAudience.",
+  try {
+    const response = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `You are an expert content analyst. Return only valid JSON with tldr, takeaways, hooks, detectedTone, topics, and targetAudience.\n\nTranscript:\n${truncateWords(transcript, 6000)}\n\nReturn: tldr string, exactly 5 takeaways, exactly 10 hooks, detectedTone as educational/motivational/controversial/storytelling/news, 3-5 topics, targetAudience.`,
+            },
+          ],
+        },
+      ],
+      config: {
+        temperature: 0.35,
+        responseMimeType: "application/json",
       },
-      {
-        role: "user",
-        content: `Transcript:\n${truncateWords(transcript, 6000)}\n\nReturn: tldr string, exactly 5 takeaways, exactly 10 hooks, detectedTone as educational/motivational/controversial/storytelling/news, 3-5 topics, targetAudience.`,
-      },
-    ],
-  });
+    });
 
-  const content = response.choices[0]?.message.content;
-  if (!content) return fallbackSummary;
-  return summarySchema.parse(JSON.parse(content));
+    const content = response.text;
+    if (!content) return fallbackSummary;
+    return summarySchema.parse(JSON.parse(content));
+  } catch (error) {
+    console.error("Gemini API Error (summarizeTranscript):", error);
+    if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
+      throw new Error("Invalid Gemini API Key - Please get a valid key starting with 'AIzaSy' from Google AI Studio.");
+    }
+    throw new Error("Failed to process with Gemini. Please check your API key.");
+  }
 }
 
 export async function generatePlatformOutputs({
   projectId,
   platforms,
   tone,
+  summary: providedSummary,
 }: {
   projectId: string;
   platforms: Platform[];
   tone: Tone | string;
+  summary?: SourceSummary;
 }): Promise<SocialOutput[]> {
-  if (!env.openaiKey) {
+  if (!env.geminiKey) {
     const storedProject = getStoredProject(projectId);
     const storedOutputs = storedProject?.outputs ?? [];
     if (storedOutputs.length > 0) {
@@ -96,63 +107,76 @@ export async function generatePlatformOutputs({
           content: normalizeGeneratedContent(output.platform, output.content),
           tone,
           createdAt: new Date().toISOString(),
+          originalContent: output.originalContent,
         }));
     }
     return platforms.map((platform) => createFallbackOutput(projectId, platform, tone));
   }
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { summary: true },
-  });
-  const summary = project?.summary ? summarySchema.parse(project.summary) : getStoredProject(projectId)?.summary ?? fallbackSummary;
-  const generated = await Promise.all(
-    platforms.map((platform) => generatePlatformOutput(projectId, platform, tone, summary)),
-  );
-  return generated;
-}
-
-async function generatePlatformOutput(
-  projectId: string,
-  platform: Platform,
-  tone: Tone | string,
-  summary: SourceSummary,
-): Promise<SocialOutput> {
-  const openai = getOpenAIClient();
-  if (!openai) {
-    return createFallbackOutput(projectId, platform, tone);
+  let summary = providedSummary;
+  if (!summary) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { summary: true },
+    });
+    if (project?.summary) {
+      try {
+        summary = summarySchema.parse(project.summary);
+      } catch {
+        // Ignore
+      }
+    }
   }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    temperature: 0.75,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a world-class creator strategist. Write human, specific, platform-native content. Avoid filler, hype, and generic AI phrasing. Return only valid JSON.",
-      },
-      {
-        role: "user",
-        content: `Source intelligence: ${JSON.stringify(summary)}\nTone: ${tone}\nPlatform: ${platform}\nTask: ${platformPrompt[platform]}`,
-      },
-    ],
-  });
-  const raw = response.choices[0]?.message.content ?? "{}";
-  const content = normalizeGeneratedContent(platform, generationSchema.parse(JSON.parse(raw)));
+  const gemini = getGeminiClient();
+  if (!gemini) throw new Error("gemini_missing");
 
-  return {
-    id: `output-${nanoid(10)}`,
-    projectId,
-    platform,
-    outputType: `${platform.toLowerCase()} pack`,
-    tone,
-    content,
-    originalContent: content,
-    approved: false,
-    createdAt: new Date().toISOString(),
-  };
+  const completions = await Promise.all(
+    platforms.map(async (platform) => {
+      try {
+        const response = await gemini.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `You are a social media ghostwriter. Return a JSON object exactly like: {"content": "the post body", "hook_score": 8, "estimated_engagement": "High", "platform_tips": ["tip1"]}\n\nPlatform: ${platform}\nTone: ${tone}\nTopic: ${summary?.tldr ?? "Content repurposing"}\n\nTask: ${platformPrompt[platform]}\nReturn valid JSON.`,
+                },
+              ],
+            },
+          ],
+          config: {
+            temperature: 0.7,
+            responseMimeType: "application/json",
+          },
+        });
+
+        const parsed = generationSchema.parse(JSON.parse(response.text ?? "{}"));
+        const content = normalizeGeneratedContent(platform, parsed);
+
+        return {
+          id: `output-${nanoid(10)}`,
+          projectId,
+          platform,
+          outputType: `${platform.toLowerCase()} pack`,
+          tone,
+          content,
+          originalContent: content,
+          approved: false,
+          createdAt: new Date().toISOString(),
+        };
+      } catch (error) {
+        console.error(`Gemini API Error (generatePlatformOutputs - ${platform}):`, error);
+        if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
+          throw new Error("Invalid Gemini API Key - Please get a valid key starting with 'AIzaSy' from Google AI Studio.");
+        }
+        throw new Error("Failed to generate content with Gemini. Please check your API key.");
+      }
+    }),
+  );
+
+  return completions;
 }
 
 function createFallbackOutput(
