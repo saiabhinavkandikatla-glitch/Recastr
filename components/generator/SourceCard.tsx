@@ -1,10 +1,43 @@
 "use client";
 
-import { FileText, Video, PlayCircle } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Video, PlayCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { readApiJson } from "@/lib/client-api";
 import { useGenerator } from "./GeneratorProvider";
 
 export function SourceCard() {
   const { project } = useGenerator();
+  const router = useRouter();
+  const [url, setUrl] = useState("");
+  const [isIngesting, setIsIngesting] = useState(false);
+
+  async function handleIngest(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!url.trim()) return;
+    
+    setIsIngesting(true);
+    try {
+      const response = await fetch("/api/ingest/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      
+      const data = await readApiJson(response).catch(() => ({ error: "Network error" }));
+      if (data.project) {
+        toast.success("Source ingested successfully!");
+        router.push(`/projects/${data.project.id}/generate`);
+      } else {
+        toast.error(data.error || "Failed to ingest source");
+      }
+    } catch (error) {
+      toast.error("Failed to analyze source");
+    } finally {
+      setIsIngesting(false);
+    }
+  }
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5">
@@ -56,12 +89,22 @@ export function SourceCard() {
               <FileText className="h-3.5 w-3.5" /> Text
             </button>
           </div>
-          <div className="space-y-2">
+          <form onSubmit={handleIngest} className="flex flex-col gap-3">
             <input
               placeholder="Paste YouTube or Article URL..."
-              className="w-full rounded-xl border border-[#232323] bg-[#090909] px-3 py-2.5 text-sm text-white placeholder:text-[#8A8A8A] focus:border-[#8A8A8A] focus:outline-none"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              disabled={isIngesting}
+              className="w-full rounded-xl border border-[#232323] bg-[#090909] px-3 py-2.5 text-sm text-white placeholder:text-[#8A8A8A] focus:border-[#8A8A8A] focus:outline-none disabled:opacity-50"
             />
-          </div>
+            <button 
+              type="submit"
+              disabled={isIngesting || !url.trim()}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+            >
+              {isIngesting ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Source"}
+            </button>
+          </form>
         </>
       )}
     </div>

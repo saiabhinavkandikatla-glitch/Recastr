@@ -18,7 +18,7 @@ const platforms: { id: Platform; name: string }[] = [
 ];
 
 export function PlatformTabs() {
-  const { selectedPlatforms, togglePlatform, isGenerating, generate } = useGenerator();
+  const { selectedPlatforms, togglePlatform, isGenerating, generate, project } = useGenerator();
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-6">
@@ -51,9 +51,9 @@ export function PlatformTabs() {
       <Button 
         className="w-full h-12 rounded-xl text-base font-semibold bg-white text-black hover:bg-gray-200"
         onClick={generate}
-        disabled={isGenerating || selectedPlatforms.length === 0}
+        disabled={isGenerating || selectedPlatforms.length === 0 || !project}
       >
-        {isGenerating ? "Generating Content..." : "Generate Content"}
+        {!project ? "Analyze Source First" : isGenerating ? "Generating Content..." : "Generate Content"}
       </Button>
     </div>
   );
