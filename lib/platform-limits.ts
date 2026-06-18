@@ -5,7 +5,6 @@ export const PLATFORM_CHARACTER_LIMITS = {
   LINKEDIN: 3000,
   INSTAGRAM: 2200,
   FACEBOOK: 63206,
-  YOUTUBE: 500,
   COMMUNITY: 500,
 } as const;
 
@@ -19,7 +18,7 @@ export function getPlatformCharacterLimit(platform: Platform | string) {
     return PLATFORM_CHARACTER_LIMITS.INSTAGRAM;
   }
   if (normalized === "FACEBOOK") return PLATFORM_CHARACTER_LIMITS.FACEBOOK;
-  return PLATFORM_CHARACTER_LIMITS.YOUTUBE;
+  return PLATFORM_CHARACTER_LIMITS.COMMUNITY;
 }
 
 export function normalizePlatformCopy(platform: Platform | string, body: string) {

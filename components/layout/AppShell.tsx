@@ -3,8 +3,25 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
+import { EmailVerifiedSuccess } from "@/components/auth/EmailVerifiedSuccess";
+import { CreditUpgradeModal } from "@/components/billing/CreditUpgradeModal";
+import { ScheduledNotificationHeartbeat } from "@/components/layout/ScheduledNotificationHeartbeat";
+import type { CurrentUser } from "@/lib/current-user";
+import type { Project } from "@/lib/types";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  projects,
+  title = "Workspace",
+  sourceBadge,
+  user,
+}: {
+  children: ReactNode;
+  projects?: Project[];
+  title?: string;
+  sourceBadge?: string;
+  user?: CurrentUser | null;
+}) {
   return (
     <div className="flex min-h-screen bg-[#090909] text-white selection:bg-white selection:text-black">
       <Sidebar />
@@ -16,6 +33,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </main>
       </div>
+      <CreditUpgradeModal />
+      <EmailVerifiedSuccess />
+      <ScheduledNotificationHeartbeat enabled={Boolean(user)} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { Check, Loader2, Sparkles } from "lucide-react";
 import { useGenerator } from "./GeneratorProvider";
 
 export function GenerationTimeline() {
-  const { progress } = useGenerator();
+  const { progress, generate, isGenerating, project, selectedPlatforms } = useGenerator();
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5">
@@ -58,6 +58,18 @@ export function GenerationTimeline() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={generate}
+        disabled={!project || selectedPlatforms.length === 0 || isGenerating}
+        className="w-full mt-6 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isGenerating ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+        ) : (
+          <><Sparkles className="h-4 w-4" /> Generate Content</>
+        )}
+      </button>
     </div>
   );
 }

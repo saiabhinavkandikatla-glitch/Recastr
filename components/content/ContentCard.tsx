@@ -81,7 +81,7 @@ const platformMeta: Record<
     label: "YouTube",
     dot: "bg-[var(--platform-youtube)]",
     accent: "border-l-[var(--platform-youtube)]",
-    limit: getPlatformCharacterLimit("YOUTUBE"),
+    limit: getPlatformCharacterLimit("COMMUNITY"),
   },
 };
 

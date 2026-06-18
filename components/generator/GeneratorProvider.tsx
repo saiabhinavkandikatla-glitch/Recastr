@@ -42,8 +42,14 @@ export function GeneratorProvider({
   };
 
   const generate = async () => {
-    if (!project) return toast.error("No project found");
-    if (selectedPlatforms.length === 0) return toast.error("Select at least one platform");
+    if (!project) {
+      toast.error("No project found");
+      return;
+    }
+    if (selectedPlatforms.length === 0) {
+      toast.error("Select at least one platform");
+      return;
+    }
     
     setIsGenerating(true);
     setProgress("extracting");

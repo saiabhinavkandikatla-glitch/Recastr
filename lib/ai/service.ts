@@ -50,7 +50,6 @@ const platformLabels: Record<Platform, string> = {
   INSTAGRAM: "Instagram",
   FACEBOOK: "Facebook",
   THREADS: "Threads",
-  YOUTUBE: "YouTube Shorts",
   CAROUSEL: "Carousel",
   COMMUNITY: "Community",
   STORY: "Story",
@@ -123,7 +122,7 @@ export async function generatePlatformOutputs({
     : briefFromSummary(source.summary, source.transcript);
 
   const results = await Promise.allSettled(
-    platforms.map(async (platform) => {
+    platforms.map(async (platform): Promise<SocialOutput> => {
       const content = env.geminiKey
         ? await generatePlatformPost({ brief, platform, tone, isRegeneration }).catch(() => fallbackPostForPlatform(platform, brief))
         : fallbackPostForPlatform(platform, brief);
@@ -343,14 +342,7 @@ function platformInstruction(platform: Platform) {
         "- 3 bullet points.",
         "- Max 5 hashtags.",
       ].join("\n");
-    case "YOUTUBE":
-      return [
-        "YOUTUBE SHORTS SCRIPT RULES:",
-        "- Format with [HOOK - 0 to 3 seconds], [BODY - 3 to 35 seconds], [CTA - 35 to 60 seconds].",
-        "- Written to be spoken.",
-        "- Grade 6 reading level.",
-        "- 80-120 words.",
-      ].join("\n");
+
     case "FACEBOOK":
       return [
         "FACEBOOK POST RULES:",
@@ -489,18 +481,7 @@ function fallbackPostForPlatform(platform: Platform, brief: ContentBrief) {
         "",
         "#AI #APIs #ChatGPT #BuildWithAI #CreatorTech #LearnToCode #Automation #TechForBeginners",
       ].join("\n");
-    case "YOUTUBE":
-      return [
-        "[HOOK - 0 to 3 seconds]",
-        brief.emotional_hook,
-        "",
-        "[BODY - 3 to 35 seconds]",
-        brief.core_insight,
-        brief.supporting_points.slice(0, 3).join("\n"),
-        "",
-        "[CTA - 35 to 60 seconds]",
-        "Save this and watch the full breakdown before you build.",
-      ].join("\n");
+
     case "FACEBOOK":
       return [
         brief.emotional_hook,

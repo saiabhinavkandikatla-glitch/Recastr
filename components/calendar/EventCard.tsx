@@ -1,6 +1,6 @@
 "use client";
 
-import { Twitter, Linkedin } from "lucide-react";
+import { Hash, Briefcase } from "lucide-react";
 
 interface EventCardProps {
   title: string;
@@ -9,7 +9,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ title, platform, time }: EventCardProps) {
-  const Icon = platform === "Twitter" ? Twitter : Linkedin;
+  const Icon = platform === "Twitter" ? Hash : Briefcase;
   const bgColor = platform === "Twitter" ? "bg-[#1DA1F2]/10 border-[#1DA1F2]/30 text-[#1DA1F2]" : "bg-[#0A66C2]/10 border-[#0A66C2]/30 text-[#0A66C2]";
 
   return (

@@ -26,7 +26,6 @@ const allPlatforms: Platform[] = [
   "INSTAGRAM",
   "FACEBOOK",
   "THREADS",
-  "YOUTUBE",
   "CAROUSEL",
   "COMMUNITY",
   "STORY",

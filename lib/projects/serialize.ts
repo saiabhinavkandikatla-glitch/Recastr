@@ -260,10 +260,11 @@ function normalizePlatform(value: string): Platform {
     upper === "INSTAGRAM" ||
     upper === "FACEBOOK" ||
     upper === "THREADS" ||
-    upper === "YOUTUBE" ||
     upper === "CAROUSEL" ||
     upper === "COMMUNITY" ||
-    upper === "STORY"
+    upper === "STORY" ||
+    upper === "HOOKS" ||
+    upper === "CTA"
   ) {
     return upper;
   }

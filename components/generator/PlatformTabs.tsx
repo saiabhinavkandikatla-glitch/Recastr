@@ -11,8 +11,8 @@ const platforms: { id: Platform; name: string }[] = [
   { id: "INSTAGRAM", name: "Instagram" },
   { id: "FACEBOOK", name: "Facebook" },
   { id: "THREADS", name: "Threads" },
-  { id: "YOUTUBE", name: "YouTube Shorts" },
   { id: "CAROUSEL", name: "Carousel" },
+  { id: "COMMUNITY", name: "YT Community" },
   { id: "HOOKS", name: "10 Hooks" },
   { id: "CTA", name: "CTAs" },
 ];

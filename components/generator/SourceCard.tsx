@@ -25,12 +25,14 @@ export function SourceCard() {
         body: JSON.stringify({ url: url.trim() }),
       });
       
-      const data = await readApiJson(response).catch(() => ({ error: "Network error" }));
-      if (data.project) {
+      const data = await readApiJson<{ project?: { id: string }; error?: string }>(response).catch(() => ({ error: "Network error" }));
+      if ("project" in data && data.project) {
         toast.success("Source ingested successfully!");
         router.push(`/projects/${data.project.id}/generate`);
+      } else if ("error" in data && data.error) {
+        toast.error(data.error);
       } else {
-        toast.error(data.error || "Failed to ingest source");
+        toast.error("Failed to ingest source");
       }
     } catch (error) {
       toast.error("Failed to analyze source");

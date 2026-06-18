@@ -47,7 +47,7 @@ export const generateSchema = z.object({
   transcript: z.string().min(20),
   sourceType: z.enum(["YOUTUBE", "PODCAST", "BLOG", "TEXT"]),
   platform: z
-    .enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "YOUTUBE", "CAROUSEL", "COMMUNITY", "STORY"])
+    .enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY"])
     .optional(),
   tone: z.enum([
     "Professional",
@@ -75,7 +75,7 @@ export const ingestTextSchema = z.object({
 export const generatePostSchema = z.object({
   projectId: z.string(),
   platforms: z
-    .array(z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "YOUTUBE", "CAROUSEL", "COMMUNITY", "STORY"]))
+    .array(z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY"]))
     .min(1),
   contentTypes: z.array(z.string().min(1)).default(["tweet", "linkedin", "reel", "caption"]),
   tone: z.enum(["professional", "casual", "educational", "entertaining"]).default("casual"),
@@ -112,7 +112,7 @@ export const scheduleSchema = z.object({
   tone: z.string().optional(),
   publishAt: z.string().datetime().optional(),
   scheduledAt: z.string().datetime().optional(),
-  platform: z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "YOUTUBE", "CAROUSEL", "COMMUNITY", "STORY"]),
+  platform: z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY"]),
   postingMethod: z.enum(["email_reminder", "direct_post"]).default("email_reminder"),
   timezone: z.string().trim().min(1).max(80).default("Asia/Kolkata"),
   verificationRequired: z.boolean().default(false),

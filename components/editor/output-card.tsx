@@ -50,11 +50,6 @@ const platformAccent: Record<Platform, { bar: string; ring: string; badge: strin
     ring: "ring-zinc-500/70",
     badge: "bg-zinc-950/10 text-zinc-800 ring-zinc-700/20 dark:text-zinc-100",
   },
-  YOUTUBE: {
-    bar: "from-red-500 via-rose-500 to-orange-400",
-    ring: "ring-red-500/70",
-    badge: "bg-red-500/10 text-red-700 ring-red-500/20 dark:text-red-300",
-  },
   CAROUSEL: {
     bar: "from-amber-400 via-orange-500 to-rose-500",
     ring: "ring-amber-500/70",
@@ -69,6 +64,16 @@ const platformAccent: Record<Platform, { bar: string; ring: string; badge: strin
     bar: "from-emerald-400 via-teal-500 to-cyan-500",
     ring: "ring-emerald-500/70",
     badge: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300",
+  },
+  HOOKS: {
+    bar: "from-orange-400 via-amber-500 to-yellow-500",
+    ring: "ring-orange-500/70",
+    badge: "bg-orange-500/10 text-orange-700 ring-orange-500/20 dark:text-orange-300",
+  },
+  CTA: {
+    bar: "from-indigo-400 via-purple-500 to-fuchsia-500",
+    ring: "ring-indigo-500/70",
+    badge: "bg-indigo-500/10 text-indigo-700 ring-indigo-500/20 dark:text-indigo-300",
   },
 };
 

@@ -5,13 +5,16 @@ import { Copy, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Platform } from "@/lib/types";
-import { TwitterPreview } from "../preview/TwitterPreview";
-import { LinkedInPreview } from "../preview/LinkedInPreview";
-import { InstagramPreview } from "../preview/InstagramPreview";
-import { FacebookPreview } from "../preview/FacebookPreview";
-import { ThreadsPreview } from "../preview/ThreadsPreview";
-import { CarouselPreview } from "../preview/CarouselPreview";
-import { GenericPreview } from "../preview/GenericPreview";
+import { DevicePreviewShell, DeviceSwitcher } from "../preview/DevicePreviewShell";
+import { XPreview } from "../preview/platforms/XPreview";
+import { LinkedInPreview as OldLinkedInPreview } from "../preview/platforms/LinkedInPreview";
+import { InstagramPreview as OldInstagramPreview } from "../preview/platforms/InstagramPreview";
+import { FacebookPreview as OldFacebookPreview } from "../preview/platforms/FacebookPreview";
+import { ThreadsPreview as OldThreadsPreview } from "../preview/platforms/ThreadsPreview";
+import { YouTubeCommunityPreview } from "../preview/platforms/YouTubeCommunityPreview";
+import { parsePreviewContent } from "@/lib/preview-content";
+import { useState } from "react";
+import type { PreviewDevice, PreviewPlatform } from "@/lib/preview-content";
 
 const platformNames: Record<Platform, string> = {
   TWITTER: "Twitter/X",
@@ -19,7 +22,6 @@ const platformNames: Record<Platform, string> = {
   INSTAGRAM: "Instagram",
   FACEBOOK: "Facebook",
   THREADS: "Threads",
-  YOUTUBE: "YouTube Shorts",
   CAROUSEL: "Carousel",
   COMMUNITY: "Community",
   STORY: "Story",
@@ -29,6 +31,8 @@ const platformNames: Record<Platform, string> = {
 
 export function PreviewCard() {
   const { outputs, isGenerating, progress, activePreviewTab, setActivePreviewTab, selectedPlatforms } = useGenerator();
+  const [device, setDevice] = useState<PreviewDevice>("iphone");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   if (progress === "idle") {
     return (
@@ -88,6 +92,24 @@ export function PreviewCard() {
         )}
       </div>
 
+      <div className="flex justify-end gap-3 mb-4">
+        <DeviceSwitcher value={device} onChange={setDevice} />
+        <div className="flex rounded-full border border-[#232323] bg-[#151515] p-1">
+          {(["light", "dark"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setTheme(mode)}
+              className={`h-7 rounded-full px-3 text-xs font-medium capitalize transition-colors ${
+                theme === mode ? "bg-white text-black" : "text-[#8A8A8A] hover:text-white"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto pr-4 scrollbar-thin">
         {isGenerating && !outputs.some((o) => o.platform === activePreviewTab) ? (
           <div className="space-y-4 animate-pulse">
@@ -104,25 +126,31 @@ export function PreviewCard() {
               let PreviewComponent;
               switch (activePreviewTab) {
                 case "TWITTER":
-                  PreviewComponent = <TwitterPreview content={output.content as string} />;
+                  PreviewComponent = <XPreview content={parsePreviewContent("TWITTER", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
                 case "LINKEDIN":
-                  PreviewComponent = <LinkedInPreview content={output.content as string} />;
+                  PreviewComponent = <OldLinkedInPreview content={parsePreviewContent("LINKEDIN", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
                 case "INSTAGRAM":
-                  PreviewComponent = <InstagramPreview content={output.content as string} />;
+                  PreviewComponent = <OldInstagramPreview content={parsePreviewContent("INSTAGRAM", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
                 case "FACEBOOK":
-                  PreviewComponent = <FacebookPreview content={output.content as string} />;
+                  PreviewComponent = <OldFacebookPreview content={parsePreviewContent("FACEBOOK", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
                 case "THREADS":
-                  PreviewComponent = <ThreadsPreview content={output.content as string} />;
+                  PreviewComponent = <OldThreadsPreview content={parsePreviewContent("THREADS", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
-                case "CAROUSEL":
-                  PreviewComponent = <CarouselPreview content={output.content as string} />;
+                case "COMMUNITY":
+                  PreviewComponent = <YouTubeCommunityPreview content={parsePreviewContent("COMMUNITY", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
                 default:
-                  PreviewComponent = <GenericPreview content={output.content as string} platform={platformNames[activePreviewTab]} />;
+                  // Fallback for types that don't have a specific device preview
+                  PreviewComponent = (
+                    <div className={`p-4 rounded-xl border border-[#232323] ${theme === "dark" ? "bg-[#090909] text-white" : "bg-white text-black"}`}>
+                      <h3 className="font-semibold mb-2">{platformNames[activePreviewTab]}</h3>
+                      <p className="whitespace-pre-wrap text-sm">{output.content as string}</p>
+                    </div>
+                  );
                   break;
               }
 
@@ -140,7 +168,9 @@ export function PreviewCard() {
                   </div>
                   
                   <div className="flex justify-center w-full pb-8">
-                    {PreviewComponent}
+                    <DevicePreviewShell device={device}>
+                      {PreviewComponent}
+                    </DevicePreviewShell>
                   </div>
                 </div>
               );

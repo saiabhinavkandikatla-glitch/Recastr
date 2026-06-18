@@ -9,10 +9,11 @@ const platformColor: Record<Platform, string> = {
   INSTAGRAM: "border-pink-500 bg-pink-50 text-pink-700",
   FACEBOOK: "border-blue-600 bg-blue-50 text-blue-700",
   THREADS: "border-zinc-900 bg-zinc-100 text-zinc-900",
-  YOUTUBE: "border-red-600 bg-red-50 text-red-700",
   CAROUSEL: "border-amber-500 bg-amber-50 text-amber-700",
   COMMUNITY: "border-emerald-500 bg-emerald-50 text-emerald-700",
   STORY: "border-violet-500 bg-violet-50 text-violet-700",
+  HOOKS: "border-orange-500 bg-orange-50 text-orange-700",
+  CTA: "border-indigo-500 bg-indigo-50 text-indigo-700",
 };
 
 export function PostChip({

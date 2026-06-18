@@ -24,10 +24,11 @@ const platformAccent: Record<Platform, string> = {
   INSTAGRAM: "border-pink-500 bg-pink-500/10 text-pink-700 dark:text-pink-300",
   FACEBOOK: "border-blue-600 bg-blue-600/10 text-blue-700 dark:text-blue-300",
   THREADS: "border-zinc-800 bg-zinc-800/10 text-zinc-800 dark:text-zinc-100",
-  YOUTUBE: "border-red-600 bg-red-600/10 text-red-700 dark:text-red-300",
   CAROUSEL: "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   COMMUNITY: "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   STORY: "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  HOOKS: "border-orange-500 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+  CTA: "border-indigo-500 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
 };
 
 const slots = ["09:00", "12:00", "15:00", "18:00"];

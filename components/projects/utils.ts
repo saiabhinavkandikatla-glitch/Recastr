@@ -14,7 +14,7 @@ export function fromCardPlatform(platform: ContentCardPlatform): Platform {
   if (platform === "linkedin") return "LINKEDIN";
   if (platform === "instagram") return "INSTAGRAM";
   if (platform === "facebook") return "FACEBOOK";
-  return "YOUTUBE";
+  return "COMMUNITY";
 }
 
 export function normalizeSupportedPlatform(platform: Platform): Platform {
@@ -23,12 +23,12 @@ export function normalizeSupportedPlatform(platform: Platform): Platform {
     platform === "LINKEDIN" ||
     platform === "INSTAGRAM" ||
     platform === "FACEBOOK" ||
-    platform === "YOUTUBE"
+    platform === "COMMUNITY"
   ) {
     return platform;
   }
   if (platform === "CAROUSEL" || platform === "STORY") return "INSTAGRAM";
-  return "YOUTUBE";
+  return "COMMUNITY";
 }
 
 export function platformDot(platform: ContentCardPlatform) {
