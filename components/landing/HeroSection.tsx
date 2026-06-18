@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function HeroSection() {
   return (
@@ -21,12 +22,12 @@ export function HeroSection() {
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <Button size="lg">
-            Start Free
+          <Button size="lg" asChild>
+            <Link href="/signup">Start Free</Link>
           </Button>
 
-          <Button variant="secondary" size="lg">
-            Watch Demo
+          <Button variant="secondary" size="lg" asChild>
+            <Link href="#demo">Watch Demo</Link>
           </Button>
         </div>
 

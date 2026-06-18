@@ -38,12 +38,12 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost">
-            Login
+          <Button variant="ghost" asChild>
+            <Link href="/login">Login</Link>
           </Button>
 
-          <Button>
-            Start Free
+          <Button asChild>
+            <Link href="/signup">Start Free</Link>
           </Button>
         </div>
       </div>

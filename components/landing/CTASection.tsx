@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function CTASection() {
   return (
@@ -16,8 +17,8 @@ export function CTASection() {
           Generate platform-ready content in minutes.
         </p>
 
-        <Button size="lg" className="mt-12">
-          Start Free
+        <Button size="lg" className="mt-12" asChild>
+          <Link href="/signup">Start Free</Link>
         </Button>
 
       </div>
