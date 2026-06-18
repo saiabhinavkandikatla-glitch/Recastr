@@ -12,7 +12,7 @@ import {
   serializeProjectShell,
 } from "@/lib/projects/serialize";
 import type { DbProjectShell } from "@/lib/projects/serialize";
-import { getStoredProject, listStoredProjects } from "@/lib/projects/store";
+import { getCachedProject, getStoredProject, listStoredProjects } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
@@ -45,9 +45,12 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 }
 
 async function findProjectMetadata(id: string): Promise<Pick<Project, "title" | "thumbnailUrl"> | null> {
-  const localProject = getStoredProject(id);
-  if (localProject) return { title: localProject.title, thumbnailUrl: localProject.thumbnailUrl };
-  if (isDemoMode()) return null;
+  const cachedProject = getCachedProject(id);
+  if (cachedProject) return { title: cachedProject.title, thumbnailUrl: cachedProject.thumbnailUrl };
+  if (isDemoMode()) {
+    const localProject = getStoredProject(id);
+    return localProject ? { title: localProject.title, thumbnailUrl: localProject.thumbnailUrl } : null;
+  }
 
   try {
     const project = await prisma.project.findUnique({
@@ -57,15 +60,16 @@ async function findProjectMetadata(id: string): Promise<Pick<Project, "title" | 
 
     return project ? { title: project.title, thumbnailUrl: project.thumbnailUrl ?? undefined } : null;
   } catch {
-    const fallback = getStoredProject(id);
+    const fallback = getCachedProject(id);
     return fallback ? { title: fallback.title, thumbnailUrl: fallback.thumbnailUrl } : null;
   }
 }
 
 async function findProject(id: string, userId?: string): Promise<Project | null> {
-  const localProject = getStoredProject(id);
-  if (localProject) return localProject;
-  if (!userId || isDemoMode()) return null;
+  const cachedProject = getCachedProject(id);
+  if (cachedProject) return cachedProject;
+  if (isDemoMode()) return getStoredProject(id) ?? null;
+  if (!userId) return null;
 
   try {
     const project = await prisma.project.findFirst({
@@ -73,9 +77,9 @@ async function findProject(id: string, userId?: string): Promise<Project | null>
       select: projectWorkspaceSelect,
     });
 
-    return project ? serializeProject(project) : getStoredProject(id) ?? null;
+    return project ? serializeProject(project) : null;
   } catch {
-    return getStoredProject(id) ?? null;
+    return getCachedProject(id) ?? null;
   }
 }
 

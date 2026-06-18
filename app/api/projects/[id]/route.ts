@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
-import { getStoredProject } from "@/lib/projects/store";
+import { getCachedProject } from "@/lib/projects/store";
 
 export const runtime = "nodejs";
 
@@ -26,7 +26,7 @@ export async function GET(
 
     return NextResponse.json(serializeProject(project));
   } catch {
-    const storedProject = getStoredProject(params.id);
+    const storedProject = getCachedProject(params.id);
     if (storedProject) return NextResponse.json(storedProject);
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { projectWorkspaceSelect, serializeProject } from "@/lib/projects/serialize";
 import type { DbProjectWorkspace } from "@/lib/projects/serialize";
+import { getCachedProject } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -33,9 +34,11 @@ export default async function HooksPage({ params }: { params: { id: string } }) 
 
 async function findProject(id: string, userId?: string): Promise<Project | null> {
   if (!userId) return null;
+  const cachedProject = getCachedProject(id);
+  if (cachedProject) return cachedProject;
 
   const timeout = new Promise<DbProjectWorkspace | null>((_, reject) =>
-    setTimeout(() => reject(new Error("DB Timeout")), 2000),
+    setTimeout(() => reject(new Error("DB Timeout")), 8000),
   );
   try {
     const project = await Promise.race<DbProjectWorkspace | null>([
@@ -47,9 +50,8 @@ async function findProject(id: string, userId?: string): Promise<Project | null>
     ]);
 
     if (project) return serializeProject(project);
-    throw new Error("Not found in DB");
+    return null;
   } catch {
-    const { getStoredProject } = await import("@/lib/projects/store");
-    return getStoredProject(id) || null;
+    return getCachedProject(id) || null;
   }
 }

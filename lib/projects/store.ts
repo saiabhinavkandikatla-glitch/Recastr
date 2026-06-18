@@ -47,6 +47,10 @@ export function getStoredProject(projectId: string) {
   return fallback;
 }
 
+export function getCachedProject(projectId: string) {
+  return getProjectMap().get(projectId);
+}
+
 export function saveStoredProject(project: Project) {
   getProjectMap().set(project.id, project);
   return project;
