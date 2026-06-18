@@ -180,16 +180,16 @@ With ReCastr, you can turn a single YouTube URL into:
 Simply paste your YouTube URL in the Generator tab, select your platforms, and click **Generate Content**.`;
   }
 
-  if (query.includes("hello") || query.includes("hi ") || query.includes("hey") || query.includes("welcome")) {
-    return `### 👋 Welcome to ReCastr AI Assistant!
+  if (query.includes("hello") || query === "hi" || query.startsWith("hi ") || query.includes("hey") || query.includes("welcome") || query.includes("how are you") || query.includes("morning") || query.includes("afternoon")) {
+    return `Hello! What's going on today? Are you ready to generate some posts today? 🚀
 
-I'm your dedicated content strategist and assistant. I can help you with:
+I'm your dedicated ReCastr AI Assistant. I can help you with:
 - Crafting engaging social media posts.
 - Writing better hooks and CTAs.
 - Structuring your content calendar.
 - Navigating ReCastr features (like the Media Library, Projects, and Scheduler).
 
-**What platform or feature are you looking to explore today?**`;
+What can we build together today?`;
   }
 
   return `### 🚀 Elevating Your Content Strategy
