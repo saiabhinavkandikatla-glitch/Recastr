@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
-import { GeneratePanel } from "@/components/projects/generate-panel";
+import { GeneratorWorkspace } from "@/components/generator/GeneratorWorkspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { projectWorkspaceSelect, serializeProject } from "@/lib/projects/serialize";
@@ -17,7 +17,7 @@ export default async function GeneratePage({ params }: { params: { id: string } 
 
   return (
     <AppShell projects={[]} title="Generate" sourceBadge={project.title} user={user}>
-      <GeneratePanel project={project} />
+      <GeneratorWorkspace project={project} />
     </AppShell>
   );
 }

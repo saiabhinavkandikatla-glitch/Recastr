@@ -120,7 +120,7 @@ export async function generatePlatformOutputs({
     ? await extractContentBrief(source.transcript, source.summary).catch(() => briefFromSummary(source.summary, source.transcript))
     : briefFromSummary(source.summary, source.transcript);
 
-  const outputs = await Promise.all(
+  const results = await Promise.allSettled(
     platforms.map(async (platform) => {
       const content = env.geminiKey
         ? await generatePlatformPost({ brief, platform, tone, isRegeneration }).catch(() => fallbackPostForPlatform(platform, brief))
@@ -140,6 +140,10 @@ export async function generatePlatformOutputs({
       };
     }),
   );
+
+  const outputs = results
+    .filter((result): result is PromiseFulfilledResult<SocialOutput> => result.status === "fulfilled")
+    .map((result) => result.value);
 
   return outputs;
 }
@@ -280,6 +284,7 @@ function platformPrompt({
     extraInstruction,
     "",
     "BANNED: Do not explain what you are doing. Do not describe the post. Do not use meta-commentary. Write the final post itself.",
+    "CRITICAL: The output MUST be a JSON object with a single 'content' key. The value MUST be the final, ready-to-publish post.",
     'Return ONLY JSON exactly like: {"content":"final post text here"}',
   ].join("\n");
 }
@@ -355,8 +360,9 @@ function platformInstruction(platform: Platform) {
     case "CAROUSEL":
       return [
         "CAROUSEL RULES:",
-        "- 7 slides.",
-        "- Format each as Slide N: headline | body.",
+        "- 7 slides strictly separated by '---'.",
+        "- Format each slide exactly as: Slide N Headline\\n\\nSlide N Body",
+        "- Do not include the word 'Slide 1:', just write the actual text.",
         "- Cover, 5 value slides, CTA slide.",
       ].join("\n");
     case "COMMUNITY":

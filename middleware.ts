@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const protectedPrefixes = [
   "/dashboard",
   "/projects",
+  "/generate",
   "/schedule",
   "/tasks",
   "/settings",
@@ -63,7 +64,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (process.env.REQUIRE_AUTH === "true" && isProtectedPath(pathname) && !hasUser) {
+  if (process.env.REQUIRE_AUTH !== "false" && isProtectedPath(pathname) && !hasUser) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
@@ -181,6 +182,7 @@ export const config = {
     "/api/:path*",
     "/dashboard/:path*",
     "/projects/:path*",
+    "/generate/:path*",
     "/schedule/:path*",
     "/tasks/:path*",
     "/settings/:path*",
