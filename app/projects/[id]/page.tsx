@@ -5,7 +5,13 @@ import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
-import { projectWorkspaceSelect, serializeProject } from "@/lib/projects/serialize";
+import {
+  projectShellSelect,
+  projectWorkspaceSelect,
+  serializeProject,
+  serializeProjectShell,
+} from "@/lib/projects/serialize";
+import type { DbProjectShell } from "@/lib/projects/serialize";
 import { getStoredProject, listStoredProjects } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
@@ -24,12 +30,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function ProjectPage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
-  const project = await findProject(params.id, user?.id);
+  const [project, shellProjects] = await Promise.all([
+    findProject(params.id, user?.id),
+    loadShellProjects(user?.id),
+  ]);
   if (!project) notFound();
-  const shellProjects = listStoredProjects({ includeFallback: false });
+  const projectsForShell = mergeProjects(shellProjects, [project]);
 
   return (
-    <AppShell projects={shellProjects.length ? shellProjects : [project]} title="Projects" sourceBadge={project.title} user={user}>
+    <AppShell projects={projectsForShell} title="Projects" sourceBadge={project.title} user={user}>
       <ProjectWorkspace project={project} readOnly={user?.id === "demo-user"} />
     </AppShell>
   );
@@ -68,4 +77,34 @@ async function findProject(id: string, userId?: string): Promise<Project | null>
   } catch {
     return getStoredProject(id) ?? null;
   }
+}
+
+async function loadShellProjects(userId?: string): Promise<Project[]> {
+  const storedProjects = listStoredProjects({ includeFallback: false });
+  if (!userId || isDemoMode()) return storedProjects;
+
+  try {
+    const projects = await prisma.project.findMany({
+      where: { userId },
+      select: projectShellSelect,
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    });
+
+    return mergeProjects(projects.map((project: DbProjectShell) => serializeProjectShell(project)), storedProjects);
+  } catch (error) {
+    console.error("Failed to load project shell list:", error);
+    return storedProjects;
+  }
+}
+
+function mergeProjects(primary: Project[], fallback: Project[]) {
+  const seen = new Set<string>();
+  return [...primary, ...fallback]
+    .filter((project) => {
+      if (seen.has(project.id)) return false;
+      seen.add(project.id);
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
