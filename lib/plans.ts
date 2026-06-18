@@ -22,7 +22,7 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     label: "Free",
     monthlyPrice: 0,
     annualPrice: 0,
-    projectLimit: 3,
+    projectLimit: 5,
     contentLimit: 25,
     scheduledPostLimit: 0,
     brandVoiceLimit: 0,
@@ -31,7 +31,7 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     scheduling: [],
     exports: [],
     features: [
-      "3 projects per month",
+      "5 projects per month",
       "YouTube and blog ingestion",
       "Twitter and LinkedIn packs",
       "Watermarked previews",
