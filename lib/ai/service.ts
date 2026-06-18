@@ -1,87 +1,97 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getGeminiClient } from "@/lib/ai/client";
-import { normalizePlatformCopy } from "@/lib/platform-limits";
-import { prisma } from "@/lib/prisma/client";
-import { getStoredProject } from "@/lib/projects/store";
 import { summarySchema } from "@/lib/ai/schemas";
 import { env } from "@/lib/env";
+import { getPlatformCharacterLimit, normalizePlatformCopy } from "@/lib/platform-limits";
+import { prisma } from "@/lib/prisma/client";
+import { getCachedProject } from "@/lib/projects/store";
 import type { Platform, SocialOutput, SourceSummary, Tone } from "@/lib/types";
 
-const generationSchema = z.record(z.string(), z.unknown());
+const contentBriefSchema = z.object({
+  core_insight: z.string().min(12),
+  supporting_points: z.array(z.string().min(4)).min(3).max(5),
+  emotional_hook: z.string().min(8),
+  audience: z.string().min(4),
+  transformation: z.object({
+    before: z.string().min(4),
+    after: z.string().min(4),
+  }),
+  tone: z.enum(["educational", "motivational", "contrarian", "storytelling"]),
+  strongest_quote: z.string().min(4),
+});
 
-const fallbackSummary: SourceSummary = {
-  tldr: "A source has been analyzed into reusable ideas for platform-native content.",
-  takeaways: [
-    "Lead with the strongest source promise.",
-    "Translate the idea for each platform instead of copying it.",
-    "Keep the output specific, concise, and useful.",
+type ContentBrief = z.infer<typeof contentBriefSchema>;
+
+const generatedPostSchema = z.object({
+  content: z.string().min(20),
+});
+
+const fallbackBrief: ContentBrief = {
+  core_insight: "One strong source becomes useful when the clearest idea is rewritten for the platform instead of copied.",
+  supporting_points: [
+    "Start with the audience problem.",
+    "Use one simple mental model.",
+    "Make the next action obvious.",
   ],
-  hooks: [
-    "One source can become a complete content system.",
-    "The strongest post is usually hiding in the highest-tension moment.",
-    "Repurpose the idea, not the exact wording.",
-  ],
-  detectedTone: "educational",
-  topics: ["content repurposing", "creator workflow"],
-  targetAudience: "Founders, creators, and content teams",
+  emotional_hook: "Most creators do not need more ideas. They need better extraction.",
+  audience: "Creators, founders, and content teams",
+  transformation: {
+    before: "A long source feels hard to repurpose.",
+    after: "The source becomes a set of clear, useful posts.",
+  },
+  tone: "educational",
+  strongest_quote: "Repurpose the idea, not the exact wording.",
 };
 
-const platformPrompt: Record<Platform, string> = {
-  TWITTER:
-    "Generate one punchy tweet, one 5 tweet thread, and one debate-starting quote-tweet angle. Keep every tweet under 280 characters.",
-  LINKEDIN:
-    "Generate one short LinkedIn post under 150 words, one long story-led post under 400 words, and one poll with 4 options.",
-  INSTAGRAM:
-    "Generate one 30-second Reel script, one caption under 150 words, and 20 relevant hashtags without # symbols.",
-  FACEBOOK:
-    "Generate one Facebook feed post, one poll with 4 options, and one image caption designed for comments and shares.",
-  THREADS:
-    "Generate one 5-post Threads sequence with conversational pacing, one standalone post, and one reply-bait question.",
-  YOUTUBE:
-    "Generate one YouTube community post, one Shorts script, and three title ideas with clear viewer transformations.",
-  CAROUSEL:
-    "Generate a 7-slide carousel with headline, two-line body, and visual suggestion per slide.",
-  COMMUNITY:
-    "Generate one platform-native community post, one poll with 4 options, and one visual prompt that invites comments.",
-  STORY:
-    "Generate a 5-slide story sequence with text and visual direction per slide.",
+const platformLabels: Record<Platform, string> = {
+  TWITTER: "Twitter/X",
+  LINKEDIN: "LinkedIn",
+  INSTAGRAM: "Instagram",
+  FACEBOOK: "Facebook",
+  THREADS: "Threads",
+  YOUTUBE: "YouTube Shorts",
+  CAROUSEL: "Carousel",
+  COMMUNITY: "Community",
+  STORY: "Story",
 };
+
+const bannedPhrases = [
+  "turn the strongest idea",
+  "convert the source",
+  "shape the idea",
+  "available youtube metadata",
+  "starter hooks",
+  "can become",
+  "could become",
+  "should become",
+  "this post should",
+  "write a",
+  "generate a",
+  "platform-native content pack",
+  "platform-native posts instead",
+  "same source, different platform",
+  "recastr",
+  "in conclusion",
+  "it is important to note",
+  "i hope this helps",
+];
 
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
-  if (!env.geminiKey) return fallbackSummary;
+  if (!env.geminiKey) return sourceSummaryFromBrief(createFallbackBriefFromTranscript(transcript));
 
   const gemini = getGeminiClient();
-  if (!gemini) return fallbackSummary;
+  if (!gemini) return sourceSummaryFromBrief(createFallbackBriefFromTranscript(transcript));
 
   try {
-    const response = await gemini.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `You are an expert content analyst. Return only valid JSON with tldr, takeaways, hooks, detectedTone, topics, and targetAudience.\n\nTranscript:\n${truncateWords(transcript, 6000)}\n\nReturn: tldr string, exactly 5 takeaways, exactly 10 hooks, detectedTone as educational/motivational/controversial/storytelling/news, 3-5 topics, targetAudience.`,
-            },
-          ],
-        },
-      ],
-      config: {
-        temperature: 0.35,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const content = response.text;
-    if (!content) return fallbackSummary;
-    return summarySchema.parse(JSON.parse(content));
+    const brief = await extractContentBrief(transcript);
+    return sourceSummaryFromBrief(brief);
   } catch (error) {
     console.error("Gemini API Error (summarizeTranscript):", error);
     if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
-      throw new Error("Invalid Gemini API Key - Please get a valid key starting with 'AIzaSy' from Google AI Studio.");
+      throw new Error("Invalid Gemini API Key - Please get a valid key from Google AI Studio.");
     }
-    throw new Error("Failed to process with Gemini. Please check your API key.");
+    throw new Error("Failed to process source. Please check your AI API key.");
   }
 }
 
@@ -96,209 +106,475 @@ export async function generatePlatformOutputs({
   tone: Tone | string;
   summary?: SourceSummary;
 }): Promise<SocialOutput[]> {
-  if (!env.geminiKey) {
-    const storedProject = getStoredProject(projectId);
-    const storedOutputs = storedProject?.outputs ?? [];
-    if (storedOutputs.length > 0) {
-      return storedOutputs
-        .filter((output) => platforms.includes(output.platform))
-        .map((output) => ({
-          ...output,
-          content: normalizeGeneratedContent(output.platform, output.content),
-          tone,
-          createdAt: new Date().toISOString(),
-          originalContent: output.originalContent,
-        }));
-    }
-    return platforms.map((platform) => createFallbackOutput(projectId, platform, tone));
-  }
+  const source = await loadProjectSource(projectId, providedSummary);
+  const brief = env.geminiKey
+    ? await extractContentBrief(source.transcript, source.summary).catch(() => briefFromSummary(source.summary, source.transcript))
+    : briefFromSummary(source.summary, source.transcript);
 
-  let summary = providedSummary;
-  let transcript: string | undefined;
-
-  if (!summary) {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { summary: true, transcript: true },
-    });
-
-    console.log("[generate] transcript length:", project?.transcript?.length ?? 0);
-    console.log("[generate] summary present:", Boolean(project?.summary));
-
-    if (project?.transcript) {
-      transcript = project.transcript;
-    }
-
-    if (project?.summary) {
-      try {
-        summary = summarySchema.parse(project.summary);
-        console.log("[generate] summary.tldr:", summary.tldr);
-      } catch {
-        console.warn("[generate] Failed to parse project summary — will generate without it.");
-      }
-    }
-  }
-
-  const gemini = getGeminiClient();
-  if (!gemini) throw new Error("gemini_missing");
-
-  const completions = await Promise.all(
+  const outputs = await Promise.all(
     platforms.map(async (platform) => {
-      try {
-        const promptParts = buildGenerationPromptParts({ transcript, summary, platform, tone });
-        console.log(`[generate:${platform}] Prompt transcript chars: ${promptParts.transcriptChars}, tldr: ${promptParts.tldr}`);
+      const content = env.geminiKey
+        ? await generatePlatformPost({ brief, platform, tone }).catch(() => fallbackPostForPlatform(platform, brief))
+        : fallbackPostForPlatform(platform, brief);
+      const normalizedContent = platform === "TWITTER" ? content : normalizePlatformCopy(platform, content);
 
-        const response = await gemini.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: promptParts.text,
-                },
-              ],
-            },
-          ],
-          config: {
-            temperature: 0.7,
-            responseMimeType: "application/json",
-          },
-        });
-
-        const parsed = generationSchema.parse(JSON.parse(response.text ?? "{}"));
-        const content = normalizeGeneratedContent(platform, parsed);
-
-        return {
-          id: `output-${nanoid(10)}`,
-          projectId,
-          platform,
-          outputType: `${platform.toLowerCase()} pack`,
-          tone,
-          content,
-          originalContent: content,
-          approved: false,
-          createdAt: new Date().toISOString(),
-        };
-      } catch (error) {
-        console.error(`Gemini API Error (generatePlatformOutputs - ${platform}):`, error);
-        if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
-          throw new Error("Invalid Gemini API Key - Please get a valid key starting with 'AIzaSy' from Google AI Studio.");
-        }
-        throw new Error("Failed to generate content with Gemini. Please check your API key.");
-      }
+      return {
+        id: `output-${platform.toLowerCase()}-${nanoid(10)}`,
+        projectId,
+        platform,
+        outputType: `${platformLabels[platform]} post`,
+        tone,
+        content: normalizedContent,
+        originalContent: normalizedContent,
+        approved: false,
+        createdAt: new Date().toISOString(),
+      };
     }),
   );
 
-  return completions;
+  return outputs;
 }
 
-function createFallbackOutput(
-  projectId: string,
-  platform: Platform,
-  tone: Tone | string,
-): SocialOutput {
-  const content = normalizeGeneratedContent(platform, {
-    content:
-      "Lead with the strongest source promise, keep the copy specific, and adapt the structure so it feels native to the platform.",
-    hook_score: 8,
-    estimated_engagement: "Strong fit for educational creator audiences",
-    platform_tips: ["Open with tension", "Make one clear point", "Use a platform-native CTA"],
+async function loadProjectSource(projectId: string, providedSummary?: SourceSummary) {
+  let summary = providedSummary;
+  let transcript = "";
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { summary: true, transcript: true, title: true },
   });
 
+  if (project?.transcript) transcript = project.transcript;
+  if (!summary && project?.summary) {
+    try {
+      summary = summarySchema.parse(project.summary);
+    } catch {
+      summary = undefined;
+    }
+  }
+
+  if (!project) {
+    const storedProject = getCachedProject(projectId);
+    transcript = storedProject?.transcript ?? "";
+    summary = summary ?? storedProject?.summary;
+  }
+
+  if (!transcript && summary) {
+    transcript = [
+      summary.tldr,
+      ...summary.takeaways,
+      ...summary.hooks,
+      summary.topics.join(", "),
+      summary.targetAudience,
+    ].join("\n");
+  }
+
   return {
-    id: `output-${platform.toLowerCase()}-${nanoid(10)}`,
-    projectId,
-    platform,
-    outputType: `${platform.toLowerCase()} pack`,
-    tone,
-    content,
-    originalContent: content,
-    approved: false,
-    createdAt: new Date().toISOString(),
+    transcript,
+    summary: summary ?? sourceSummaryFromBrief(createFallbackBriefFromTranscript(transcript || project?.title || projectId)),
   };
 }
 
-/**
- * Builds a grounded generation prompt that includes the full source transcript.
- * Returns the prompt text, the number of transcript chars included, and the tldr for logging.
- */
-function buildGenerationPromptParts({
-  transcript,
-  summary,
+async function extractContentBrief(transcript: string, summary?: SourceSummary): Promise<ContentBrief> {
+  const gemini = getGeminiClient();
+  if (!gemini) return briefFromSummary(summary, transcript);
+
+  const source = truncateWords(transcript || summaryToText(summary), 5000);
+  const response = await gemini.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: [
+              "You are a content strategist. Extract a reusable content brief from the source.",
+              "",
+              "Return ONLY valid JSON. No markdown, no explanation, no preamble.",
+              "",
+              "JSON shape:",
+              '{ "core_insight": "...", "supporting_points": ["...", "...", "..."], "emotional_hook": "...", "audience": "...", "transformation": { "before": "...", "after": "..." }, "tone": "educational|motivational|contrarian|storytelling", "strongest_quote": "..." }',
+              "",
+              "SOURCE:",
+              source,
+            ].join("\n"),
+          },
+        ],
+      },
+    ],
+    config: {
+      temperature: 0.25,
+      responseMimeType: "application/json",
+    },
+  });
+
+  return contentBriefSchema.parse(parseJson(response.text ?? "{}"));
+}
+
+async function generatePlatformPost({
+  brief,
   platform,
   tone,
 }: {
-  transcript: string | undefined;
-  summary: import("@/lib/types").SourceSummary | undefined;
+  brief: ContentBrief;
   platform: Platform;
   tone: Tone | string;
-}): { text: string; transcriptChars: number; tldr: string } {
-  const tldr = summary?.tldr ?? "";
-  const hooks = summary?.hooks?.slice(0, 5).join("\n- ") ?? "";
-  const takeaways = summary?.takeaways?.join("\n- ") ?? "";
-  const topics = summary?.topics?.join(", ") ?? "";
-  const audience = summary?.targetAudience ?? "general audience";
+}) {
+  const gemini = getGeminiClient();
+  if (!gemini) return fallbackPostForPlatform(platform, brief);
 
-  // Truncate transcript to ~6000 words to stay within token budget
-  const truncatedTranscript = transcript
-    ? truncateWords(transcript, 6000)
+  let retryErrors: string[] = [];
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: platformPrompt({ brief, platform, tone, retryErrors }) }] }],
+      config: {
+        temperature: 0.65,
+        responseMimeType: "application/json",
+      },
+    });
+    const parsed = generatedPostSchema.parse(parseJson(response.text ?? "{}"));
+    const content = cleanupPost(parsed.content);
+    const validation = validatePost(platform, content);
+    if (validation.isValid) return content;
+    retryErrors = validation.errors;
+  }
+
+  return fallbackPostForPlatform(platform, brief);
+}
+
+function platformPrompt({
+  brief,
+  platform,
+  tone,
+  retryErrors,
+}: {
+  brief: ContentBrief;
+  platform: Platform;
+  tone: Tone | string;
+  retryErrors: string[];
+}) {
+  const retryInstruction = retryErrors.length
+    ? `\nPrevious draft failed validation: ${retryErrors.join("; ")}. Rewrite it now.`
     : "";
+  return [
+    basePrompt(brief, tone),
+    platformInstruction(platform),
+    retryInstruction,
+    "",
+    "BANNED: Do not explain what you are doing. Do not describe the post. Do not use meta-commentary. Write the final post itself.",
+    'Return ONLY JSON exactly like: {"content":"final post text here"}',
+  ].join("\n");
+}
 
-  const transcriptSection = truncatedTranscript
-    ? `SOURCE TRANSCRIPT:\n${truncatedTranscript}`
-    : "SOURCE TRANSCRIPT: [Not available — generate only if you have enough context from the summary below]";
+function basePrompt(brief: ContentBrief, tone: Tone | string) {
+  return [
+    "You are a top social media creator. Write finished, ready-to-post content from this brief.",
+    "",
+    "CONTENT BRIEF:",
+    `Core insight: ${brief.core_insight}`,
+    `Supporting points: ${brief.supporting_points.join(" | ")}`,
+    `Hook angle: ${brief.emotional_hook}`,
+    `Audience: ${brief.audience}`,
+    `Transformation: ${brief.transformation.before} -> ${brief.transformation.after}`,
+    `Tone: ${tone || brief.tone}`,
+    `Strongest quote: ${brief.strongest_quote}`,
+  ].join("\n");
+}
 
-  const summarySection = tldr
-    ? [
-        `SUMMARY: ${tldr}`,
-        hooks ? `KEY HOOKS FROM SOURCE:\n- ${hooks}` : "",
-        takeaways ? `KEY TAKEAWAYS FROM SOURCE:\n- ${takeaways}` : "",
-        topics ? `TOPICS: ${topics}` : "",
-        `TARGET AUDIENCE: ${audience}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n")
-    : "";
+function platformInstruction(platform: Platform) {
+  switch (platform) {
+    case "TWITTER":
+      return [
+        "TWITTER/X THREAD RULES:",
+        "- First tweet: bold hook, max 220 chars.",
+        '- Tweets 2-6: numbered with "N/".',
+        "- One idea per tweet. Use line breaks.",
+        "- Last tweet: clear CTA.",
+        "- Total 6-8 tweets. Each tweet max 280 chars.",
+        "- Separate tweets with ---.",
+      ].join("\n");
+    case "LINKEDIN":
+      return [
+        "LINKEDIN RULES:",
+        "- Line 1: one powerful hook sentence.",
+        "- Short paragraphs with blank lines.",
+        "- Use a personal or direct teaching voice.",
+        "- Include a numbered list of 3-5 points.",
+        "- End with one CTA and 3-5 hashtags.",
+        "- 150-250 words.",
+      ].join("\n");
+    case "INSTAGRAM":
+      return [
+        "INSTAGRAM CAPTION RULES:",
+        "- Line 1: punchy hook under 125 chars.",
+        "- 3-5 short value lines.",
+        "- Use arrows or checkmarks for lists.",
+        "- CTA: save this or link in bio.",
+        "- End with 8-15 hashtags.",
+      ].join("\n");
+    case "YOUTUBE":
+      return [
+        "YOUTUBE SHORTS SCRIPT RULES:",
+        "- Format with [HOOK - 0 to 3 seconds], [BODY - 3 to 35 seconds], [CTA - 35 to 60 seconds].",
+        "- Written to be spoken.",
+        "- Grade 6 reading level.",
+        "- 80-120 words.",
+      ].join("\n");
+    case "FACEBOOK":
+      return [
+        "FACEBOOK POST RULES:",
+        "- Warm, direct feed post.",
+        "- 80-180 words.",
+        "- Invite comments with one specific question.",
+        "- No hashtags unless essential.",
+      ].join("\n");
+    case "THREADS":
+      return [
+        "THREADS RULES:",
+        "- Conversational 4-6 post sequence.",
+        "- Short sentences.",
+        "- Use --- between posts.",
+        "- End with a reply-friendly prompt.",
+      ].join("\n");
+    case "CAROUSEL":
+      return [
+        "CAROUSEL RULES:",
+        "- 7 slides.",
+        "- Format each as Slide N: headline | body.",
+        "- Cover, 5 value slides, CTA slide.",
+      ].join("\n");
+    case "COMMUNITY":
+      return [
+        "COMMUNITY POST RULES:",
+        "- Write a YouTube community post or poll.",
+        "- Include 4 answer options if it is a poll.",
+        "- Make the question specific.",
+      ].join("\n");
+    case "STORY":
+      return [
+        "STORY RULES:",
+        "- 5 story frames.",
+        "- Format each as Frame N: text | visual direction.",
+        "- Include one interaction sticker prompt.",
+      ].join("\n");
+  }
+}
 
-  const text = [
-    "You are a social media ghostwriter. Your job is to write platform-native content that is GROUNDED EXCLUSIVELY in the provided source transcript. Do NOT invent facts, quotes, statistics, or topics that are not present in the source material.",
-    "",
-    transcriptSection,
-    "",
-    summarySection,
-    "",
-    `PLATFORM: ${platform}`,
-    `TONE: ${tone}`,
-    "",
-    `TASK: ${platformPrompt[platform]}`,
-    "",
-    'Return a JSON object exactly like: {"content": "the post body", "hook_score": 8, "estimated_engagement": "High", "platform_tips": ["tip1"]}',
-    "The content field must directly reference ideas, arguments, or moments from the transcript. Return valid JSON only.",
-  ]
-    .filter((line) => line !== undefined)
-    .join("\n");
+function validatePost(platform: Platform, post: string) {
+  const errors: string[] = [];
+  const lower = post.toLowerCase();
+  for (const phrase of bannedPhrases) {
+    if (lower.includes(phrase)) errors.push(`contains banned phrase: ${phrase}`);
+  }
+  if (post.trim().length < 40) errors.push("too short");
 
-  return { text, transcriptChars: truncatedTranscript.length, tldr };
+  if (platform === "TWITTER") {
+    const tweets = parseTwitterThread(post);
+    if (tweets.length < 4) errors.push("twitter thread needs at least 4 tweets");
+    tweets.forEach((tweet, index) => {
+      if (tweet.length > 280) errors.push(`tweet ${index + 1} is over 280 chars`);
+    });
+  } else {
+    const limit = getPlatformCharacterLimit(platform);
+    if (post.length > limit * 1.15) errors.push(`over ${platformLabels[platform]} character limit`);
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
+function parseTwitterThread(raw: string) {
+  return raw
+    .split("---")
+    .map((part) => part.replace(/^TWEET \d+:\s*/i, "").trim())
+    .filter(Boolean);
+}
+
+function fallbackPostForPlatform(platform: Platform, brief: ContentBrief) {
+  switch (platform) {
+    case "TWITTER":
+      return [
+        `${brief.emotional_hook}`,
+        "",
+        `1/ ${brief.core_insight}`,
+        "",
+        `2/ ${brief.supporting_points[0]}`,
+        "",
+        `3/ ${brief.supporting_points[1] ?? brief.supporting_points[0]}`,
+        "",
+        `4/ ${brief.supporting_points[2] ?? "Start with one clear action."}`,
+        "",
+        `Save this before your next build.`,
+      ].join("\n");
+    case "LINKEDIN":
+      return [
+        brief.emotional_hook,
+        "",
+        `I used to think ${brief.transformation.before.toLowerCase()}.`,
+        "",
+        `Then I realized: ${brief.core_insight}`,
+        "",
+        "Here is the simple version:",
+        "",
+        ...brief.supporting_points.slice(0, 4).map((point, index) => `${index + 1}. ${point}`),
+        "",
+        brief.transformation.after,
+        "",
+        "Save this if you are building the next version.",
+        "",
+        "#AI #APIs #BuildInPublic #Learning",
+      ].join("\n");
+    case "INSTAGRAM":
+      return [
+        brief.emotional_hook.slice(0, 125),
+        "",
+        `-> ${brief.core_insight}`,
+        `-> ${brief.supporting_points[0]}`,
+        `-> ${brief.supporting_points[1] ?? brief.supporting_points[0]}`,
+        `-> ${brief.transformation.after}`,
+        "",
+        "Save this before you start.",
+        "",
+        "#AI #APIs #ChatGPT #BuildWithAI #CreatorTech #LearnToCode #Automation #TechForBeginners",
+      ].join("\n");
+    case "YOUTUBE":
+      return [
+        "[HOOK - 0 to 3 seconds]",
+        brief.emotional_hook,
+        "",
+        "[BODY - 3 to 35 seconds]",
+        brief.core_insight,
+        brief.supporting_points.slice(0, 3).join("\n"),
+        "",
+        "[CTA - 35 to 60 seconds]",
+        "Save this and watch the full breakdown before you build.",
+      ].join("\n");
+    case "FACEBOOK":
+      return [
+        brief.emotional_hook,
+        "",
+        brief.core_insight,
+        "",
+        brief.supporting_points.slice(0, 3).join("\n"),
+        "",
+        `What would help you get from "${brief.transformation.before}" to "${brief.transformation.after}" faster?`,
+      ].join("\n");
+    case "THREADS":
+      return [
+        brief.emotional_hook,
+        "---",
+        brief.core_insight,
+        "---",
+        brief.supporting_points[0],
+        "---",
+        brief.supporting_points[1] ?? brief.supporting_points[0],
+        "---",
+        "What part should we break down next?",
+      ].join("\n");
+    case "CAROUSEL":
+      return [
+        `Slide 1: ${brief.emotional_hook} | A simple promise for the reader.`,
+        `Slide 2: The problem | ${brief.transformation.before}`,
+        `Slide 3: The shift | ${brief.core_insight}`,
+        `Slide 4: Point 1 | ${brief.supporting_points[0]}`,
+        `Slide 5: Point 2 | ${brief.supporting_points[1] ?? brief.supporting_points[0]}`,
+        `Slide 6: Point 3 | ${brief.supporting_points[2] ?? brief.supporting_points[0]}`,
+        `Slide 7: CTA | Save this before your next project.`,
+      ].join("\n");
+    case "COMMUNITY":
+      return [
+        `${brief.emotional_hook}`,
+        "",
+        "What would help you most next?",
+        "",
+        "A) Beginner checklist",
+        "B) Step-by-step walkthrough",
+        "C) Common mistakes",
+        "D) Full project breakdown",
+      ].join("\n");
+    case "STORY":
+      return [
+        `Frame 1: ${brief.emotional_hook} | Big text on screen.`,
+        `Frame 2: ${brief.transformation.before} | Show the problem.`,
+        `Frame 3: ${brief.core_insight} | Show the shift.`,
+        `Frame 4: ${brief.supporting_points[0]} | Add a simple visual.`,
+        "Frame 5: Save this | Add a poll sticker.",
+      ].join("\n");
+  }
+}
+
+function briefFromSummary(summary?: SourceSummary, transcript = ""): ContentBrief {
+  if (!summary) return createFallbackBriefFromTranscript(transcript);
+  return {
+    core_insight: summary.tldr,
+    supporting_points: summary.takeaways.slice(0, 5),
+    emotional_hook: summary.hooks[0] ?? summary.tldr,
+    audience: summary.targetAudience,
+    transformation: {
+      before: "The audience feels stuck or confused about the topic.",
+      after: summary.takeaways[0] ?? "The audience understands the next practical step.",
+    },
+    tone: summary.detectedTone === "controversial" ? "contrarian" : summary.detectedTone === "news" ? "educational" : summary.detectedTone,
+    strongest_quote: summary.hooks[1] ?? summary.tldr,
+  };
+}
+
+function createFallbackBriefFromTranscript(transcript: string): ContentBrief {
+  const firstLine = cleanupPost(transcript.split(/\n+/).find((line) => line.trim().length > 20) ?? fallbackBrief.core_insight);
+  return {
+    ...fallbackBrief,
+    core_insight: firstLine.slice(0, 240),
+    emotional_hook: firstLine.slice(0, 160),
+    strongest_quote: firstLine.slice(0, 180),
+  };
+}
+
+function sourceSummaryFromBrief(brief: ContentBrief): SourceSummary {
+  return {
+    tldr: brief.core_insight,
+    takeaways: padToLength(brief.supporting_points, 5, brief.core_insight),
+    hooks: padToLength([
+      brief.emotional_hook,
+      brief.strongest_quote,
+      `Before: ${brief.transformation.before}`,
+      `After: ${brief.transformation.after}`,
+      ...brief.supporting_points,
+    ], 10, brief.core_insight),
+    detectedTone: brief.tone === "contrarian" ? "controversial" : brief.tone,
+    topics: ["source insight", "practical lesson", "content idea"],
+    targetAudience: brief.audience,
+  };
+}
+
+function padToLength(values: string[], length: number, fallback: string) {
+  const output = values.filter(Boolean);
+  while (output.length < length) output.push(fallback);
+  return output.slice(0, length);
+}
+
+function summaryToText(summary?: SourceSummary) {
+  if (!summary) return "";
+  return [
+    summary.tldr,
+    ...summary.takeaways,
+    ...summary.hooks,
+    summary.topics.join(", "),
+    summary.targetAudience,
+  ].join("\n");
+}
+
+function parseJson(value: string) {
+  return JSON.parse(value.replace(/```json|```/g, "").trim());
+}
+
+function cleanupPost(value: string) {
+  return value
+    .replace(/^```[a-z]*\s*/i, "")
+    .replace(/```$/i, "")
+    .replace(/^\s*(output|post|caption|thread|script)\s*:\s*/i, "")
+    .trim();
 }
 
 function truncateWords(value: string, words: number) {
   return value.split(/\s+/).slice(0, words).join(" ");
-}
-
-
-function normalizeGeneratedContent(platform: Platform, content: unknown) {
-  if (typeof content === "string") return normalizePlatformCopy(platform, content);
-
-  if (content && typeof content === "object" && "content" in content) {
-    const value = (content as { content?: unknown }).content;
-    if (typeof value === "string") {
-      return {
-        ...content,
-        content: normalizePlatformCopy(platform, value),
-      };
-    }
-  }
-
-  return content;
 }

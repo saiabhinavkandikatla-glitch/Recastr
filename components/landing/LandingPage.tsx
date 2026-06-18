@@ -87,7 +87,7 @@ const plans = [
       "All output formats",
       "Manual copy and export",
     ],
-    cta: "Start free",
+    cta: "Get started",
     featured: false,
   },
   {
@@ -193,6 +193,14 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 export function LandingPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  const handleScrollToPricing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const element = document.getElementById("pricing");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[var(--landing-bg)] text-[var(--landing-fg)] selection:bg-violet-500/25">
       {/* ─────── NAVIGATION ─────── */}
@@ -232,12 +240,13 @@ export function LandingPage() {
             >
               Sign in
             </Link>
-            <Link
-              href="/login"
+            <a
+              href="#pricing"
+              onClick={handleScrollToPricing}
               className="inline-flex h-9 items-center rounded-full bg-[var(--landing-fg)] px-4 text-[13px] font-semibold text-[var(--landing-bg)] transition-all hover:opacity-90"
             >
-              Start now
-            </Link>
+              Get started
+            </a>
 
             {/* Mobile menu button */}
             <button
@@ -317,13 +326,14 @@ export function LandingPage() {
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link
-              href="/login"
+            <a
+              href="#pricing"
+              onClick={handleScrollToPricing}
               className="group inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-accent)] px-7 text-sm font-semibold text-white transition-all hover:brightness-110"
             >
-              Start now
+              Get started
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+            </a>
             <a
               href="#workflow"
               className="inline-flex h-12 items-center justify-center rounded-full border border-[var(--landing-line)] px-7 text-sm font-medium text-[var(--landing-fg)] transition-colors hover:bg-[var(--landing-panel)]"
@@ -530,13 +540,14 @@ export function LandingPage() {
           </p>
 
           <div className="relative mt-8 flex max-w-md">
-            <Link
-              href="/login"
+            <a
+              href="#pricing"
+              onClick={handleScrollToPricing}
               className="group inline-flex h-12 items-center justify-center rounded-full bg-[var(--landing-bg)] px-7 text-sm font-semibold text-[var(--landing-fg)] transition-all hover:opacity-90"
             >
-              Start now
+              Get started
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+            </a>
           </div>
         </div>
       </section>

@@ -479,7 +479,12 @@ function regenerateBody(
   const hook = hooks.find((item) => item.id === (selectedHookId ?? content.hookId));
   const seed = hook?.text ?? project.summary.hooks[0] ?? project.title;
   const platform = platformLabels[toCardPlatform(content.platform)];
-  const body = `${seed}\n\nHere is the sharper ${platform} version:\n\n${content.body.replace(/\s+/g, " ").slice(0, 260)}\n\nMake the opening more specific, keep the source promise, and close with one clear action.`;
+  const body =
+    platform === "Twitter/X"
+      ? `${seed}\n\nOne simple idea. One clear next step. That is what makes the lesson easy to remember and use.`
+      : platform === "LinkedIn"
+        ? `${seed}\n\nI used to overcomplicate this.\n\nThen I realized the best explanation does three things:\n\n1. Names the real problem\n2. Gives people a simple mental model\n3. Ends with one action they can use today\n\nThat is the difference between content people skim and content people save.`
+        : `${seed}\n\n-> Name the problem\n-> Give the simple mental model\n-> Show the next step\n\nSave this before your next project.`;
   return normalizePlatformCopy(content.platform, body);
 }
 

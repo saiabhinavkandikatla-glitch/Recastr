@@ -56,7 +56,7 @@ export function GenerateDrawer({
     if (platforms.length === 0 || contentTypes.length === 0) return;
     setGenerating(true);
     setStream("");
-    const text = `Generating ${contentTypes.join(", ")} for ${platforms.map((item) => platformLabels[item]).join(", ")} from ${selectedHook?.text ?? project.title}.`;
+    const text = `Writing ready-to-post drafts for ${platforms.map((item) => platformLabels[item]).join(", ")}.`;
     for (const token of text.split(/(\s+)/).filter(Boolean)) {
       setStream((current) => `${current}${token}`);
       await new Promise((resolve) => window.setTimeout(resolve, 28));
@@ -213,7 +213,7 @@ function createGeneratedCards(
       const platformValue = fromCardPlatform(platform);
       const body = normalizePlatformCopy(
         platformValue,
-        buildGeneratedBody(project.title, hookText, platformName, contentType, maxWords),
+        buildGeneratedBody(project.title, hookText, platformName, maxWords),
       );
       cards.push({
         id: `${project.id}-${platform}-${stamp}-${platformIndex}-${typeIndex}`,
@@ -238,21 +238,48 @@ function buildGeneratedBody(
   title: string,
   hook: string,
   platform: string,
-  contentType: string,
   wordCount: number,
 ) {
-  const base = `${hook}\n\nUse "${title}" as the proof source. This ${contentType.toLowerCase()} should feel native to ${platform}: specific opening, one useful insight, and a clear next action.`;
   if (platform === "Twitter/X") {
     return normalizePlatformCopy(
       "TWITTER",
-      `${hook}\n\nOne source becomes useful when the best idea gets translated, not copied. Pull the tension, make one promise, then ship it natively.`,
+      `${hook}\n\nThe useful part is not more content. It is one clear idea, explained simply, with a next step people can use today.`,
     );
   }
   if (platform === "YouTube Shorts") {
-    return `Hook: ${hook}\n\nScene 1: Show the source title.\nScene 2: Name the mistake most viewers make.\nScene 3: Give the quick fix in three beats.\nCTA: Subscribe for the full breakdown.`;
+    return `[HOOK - 0 to 3 seconds]\n${hook}\n\n[BODY - 3 to 35 seconds]\nMost people skip the simple mental model.\nStart with the problem.\nName the shift.\nGive one action they can try today.\nKeep it short enough to remember.\n\n[CTA - 35 to 60 seconds]\nSave this before your next build.`;
   }
   if (platform === "Facebook") {
-    return `${hook}\n\nMost people do not need more content. They need one useful idea translated into a format their audience already understands.\n\nUse "${title}" as the proof source, then turn it into a post people can react to, comment on, and share.\n\nWhat would you want broken down next?`;
+    return `${hook}\n\nMost people do not need another complicated explanation. They need one simple mental model they can remember when they sit down to build.\n\nThat is the value inside "${title}".\n\nWhat would help you most next: a checklist, a walkthrough, or common mistakes?`;
   }
-  return base.split(/\s+/).slice(0, wordCount).join(" ");
+  if (platform === "LinkedIn") {
+    return [
+      hook,
+      "",
+      `I used to overcomplicate ideas like "${title}".`,
+      "",
+      "Then I realized the best explanation usually has three parts:",
+      "",
+      "1. Name the problem",
+      "2. Give people a simple mental model",
+      "3. End with one action they can take",
+      "",
+      "That is what makes content useful.",
+      "",
+      "Save this if you are building and learning at the same time.",
+      "",
+      "#BuildInPublic #AI #CreatorWorkflow",
+    ].join("\n");
+  }
+  return [
+    hook,
+    "",
+    "-> Name the problem",
+    "-> Give the simple mental model",
+    "-> Show the next step",
+    "",
+    `Pulled from "${title}" so the lesson stays specific.`,
+    "",
+    "Save this before your next project.",
+  ].join("\n").split(/\s+/).slice(0, wordCount).join(" ");
 }
