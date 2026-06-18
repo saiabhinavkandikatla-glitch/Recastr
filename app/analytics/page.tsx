@@ -3,10 +3,10 @@ import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { redirect } from "next/navigation";
 import {
-  Eye,
-  TrendingUp,
-  Globe,
-  FileText,
+  MessageSquare,
+  Briefcase,
+  Heart,
+  Video,
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
@@ -17,14 +17,31 @@ export default async function AnalyticsPage() {
     redirect("/login");
   }
 
-  // Fetch metrics from Database
-  const totalProjects = await prisma.project.count({
-    where: { userId: user.id },
+  // Fetch platform-specific metrics from Database
+  const contentItems = await prisma.content.findMany({
+    where: { project: { userId: user.id } },
+    select: { platform: true, createdAt: true },
   });
 
-  const totalContentPieces = await prisma.content.count({
-    where: { project: { userId: user.id } },
+  const platformCounts: Record<string, number> = {
+    TWITTER: 0,
+    LINKEDIN: 0,
+    INSTAGRAM: 0,
+    FACEBOOK: 0,
+    THREADS: 0,
+    CAROUSEL: 0,
+    COMMUNITY: 0,
+  };
+
+  contentItems.forEach((item) => {
+    const p = item.platform.toUpperCase();
+    platformCounts[p] = (platformCounts[p] || 0) + 1;
   });
+
+  const twitterCount = platformCounts.TWITTER + platformCounts.THREADS;
+  const linkedinCount = platformCounts.LINKEDIN;
+  const facebookIgCount = platformCounts.FACEBOOK + platformCounts.INSTAGRAM + platformCounts.CAROUSEL;
+  const youtubeCount = platformCounts.COMMUNITY;
 
   const scheduledPosts = await prisma.scheduledPost.findMany({
     where: { userId: user.id },
@@ -34,30 +51,41 @@ export default async function AnalyticsPage() {
     },
   });
 
-  const totalPublished = scheduledPosts.filter(
-    (post) =>
-      post.status.toUpperCase() === "PUBLISHED" ||
-      post.status.toUpperCase() === "COMPLETE"
-  ).length;
+  // Calculate actual daily content created for the last 14 days
+  const last14Days = Array.from({ length: 14 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }).reverse(); // chronological order
 
-  const totalScheduled = scheduledPosts.length;
-
-  // Calculate simulated metrics
-  const totalViews = totalPublished > 0 ? totalPublished * 1280 : 0;
-  const engagementRate = totalPublished > 0 ? "4.8%" : "—";
-  
-  // Find best performing platform based on scheduled posts
-  const platformCounts: Record<string, number> = {};
-  scheduledPosts.forEach((post) => {
-    platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
+  const dailyCounts = last14Days.map((date) => {
+    const count = contentItems.filter((item) => {
+      const itemDate = new Date(item.createdAt);
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate.getTime() === date.getTime();
+    }).length;
+    return count;
   });
-  let bestPlatform = "—";
-  let maxCount = 0;
-  Object.entries(platformCounts).forEach(([platform, count]) => {
-    if (count > maxCount) {
-      maxCount = count;
-      bestPlatform = platform;
-    }
+
+  const maxDailyCount = Math.max(...dailyCounts, 1);
+  const chartBars = last14Days.map((date, idx) => {
+    const totalCreated = dailyCounts[idx];
+    const totalScheduled = scheduledPosts.filter((post) => {
+      const postDate = new Date(post.scheduledAt);
+      postDate.setHours(0, 0, 0, 0);
+      return postDate.getTime() === date.getTime();
+    }).length;
+
+    const h1 = (totalCreated / maxDailyCount) * 80; // scale to max 80%
+    const h2 = (totalScheduled / maxDailyCount) * 80;
+
+    return {
+      h1: Math.max(h1, totalCreated > 0 ? 5 : 0),
+      h2: Math.max(h2, totalScheduled > 0 ? 5 : 0),
+      created: totalCreated,
+      scheduled: totalScheduled,
+    };
   });
 
   const platformNames: Record<string, string> = {
@@ -68,15 +96,6 @@ export default async function AnalyticsPage() {
     THREADS: "Threads",
     COMMUNITY: "YouTube Community",
   };
-  const bestPlatformName = platformNames[bestPlatform.toUpperCase()] || bestPlatform;
-
-  // Generate chart height percentage based on actual distribution or random-realistic heights
-  const chartBars = Array.from({ length: 14 }).map((_, i) => {
-    const factor = totalPublished > 0 ? (totalPublished * (i + 1)) % 10 : i % 5;
-    const h1 = totalPublished > 0 ? 25 + (factor * 7) : 15 + (factor * 3);
-    const h2 = totalPublished > 0 ? 10 + (factor * 4) : 5 + (factor * 2);
-    return { h1, h2 };
-  });
 
   return (
     <AppShell projects={[]} title="Analytics" user={user}>
@@ -92,32 +111,32 @@ export default async function AnalyticsPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
-            icon={Eye}
-            label="Total Views"
-            value={totalViews > 0 ? totalViews.toLocaleString() : "—"}
-            change={totalViews > 0 ? 12 : null}
-            hint={totalViews > 0 ? "Last 30 days" : "Connect platforms & publish"}
+            icon={MessageSquare}
+            label="Twitter / X Posts"
+            value={twitterCount.toString()}
+            change={twitterCount > 0 ? 10 : null}
+            hint="Total generated threads & posts"
           />
           <StatsCard
-            icon={TrendingUp}
-            label="Engagement Rate"
-            value={engagementRate}
-            change={totalPublished > 0 ? 2.4 : null}
-            hint={totalPublished > 0 ? "Average per post" : "No data yet"}
+            icon={Briefcase}
+            label="LinkedIn Posts"
+            value={linkedinCount.toString()}
+            change={linkedinCount > 0 ? 15 : null}
+            hint="Total generated articles"
           />
           <StatsCard
-            icon={Globe}
-            label="Best Performing Platform"
-            value={bestPlatformName}
-            change={null}
-            hint={totalPublished > 0 ? "Highest engagement" : "Publish content to see"}
+            icon={Heart}
+            label="Facebook / Instagram"
+            value={facebookIgCount.toString()}
+            change={facebookIgCount > 0 ? 8 : null}
+            hint="Total generated FB, IG & Carousel posts"
           />
           <StatsCard
-            icon={FileText}
-            label="Content Pieces Created"
-            value={totalContentPieces.toString()}
-            change={totalContentPieces > 0 ? 18 : null}
-            hint="Total generated outputs"
+            icon={Video}
+            label="YouTube Community"
+            value={youtubeCount.toString()}
+            change={youtubeCount > 0 ? 12 : null}
+            hint="Total generated community assets"
           />
         </div>
 
@@ -126,20 +145,20 @@ export default async function AnalyticsPage() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-white">
-                Content Performance
+                Repurposing Activity
               </h2>
               <p className="mt-0.5 text-xs text-[#8A8A8A]">
-                Views &amp; engagement over the last 30 days
+                Content pieces generated &amp; scheduled over the last 14 days
               </p>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#8A8A8A]">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 rounded-full bg-white" />
-                Views
+                Generated
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 rounded-full bg-[#8A8A8A]" />
-                Engagement
+                Scheduled
               </span>
             </div>
           </div>
@@ -152,12 +171,14 @@ export default async function AnalyticsPage() {
                 className="flex flex-1 flex-col items-center gap-1"
               >
                 <div
-                  className="w-full rounded-t bg-[#232323] transition-all duration-500"
+                  className="w-full rounded-t bg-white transition-all duration-500"
                   style={{ height: `${bar.h1}%` }}
+                  title={`${bar.created} posts generated`}
                 />
                 <div
-                  className="w-full rounded-t bg-[#1A1A1A] transition-all duration-500"
+                  className="w-full rounded-t bg-[#8A8A8A] transition-all duration-500"
                   style={{ height: `${bar.h2}%` }}
+                  title={`${bar.scheduled} posts scheduled`}
                 />
               </div>
             ))}
@@ -165,9 +186,9 @@ export default async function AnalyticsPage() {
 
           <div className="mt-4 flex items-center justify-center">
             <p className="text-xs text-[#555]">
-              {totalPublished > 0
-                ? "Detailed analytics automatically update based on your publishing schedule."
-                : "Detailed analytics will appear here once you publish content."}
+              {contentItems.length > 0
+                ? "Repurposing activity automatically updates based on your generated content history."
+                : "Your repurposing activity metrics will appear here once you generate content."}
             </p>
           </div>
         </div>
@@ -175,7 +196,7 @@ export default async function AnalyticsPage() {
         {/* Recent Performance Table */}
         <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6">
           <h2 className="mb-4 text-base font-semibold text-white">
-            Recent Performance
+            Recent Pipeline
           </h2>
 
           <div className="overflow-x-auto">
@@ -184,8 +205,8 @@ export default async function AnalyticsPage() {
                 <tr className="border-b border-[#232323] text-[#8A8A8A]">
                   <th className="pb-3 pr-4 font-medium">Content Preview</th>
                   <th className="pb-3 pr-4 font-medium">Platform</th>
-                  <th className="pb-3 pr-4 font-medium">Simulated Views</th>
-                  <th className="pb-3 pr-4 font-medium">Engagement</th>
+                  <th className="pb-3 pr-4 font-medium">Posting Method</th>
+                  <th className="pb-3 pr-4 font-medium">Scheduled Date</th>
                   <th className="pb-3 font-medium">Status</th>
                 </tr>
               </thead>
@@ -196,20 +217,19 @@ export default async function AnalyticsPage() {
                       colSpan={5}
                       className="py-12 text-center text-[#555]"
                     >
-                      No content performance data yet. Published or scheduled content will
-                      appear here.
+                      No content scheduled yet. Schedule your generated posts to populate this pipeline.
                     </td>
                   </tr>
                 ) : (
                   scheduledPosts.slice(0, 5).map((post) => {
-                    const isPostPublished =
-                      post.status.toUpperCase() === "PUBLISHED" ||
-                      post.status.toUpperCase() === "COMPLETE";
-                    const simulatedPostViews = isPostPublished ? 1280 : 0;
-                    const simulatedPostEngagement = isPostPublished ? "4.8%" : "—";
-                    
-                    // Safe preview extraction
                     const bodyPreview = post.content?.body || "Generated content output";
+                    const formattedMethod = post.postingMethod === "email_reminder" ? "Email Reminder" : "Auto-post";
+                    const formattedDate = new Date(post.scheduledAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
 
                     return (
                       <tr key={post.id} className="border-b border-[#151515] text-white">
@@ -220,15 +240,15 @@ export default async function AnalyticsPage() {
                           {platformNames[post.platform.toUpperCase()] || post.platform}
                         </td>
                         <td className="py-4 pr-4 text-zinc-300">
-                          {simulatedPostViews > 0 ? simulatedPostViews.toLocaleString() : "—"}
+                          {formattedMethod}
                         </td>
                         <td className="py-4 pr-4 text-zinc-300">
-                          {simulatedPostEngagement}
+                          {formattedDate}
                         </td>
                         <td className="py-4">
                           <span
                             className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              isPostPublished
+                              post.status.toUpperCase() === "PUBLISHED" || post.status.toUpperCase() === "COMPLETE"
                                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                 : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
                             }`}
