@@ -135,7 +135,7 @@ const faqs = [
   },
   {
     q: "Is there a free plan?",
-    a: "Yes. Start free with 3 starter projects and upgrade when Recastr becomes part of your weekly publishing flow.",
+    a: "Yes. Get started with 3 starter projects and upgrade when Recastr becomes part of your weekly publishing flow.",
   },
 ] as const;
 
