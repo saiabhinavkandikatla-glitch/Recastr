@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google";
-import { Providers } from "@/components/providers";
+import { Providers } from "@/app/providers";
 import { env } from "@/lib/env";
 import "./globals.css";
 import { cn } from "@/lib/utils";

@@ -1,0 +1,7 @@
+{
+  "name": "ReCastr",
+  "short_name": "ReCastr",
+  "theme_color": "#090909",
+  "background_color": "#090909",
+  "display": "standalone"
+}
