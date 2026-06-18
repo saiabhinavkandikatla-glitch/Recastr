@@ -353,16 +353,7 @@ export const ContentCard = memo(function ContentCard({
               {overLimit ? "Over limit" : "Remind me"}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => openScheduleWithMethod("direct_post")}
-            disabled={overLimit}
-            title="Schedule and post directly to the platform."
-            className="h-8 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 text-xs font-semibold text-foreground transition hover:bg-[var(--app-panel)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
-          >
-            <Send className="mr-1 inline h-3.5 w-3.5" />
-            Post directly
-          </button>
+
           <button
             type="button"
             onClick={handleCopy}
@@ -452,25 +443,10 @@ function SchedulePicker({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] p-0.5">
-              {(["email_reminder", "direct_post"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => onMethodChange(m)}
-                  className={cn(
-                    "relative h-7 rounded-full px-3 text-xs font-semibold capitalize transition-colors",
-                    method === m ? "bg-[var(--violet)] text-white" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {m === "email_reminder" ? (
-                    <><Mail className="mr-1 inline h-3 w-3" /> Remind me</>
-                  ) : (
-                    <><Send className="mr-1 inline h-3 w-3" /> Post directly</>
-                  )}
-                </button>
-              ))}
-            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] px-3 py-1 text-xs font-semibold text-foreground">
+              <Mail className="h-3.5 w-3.5 text-primary" />
+              Email reminder
+            </span>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{scheduledLabel}</p>
         </div>

@@ -835,38 +835,22 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   <div>
                     <p className="text-sm font-semibold">Default posting method</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Email reminders are live today. Direct posting is available only after credentials are connected and the posting worker is enabled.
+                      Email reminders are sent to your inbox when it is time to publish.
                     </p>
                   </div>
 
                   <div className="grid gap-3">
-                    {([
-                      ["email_reminder", "Email reminder", "Send the full post to your inbox when it is time to publish."],
-                      ["direct_post", "Direct post", "Use connected platform credentials for automatic publishing."],
-                    ] as const).map(([method, label, helper]) => (
-                      <button
-                        className={cn(
-                          "rounded-2xl border p-4 text-left transition-colors",
-                          postingPreference.defaultPostingMethod === method
-                            ? "border-primary/60 bg-primary/10"
-                            : "border-[var(--app-line)] bg-[var(--app-bg)]/45 hover:border-[var(--app-line-strong)]",
-                        )}
-                        disabled={postingPreferenceSaving}
-                        key={method}
-                        onClick={() => void updatePostingPreference({ defaultPostingMethod: method })}
-                        type="button"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-sm font-semibold">{label}</p>
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{helper}</p>
-                          </div>
-                          {postingPreference.defaultPostingMethod === method ? (
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                          ) : null}
+                    <div className="rounded-2xl border border-primary/60 bg-primary/10 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold">Email reminder</p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Send the full post to your inbox when it is time to publish.
+                          </p>
                         </div>
-                      </button>
-                    ))}
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      </div>
+                    </div>
                   </div>
 
                   <Field label="Timezone">
@@ -878,32 +862,6 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                       value={postingPreference.timezone}
                     />
                   </Field>
-
-                  <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-4">
-                    <div>
-                      <p className="text-sm font-semibold">Require review before direct posting</p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Keep this on to prevent accidental automatic publishing.
-                      </p>
-                    </div>
-                    <button
-                      aria-label="Require review before direct posting"
-                      className={cn(
-                        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                        postingPreference.postVerificationRequired ? "bg-primary" : "bg-muted-foreground/30",
-                      )}
-                      disabled={postingPreferenceSaving}
-                      onClick={() => void updatePostingPreference({ postVerificationRequired: !postingPreference.postVerificationRequired })}
-                      type="button"
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all",
-                          postingPreference.postVerificationRequired ? "left-[22px]" : "left-[2px]",
-                        )}
-                      />
-                    </button>
-                  </div>
                 </div>
               </div>
 
@@ -911,7 +869,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                 <div className="flex flex-col gap-1 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
                   <h2 className="text-lg font-bold font-display">Platform Credentials</h2>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    Store credentials only for platforms you want to enable later for direct posting.
+                    Store credentials for platforms you want to manage.
                   </p>
                 </div>
                 <div className="grid gap-4 p-6 lg:grid-cols-2">
