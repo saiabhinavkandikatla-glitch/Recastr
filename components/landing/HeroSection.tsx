@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export function HeroSection() {
+  const handleDemoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const demoSection = document.getElementById("demo");
+    if (demoSection) {
+      demoSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto flex min-h-[85vh] max-w-7xl flex-col items-center justify-center px-6 text-center">
@@ -23,11 +31,11 @@ export function HeroSection() {
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Button size="lg" asChild>
-            <Link href="/signup">Start Free</Link>
+            <Link href="/signup">Get Started</Link>
           </Button>
 
           <Button variant="secondary" size="lg" asChild>
-            <Link href="#demo">Watch Demo</Link>
+            <Link href="#demo" onClick={handleDemoClick}>Watch Demo</Link>
           </Button>
         </div>
 

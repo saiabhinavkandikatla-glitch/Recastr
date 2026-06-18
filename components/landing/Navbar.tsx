@@ -4,6 +4,16 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
+  const handleStartFreeClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (window.location.pathname === "/") {
+      e.preventDefault();
+      const ctaSection = document.getElementById("cta");
+      if (ctaSection) {
+        ctaSection.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-[#232323]/50 bg-[#090909]/80 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
@@ -43,7 +53,7 @@ export function Navbar() {
           </Button>
 
           <Button asChild>
-            <Link href="/signup">Start Free</Link>
+            <Link href="#cta" onClick={handleStartFreeClick}>Start Free</Link>
           </Button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function CTASection() {
   return (
-    <section className="border-t border-[#232323] py-36">
+    <section id="cta" className="border-t border-[#232323] py-36">
 
       <div className="mx-auto max-w-5xl px-6 text-center">
 
@@ -18,7 +18,7 @@ export function CTASection() {
         </p>
 
         <Button size="lg" className="mt-12" asChild>
-          <Link href="/signup">Start Free</Link>
+          <Link href="/signup">Get Started</Link>
         </Button>
 
       </div>
