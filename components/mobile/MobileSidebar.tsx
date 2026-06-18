@@ -3,7 +3,7 @@
 import { useAppStore } from "@/store/app-store";
 import { X } from "lucide-react";
 import Link from "next/link";
-import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, CreditCard, Video, Bot } from "lucide-react";
+import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Video, Bot } from "lucide-react";
 
 export function MobileSidebar() {
   const { sidebarOpen, setSidebarOpen } = useAppStore();
@@ -16,7 +16,6 @@ export function MobileSidebar() {
     { icon: BarChart3, label: "Analytics", href: "/analytics" },
     { icon: Video, label: "Media", href: "/media" },
     { icon: Bot, label: "AI Assistant", href: "/assistant" },
-    { icon: CreditCard, label: "Billing", href: "/billing" },
     { icon: Settings, label: "Settings", href: "/settings" },
   ];
 

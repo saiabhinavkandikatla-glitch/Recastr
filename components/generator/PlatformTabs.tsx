@@ -1,7 +1,6 @@
 "use client";
 
 import { useGenerator } from "./GeneratorProvider";
-import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import type { Platform } from "@/lib/types";
 
@@ -18,7 +17,7 @@ const platforms: { id: Platform; name: string }[] = [
 ];
 
 export function PlatformTabs() {
-  const { selectedPlatforms, togglePlatform, isGenerating, generate, project } = useGenerator();
+  const { selectedPlatforms, togglePlatform, isGenerating } = useGenerator();
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-6">
@@ -26,7 +25,7 @@ export function PlatformTabs() {
         <h3 className="text-lg font-semibold text-white">Output Platforms</h3>
       </div>
       
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         {platforms.map((platform) => {
           const isSelected = selectedPlatforms.includes(platform.id);
           
@@ -47,14 +46,6 @@ export function PlatformTabs() {
           );
         })}
       </div>
-
-      <Button 
-        className="w-full h-12 rounded-xl text-base font-semibold bg-white text-black hover:bg-gray-200"
-        onClick={generate}
-        disabled={isGenerating || selectedPlatforms.length === 0 || !project}
-      >
-        {!project ? "Analyze Source First" : isGenerating ? "Generating Content..." : "Generate Content"}
-      </Button>
     </div>
   );
 }

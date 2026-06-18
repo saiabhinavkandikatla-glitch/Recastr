@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, CreditCard, Video, Bot } from "lucide-react";
+import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Video, Bot } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 
@@ -16,7 +16,6 @@ const items = [
 ];
 
 const bottomItems = [
-  { icon: CreditCard, label: "Billing", href: "/billing" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 

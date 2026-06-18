@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ComponentType, type SVGProps } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Brain, Clock3, FileText, FolderOpen, Link2, MailCheck, Sparkles, Timer, Plus } from "lucide-react";
+import { ArrowRight, Clock3, FileText, FolderOpen, Sparkles, Timer, Plus } from "lucide-react";
 import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
-import { IngestFlow } from "@/components/ingest/IngestFlow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CurrentUser } from "@/lib/current-user";
@@ -69,12 +68,7 @@ export function ProjectDashboard({
     { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "None scheduled" },
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated" },
   ];
-  const pipelineSteps = [
-    { step: "1", label: "Paste a URL or text", icon: Link2 },
-    { step: "2", label: "AI extracts hooks", icon: Brain },
-    { step: "3", label: "Posts generated", icon: Sparkles },
-    { step: "4", label: "Schedule reminders", icon: MailCheck },
-  ];
+
 
   useEffect(() => {
     let ignore = false;
@@ -151,43 +145,6 @@ export function ProjectDashboard({
         </div>
       ) : null}
 
-      <section id="source-ingest" className="relative scroll-mt-24 rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6 sm:p-8">
-        <div className="relative z-10">
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--app-panel)] text-[var(--violet)]">
-                  <Zap className="h-3 w-3" />
-                </div>
-                <h2 className="text-xl font-bold font-display">Quick Ingest</h2>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Analyze a source, select hooks, then stream generated content without leaving the page.
-              </p>
-            </div>
-          </div>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            {pipelineSteps.map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.step} className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] px-3 py-1">
-                    <Icon className="h-3.5 w-3.5 text-[var(--violet)]" />
-                    <span className="text-xs text-muted-foreground">
-                      <span className="font-semibold text-[var(--violet)]">{item.step}.</span> {item.label}
-                    </span>
-                  </div>
-                  {index < pipelineSteps.length - 1 ? (
-                    <span className="text-xs text-muted-foreground/30" aria-hidden="true">&rarr;</span>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-          {/* Note: passing empty array instead of initialProjects to remove demo links inside IngestFlow */}
-          <IngestFlow />
-        </div>
-      </section>
 
       <section>
         <div className="mb-6 flex items-center justify-between">
@@ -271,10 +228,12 @@ export function ProjectDashboard({
               <Button
                 size="lg"
                 className="rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]"
-                onClick={() => document.getElementById("source-ingest")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                asChild
               >
-                <Plus className="mr-2 h-5 w-5" />
-                Paste a source above to start
+                <Link href="/generate">
+                  <Plus className="mr-2 h-5 w-5" />
+                  Create your first project
+                </Link>
               </Button>
             </div>
           </div>
@@ -306,11 +265,3 @@ function formatGeneratedCount(project: Project) {
   return count > 0 ? `Generated ${count} pieces` : "Open content pack";
 }
 
-// Icon definition for Zap missing from Lucide imports
-function Zap(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-  );
-}
