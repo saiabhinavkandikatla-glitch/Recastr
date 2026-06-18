@@ -102,13 +102,15 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
     });
 
     if (existing) {
+      const data = {
+        email: user.email,
+        plan: user.plan.toLowerCase(),
+        ...(existing.id !== user.id ? { supabaseId: user.id } : {}),
+      };
+
       return prisma.user.update({
         where: { id: existing.id },
-        data: {
-          supabaseId: user.id,
-          email: user.email,
-          plan: user.plan.toLowerCase(),
-        },
+        data,
         select: { id: true },
       });
     }
@@ -132,29 +134,48 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
 
 async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<AuthenticatedUser> {
   try {
-    const dbUser = await prisma.user.upsert({
-      where: { supabaseId: user.id },
-      update: {
-        email: user.email ?? demoUser.email,
-        name: user.user_metadata?.name,
-        avatarUrl: user.user_metadata?.avatar_url,
+    const email = user.email ?? demoUser.email;
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ supabaseId: user.id }, { email }],
       },
-      create: {
-        supabaseId: user.id,
-        email: user.email ?? demoUser.email,
-        name: user.user_metadata?.name,
-        avatarUrl: user.user_metadata?.avatar_url,
-        plan: "free",
-        platforms: [],
-      },
-      select: {
-        id: true,
-        email: true,
-        plan: true,
-        planExpiresAt: true,
-        role: true,
-      },
+      select: { id: true },
     });
+
+    const dbUser = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            supabaseId: user.id,
+            email,
+            name: user.user_metadata?.name,
+            avatarUrl: user.user_metadata?.avatar_url,
+          },
+          select: {
+            id: true,
+            email: true,
+            plan: true,
+            planExpiresAt: true,
+            role: true,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            supabaseId: user.id,
+            email,
+            name: user.user_metadata?.name,
+            avatarUrl: user.user_metadata?.avatar_url,
+            plan: "free",
+            platforms: [],
+          },
+          select: {
+            id: true,
+            email: true,
+            plan: true,
+            planExpiresAt: true,
+            role: true,
+          },
+        });
 
     return {
       id: dbUser.id,
@@ -171,6 +192,7 @@ async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<Authentica
     };
   }
 }
+
 
 function normalizePlan(value: unknown): Plan {
   const plan = String(value ?? "FREE").toUpperCase();

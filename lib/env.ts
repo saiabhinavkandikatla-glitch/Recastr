@@ -1,13 +1,20 @@
 import { z } from "zod";
 
+const preprocessEnvBool = (defaultValue: string) =>
+  z.preprocess((val) => {
+    if (typeof val !== "string") return defaultValue;
+    const stripped = val.trim().replace(/^['"]|['"]$/g, "");
+    return stripped === "" ? defaultValue : stripped;
+  }, z.string().default(defaultValue));
+
 const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   DATABASE_URL: z.string().optional(),
   DIRECT_URL: z.string().optional(),
-  RECASTR_DEMO_MODE: z.string().default("false"),
-  REQUIRE_AUTH: z.string().default("true"),
+  RECASTR_DEMO_MODE: preprocessEnvBool("false"),
+  REQUIRE_AUTH: preprocessEnvBool("true"),
   GEMINI_API_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   QSTASH_TOKEN: z.string().optional(),
@@ -34,6 +41,8 @@ const envSchema = z.object({
   TWITTER_CLIENT_SECRET: z.string().optional(),
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  REDIS_URL: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 function normalizeSupabaseUrl(value: string | undefined) {
@@ -123,6 +132,7 @@ export const env = envSchema.parse({
   TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET,
   LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID,
   LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;
@@ -135,6 +145,7 @@ export const env = envSchema.parse({
   twitterClientSecret: string | undefined;
   linkedinClientId: string | undefined;
   linkedinClientSecret: string | undefined;
+  openaiKey: string | undefined;
 };
 
 env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL);
@@ -150,6 +161,7 @@ env.twitterClientId = env.TWITTER_CLIENT_ID;
 env.twitterClientSecret = env.TWITTER_CLIENT_SECRET;
 env.linkedinClientId = env.LINKEDIN_CLIENT_ID;
 env.linkedinClientSecret = env.LINKEDIN_CLIENT_SECRET;
+env.openaiKey = env.OPENAI_API_KEY;
 
 export function isDemoMode() {
   return env.demoMode;

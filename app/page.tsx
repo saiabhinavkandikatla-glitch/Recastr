@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Recastr",
     description: "Turn one video, podcast, or blog into a 30-day social content pack.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 

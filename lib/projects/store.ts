@@ -260,7 +260,7 @@ function createFallbackProject(projectId: string): Project {
     title,
     sourceType,
     sourceUrl: projectId.startsWith("youtube-") ? "https://youtube.com" : undefined,
-    thumbnailUrl: "/og-image.svg",
+    thumbnailUrl: "/og-image.png",
     transcript: `Recovered local source for ${title}. This fallback exists so demo and locally generated projects do not break when the database is unavailable.`,
     duration: sourceType === "YOUTUBE" || sourceType === "PODCAST" ? 0 : undefined,
     wordCount: 32,

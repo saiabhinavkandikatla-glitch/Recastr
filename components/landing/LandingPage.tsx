@@ -149,15 +149,15 @@ const footerHref: Record<string, string> = {
   Workflow: "#workflow",
   Outputs: "#outputs",
   Pricing: "#pricing",
-  Changelog: "/login",
-  About: "/login",
-  Manifesto: "/login",
+  Changelog: "#",
+  About: "#",
+  Manifesto: "#",
   Careers: "mailto:hello@recastr.app",
   Press: "mailto:hello@recastr.app",
-  "Hook Library": "/login",
-  Docs: "/login",
+  "Hook Library": "#",
+  Docs: "#",
   Support: "mailto:hello@recastr.app",
-  Status: "/login",
+  Status: "https://status.vercel.com",
 };
 
 /* ─────────── FAQ ITEM ─────────── */
@@ -175,9 +175,9 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
         />
       </button>
       <div
-        className={`grid transition-all duration-300 ${open ? "grid-rows-[1fr] pb-6 opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${open ? "max-h-48 pb-6 opacity-100" : "max-h-0 opacity-0"}`}
       >
-        <div className="overflow-hidden">
+        <div>
           <p className="max-w-2xl text-sm leading-relaxed text-[var(--landing-muted)]">
             {answer}
           </p>
@@ -192,6 +192,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
    ═══════════════════════════════════════════════════════ */
 export function LandingPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   const handleScrollToPricing = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -297,7 +298,7 @@ export function LandingPage() {
 
         <div className="relative mx-auto max-w-[1200px] px-5 pb-20 pt-20 sm:px-6 sm:pb-28 sm:pt-28">
           {/* Badge */}
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[var(--landing-line)] bg-[var(--landing-panel)] px-4 py-1.5">
+          <div className="group/badge relative mb-8 inline-flex items-center gap-2 rounded-full border border-[var(--landing-line)] bg-[var(--landing-panel)] px-4 py-1.5 cursor-help">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs font-medium text-[var(--landing-muted)]">
               New
@@ -305,6 +306,10 @@ export function LandingPage() {
             <span className="text-xs font-medium text-[var(--landing-fg)]">
               Viral Hook Intelligence v2
             </span>
+            <div className="absolute left-1/2 top-full z-10 mt-2 w-72 -translate-x-1/2 rounded-xl border border-[var(--landing-line)] bg-[var(--landing-bg)] p-3 text-left text-xs leading-relaxed text-[var(--landing-muted)] opacity-0 pointer-events-none group-hover/badge:opacity-100 transition-opacity duration-200 shadow-xl">
+              <p className="font-semibold text-[var(--landing-fg)] mb-1">Viral Hook Intelligence v2</p>
+              An upgraded analysis engine that scores hooks against high-engagement formats, providing higher conversion templates with zero prompt engineering.
+            </div>
           </div>
 
           {/* Headline */}
@@ -381,11 +386,16 @@ export function LandingPage() {
           />
 
           <div className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-[var(--landing-line)] bg-[var(--landing-line)] sm:grid-cols-2 lg:grid-cols-4">
-            {workflow.map(({ step, title, body, icon: Icon }) => (
+            {workflow.map(({ step, title, body, icon: Icon }, index) => (
               <article
                 key={step}
                 className="group relative bg-[var(--landing-bg)] p-6 transition-colors hover:bg-[var(--landing-panel)]"
               >
+                {index < workflow.length - 1 && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20 hidden lg:flex h-6 w-6 items-center justify-center rounded-full border border-[var(--landing-line)] bg-[var(--landing-bg)] text-[var(--landing-accent)] shadow-sm">
+                    <ArrowRight className="h-3 w-3" />
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs font-medium text-[var(--landing-accent)]">
                     {step}
@@ -453,23 +463,61 @@ export function LandingPage() {
             title="Honest pricing. No seat tax."
           />
 
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <span className={`text-sm font-medium transition-colors ${!isAnnual ? "text-[var(--landing-fg)]" : "text-[var(--landing-muted)]"}`}>
+              Monthly billing
+            </span>
+            <button
+              onClick={() => setIsAnnual(!isAnnual)}
+              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--landing-line)] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)] focus:ring-offset-2"
+              role="switch"
+              aria-checked={isAnnual}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isAnnual ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <span className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isAnnual ? "text-[var(--landing-fg)]" : "text-[var(--landing-muted)]"}`}>
+              Annual billing
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                Save 20%
+              </span>
+            </span>
+          </div>
+
           <div className="mt-14 grid gap-4 lg:grid-cols-3">
-            {plans.map(
-              ({ name, price, period, description, features, cta, featured }) => (
+            {plans.map((p) => {
+              const price = p.name === "Creator"
+                ? (isAnnual ? "$19" : "$24")
+                : p.name === "Studio"
+                ? (isAnnual ? "$64" : "$79")
+                : p.price;
+              const period = p.name === "Creator"
+                ? (isAnnual ? "/month — billed annually" : "/month — billed monthly")
+                : p.name === "Studio"
+                ? (isAnnual ? "/month — billed annually" : "/month — for teams")
+                : p.period;
+              const href = p.cta === "Talk to us"
+                ? "mailto:hello@recastr.app?subject=Recastr%20Studio%20Plan%20Inquiry"
+                : "/signup";
+
+              return (
                 <article
-                  key={name}
+                  key={p.name}
                   className={`relative rounded-2xl border p-6 transition-colors ${
-                    featured
+                    p.featured
                       ? "border-[var(--landing-accent)]/50 bg-[var(--landing-bg)]"
                       : "border-[var(--landing-line)] bg-[var(--landing-bg)]"
                   }`}
                 >
-                  {featured && (
+                  {p.featured && (
                     <span className="absolute -top-3 left-6 rounded-full bg-[var(--landing-accent)] px-3 py-0.5 text-[11px] font-semibold text-white">
                       Recommended
                     </span>
                   )}
-                  <h3 className="text-base font-semibold">{name}</h3>
+                  <h3 className="text-base font-semibold">{p.name}</h3>
                   <div className="mt-4 flex items-baseline gap-1">
                     <span className="text-4xl font-semibold tracking-tight">
                       {price}
@@ -479,10 +527,10 @@ export function LandingPage() {
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-[var(--landing-muted)]">
-                    {description}
+                    {p.description}
                   </p>
                   <ul className="mt-8 space-y-3">
-                    {features.map((f) => (
+                    {p.features.map((f) => (
                       <li
                         key={f}
                         className="flex items-start gap-3 text-sm text-[var(--landing-muted)]"
@@ -493,18 +541,18 @@ export function LandingPage() {
                     ))}
                   </ul>
                   <a
-                    href="/signup"
+                    href={href}
                     className={`mt-8 inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold transition-all ${
-                      featured
+                      p.featured
                         ? "bg-[var(--landing-accent)] text-white hover:brightness-110"
                         : "bg-[var(--landing-panel)] text-[var(--landing-fg)] hover:bg-[var(--landing-accent)] hover:text-white"
                     }`}
                   >
-                    {cta}
+                    {p.cta}
                   </a>
                 </article>
-              )
-            )}
+              );
+            })}
           </div>
         </div>
       </section>

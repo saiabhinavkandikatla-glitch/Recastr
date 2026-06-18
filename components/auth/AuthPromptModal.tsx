@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, CheckCircle2, LogIn, Sparkles, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +23,15 @@ export function AuthPromptModal({
   onOpenChange: (open: boolean) => void;
   projectTitle?: string;
 }) {
-  const next = encodeURIComponent("/dashboard");
+  const [currentPath, setCurrentPath] = useState("/dashboard");
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentPath(window.location.pathname + window.location.search);
+    }
+  }, []);
+
+  const next = encodeURIComponent(currentPath);
 
   async function continueWithGoogle() {
     if (!hasSupabaseBrowserConfig) {

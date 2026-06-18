@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ensureUserRecord } from "@/lib/auth";
 import { err, ok } from "@/lib/api-response";
@@ -6,6 +5,7 @@ import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { checkAuthEndpointRateLimit } from "@/lib/security/auth-protection";
 import { recordSecurityEvent } from "@/lib/security/audit";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,13 @@ const signupSchema = z.object({
   email: z.string().trim().email(),
   name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
   password: z.string().min(8).max(128),
+  next: z.string().optional(),
 });
+
+function normalizeNextPath(value: string | undefined | null, fallback: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
+  return value;
+}
 
 export async function POST(request: Request) {
   try {
@@ -47,17 +53,9 @@ export async function POST(request: Request) {
       return err("Signup is temporarily unavailable.", "signup_admin_unavailable", 503);
     }
 
-    const supabase = createClient(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
+    const supabase = createSupabaseServerClient();
     const requestOrigin = getRequestOrigin(request);
+    const nextPath = normalizeNextPath(payload.next, "/onboarding");
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
@@ -66,7 +64,7 @@ export async function POST(request: Request) {
         data: {
           name: payload.name || payload.email.split("@")[0],
         },
-        emailRedirectTo: `${requestOrigin}/auth/callback?source=email&next=${encodeURIComponent("/onboarding")}`,
+        emailRedirectTo: `${requestOrigin}/auth/callback?source=email&next=${encodeURIComponent(nextPath)}`,
       },
     });
 
@@ -98,7 +96,7 @@ export async function POST(request: Request) {
     });
 
     return ok({
-      verificationRequired: true,
+      verificationRequired: !data.session,
     });
   } catch (error) {
     if (error instanceof z.ZodError) return err("Invalid request", "validation_error", 400);

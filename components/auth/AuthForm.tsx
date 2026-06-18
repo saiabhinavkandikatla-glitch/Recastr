@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Loader2, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, ShieldCheck, Sparkles, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -45,13 +45,18 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [mfaPending, setMfaPending] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const nextPath = normalizeNextPath(searchParams.get("next"), isSignup ? "/onboarding" : "/dashboard");
   const verificationPending = isSignup && searchParams.get("verify") === "pending";
   const pendingEmail = searchParams.get("email");
+
   const {
     register,
     handleSubmit,
     setError,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AuthValues>({
     resolver: zodResolver(authSchema),
@@ -63,6 +68,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       confirmPassword: "",
     },
   });
+
+  const watchedPassword = watch("password");
+  const strength = getPasswordStrength(watchedPassword || "");
 
   async function onSubmit(values: AuthValues) {
     if (!hasSupabaseBrowserConfig) {
@@ -84,7 +92,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       const signupResponse = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, next: nextPath }),
       });
       const signupPayload = (await signupResponse.json().catch(() => ({}))) as {
         data?: { verificationRequired?: boolean };
@@ -93,6 +101,13 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
       if (!signupResponse.ok && signupPayload.error?.code !== "signup_admin_unavailable") {
         toast.error(signupPayload.error?.message ?? "Could not create account");
+        return;
+      }
+
+      if (signupPayload.data?.verificationRequired === false) {
+        toast.success("Account created successfully!");
+        router.replace(nextPath);
+        router.refresh();
         return;
       }
 
@@ -114,15 +129,20 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           return;
         }
 
-        if (!data.session) {
-          toast.success("Check your inbox - confirm your email to continue.");
-          router.replace(`/signup?verify=pending&email=${encodeURIComponent(values.email)}`);
+        if (data.session) {
+          toast.success("Account created successfully!");
+          router.replace(nextPath);
+          router.refresh();
           return;
         }
+
+        toast.success("Check your inbox - confirm your email to continue.");
+        router.replace(`/signup?verify=pending&email=${encodeURIComponent(values.email)}&next=${encodeURIComponent(nextPath)}`);
+        return;
       }
 
       toast.success("Check your inbox - confirm your email to continue.");
-      router.replace(`/signup?verify=pending&email=${encodeURIComponent(values.email)}`);
+      router.replace(`/signup?verify=pending&email=${encodeURIComponent(values.email)}&next=${encodeURIComponent(nextPath)}`);
       return;
     }
 
@@ -213,7 +233,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   }
 
   if (verificationPending) {
-    return <VerifyEmailBanner email={pendingEmail ?? undefined} />;
+    return <VerifyEmailBanner email={pendingEmail ?? undefined} next={searchParams.get("next") ?? undefined} />;
   }
 
   return (
@@ -223,12 +243,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         {/* Subtle top accent line */}
         <div className="absolute left-0 right-0 top-0 h-px bg-[var(--app-line)]" />
 
-        <div className="relative z-10 flex items-center gap-2.5">
+        <Link href="/" className="relative z-10 flex items-center gap-2.5 hover:opacity-95 transition-opacity">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--violet)]">
             <Sparkles className="h-4.5 w-4.5 text-white" />
           </span>
           <span className="font-display text-base font-semibold tracking-tight">Recastr</span>
-        </div>
+        </Link>
 
         <div className="relative z-10 max-w-lg">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-violet-400 mb-5">
@@ -247,9 +267,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
           <div className="space-y-4">
             {[
-              "Generate platform-native content automatically",
-              "Smart hook intelligence to grab attention",
-              "Visual previews for all major platforms",
+              "Ingest: paste a video, podcast, or blog URL",
+              "Repurpose: extract hooks and draft platform posts",
+              "Review: edit, schedule, or export manually",
             ].map((feature, index) => (
               <div
                 key={index}
@@ -272,11 +292,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <div className="flex w-full flex-col justify-center bg-[var(--app-bg)] px-6 py-12 sm:px-12 lg:w-[48%] lg:px-16 xl:px-20">
         <div className="mx-auto w-full max-w-[400px]">
           {/* Mobile logo */}
-          <div className="mb-10 flex lg:hidden items-center justify-center gap-2.5">
+          <Link href="/" className="mb-10 flex lg:hidden items-center justify-center gap-2.5 hover:opacity-95 transition-opacity">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--violet)]">
               <Sparkles className="h-5 w-5 text-white" />
             </span>
-          </div>
+            <span className="font-display text-lg font-semibold tracking-tight">Recastr</span>
+          </Link>
 
           <div className="text-center lg:text-left mb-8">
             <h2 className="text-2xl font-semibold font-display tracking-tight mb-2">
@@ -289,6 +310,21 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
           <div className="rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6">
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                  {...register("email")}
+                />
+                {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
+              </div>
+
               {isSignup ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">
@@ -306,36 +342,65 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               ) : null}
 
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
-                  {...register("email")}
-                />
-                {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
-              </div>
-
-              <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
                   Password
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete={isSignup ? "new-password" : "current-password"}
-                  placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
-                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
-                  {...register("password", {
-                    required: "Enter your password",
-                    minLength: { value: 8, message: "Use at least 8 characters" },
-                  })}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete={isSignup ? "new-password" : "current-password"}
+                    placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
+                    className="pr-10 h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                    {...register("password", {
+                      required: "Enter your password",
+                      minLength: { value: 8, message: "Use at least 8 characters" },
+                    })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
                 {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
+
+                {isSignup && watchedPassword && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex h-1 gap-1">
+                      {[1, 2, 3, 4].map((index) => (
+                        <div
+                          key={index}
+                          className={cn(
+                            "h-full flex-1 rounded-full transition-all duration-300",
+                            index <= strength.score ? strength.color : "bg-[var(--app-line)]"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Password strength</span>
+                      <span
+                        className="font-semibold"
+                        style={{
+                          color:
+                            strength.score <= 1
+                              ? "#ef4444"
+                              : strength.score === 2
+                              ? "#f97316"
+                              : strength.score === 3
+                              ? "#eab308"
+                              : "#10b981",
+                        }}
+                      >
+                        {strength.label}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {isSignup ? (
@@ -343,14 +408,24 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   <Label htmlFor="confirmPassword" className="text-xs font-medium text-muted-foreground">
                     Confirm password
                   </Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Repeat your password"
-                    className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
-                    {...register("confirmPassword")}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="Repeat your password"
+                      className="pr-10 h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                      {...register("confirmPassword")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                    </button>
+                  </div>
                   {errors.confirmPassword ? <p className="text-xs text-red-400">{errors.confirmPassword.message}</p> : null}
                 </div>
               ) : null}
@@ -450,4 +525,22 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 function normalizeNextPath(value: string | null, fallback: string) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
   return value;
+}
+
+function getPasswordStrength(password: string): {
+  score: number;
+  label: string;
+  color: string;
+} {
+  if (!password) return { score: 0, label: "", color: "bg-transparent" };
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 1) return { score, label: "Weak", color: "bg-red-500" };
+  if (score === 2) return { score, label: "Medium", color: "bg-orange-500" };
+  if (score === 3) return { score, label: "Strong", color: "bg-yellow-500" };
+  return { score, label: "Very Strong", color: "bg-emerald-500" };
 }

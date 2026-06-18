@@ -142,7 +142,7 @@ export function Sidebar({
               >
                 <div className="relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-lg">
                   <Image
-                    src={project.thumbnailUrl ?? "/og-image.svg"}
+                    src={project.thumbnailUrl ?? "/og-image.png"}
                     alt=""
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-110"

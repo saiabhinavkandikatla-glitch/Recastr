@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     openGraph: {
       title: project?.title ?? "Recastr project",
       description: "Generated social content pack from Recastr.",
-      images: [project?.thumbnailUrl ?? "/og-image.svg"],
+      images: [project?.thumbnailUrl ?? "/og-image.png"],
     },
   };
 }
