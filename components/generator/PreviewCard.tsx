@@ -5,6 +5,13 @@ import { Copy, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Platform } from "@/lib/types";
+import { TwitterPreview } from "../preview/TwitterPreview";
+import { LinkedInPreview } from "../preview/LinkedInPreview";
+import { InstagramPreview } from "../preview/InstagramPreview";
+import { FacebookPreview } from "../preview/FacebookPreview";
+import { ThreadsPreview } from "../preview/ThreadsPreview";
+import { CarouselPreview } from "../preview/CarouselPreview";
+import { GenericPreview } from "../preview/GenericPreview";
 
 const platformNames: Record<Platform, string> = {
   TWITTER: "Twitter/X",
@@ -93,21 +100,51 @@ export function PreviewCard() {
         ) : (
           outputs
             .filter((o) => o.platform === activePreviewTab)
-            .map((output) => (
-              <div key={output.id} className="relative group rounded-xl border border-[#232323] bg-[#090909] p-6">
-                <div className="whitespace-pre-wrap text-base leading-relaxed text-[#D1D1D1]">
-                  {output.content}
+            .map((output) => {
+              let PreviewComponent;
+              switch (activePreviewTab) {
+                case "TWITTER":
+                  PreviewComponent = <TwitterPreview content={output.content as string} />;
+                  break;
+                case "LINKEDIN":
+                  PreviewComponent = <LinkedInPreview content={output.content as string} />;
+                  break;
+                case "INSTAGRAM":
+                  PreviewComponent = <InstagramPreview content={output.content as string} />;
+                  break;
+                case "FACEBOOK":
+                  PreviewComponent = <FacebookPreview content={output.content as string} />;
+                  break;
+                case "THREADS":
+                  PreviewComponent = <ThreadsPreview content={output.content as string} />;
+                  break;
+                case "CAROUSEL":
+                  PreviewComponent = <CarouselPreview content={output.content as string} />;
+                  break;
+                default:
+                  PreviewComponent = <GenericPreview content={output.content as string} platform={platformNames[activePreviewTab]} />;
+                  break;
+              }
+
+              return (
+                <div key={output.id} className="relative group w-full pt-8">
+                  <div className="absolute top-0 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      className="bg-[#151515] hover:bg-[#232323] text-white border border-[#333] rounded-full px-4"
+                      onClick={() => handleCopy(output.content as string)}
+                    >
+                      <Copy className="h-4 w-4 mr-2" /> Copy text
+                    </Button>
+                  </div>
+                  
+                  <div className="flex justify-center w-full pb-8">
+                    {PreviewComponent}
+                  </div>
                 </div>
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-[#151515] hover:bg-[#232323] text-white"
-                  onClick={() => handleCopy(output.content)}
-                >
-                  <Copy className="h-4 w-4 mr-2" /> Copy
-                </Button>
-              </div>
-            ))
+              );
+            })
         )}
       </div>
     </div>
