@@ -231,16 +231,19 @@ async function fetchYoutubeMetadata(url: string): Promise<YoutubeMetadata> {
     fetchYoutubeOembed(canonicalUrl),
     fetchYoutubeWatchPage(canonicalUrl, videoId),
   ]);
-  const title = page.title || oembed.title || (videoId ? `YouTube video ${videoId}` : "YouTube video");
+  const title =
+    preferredYoutubeTitle(oembed.title, page.title) ||
+    (videoId ? `YouTube video ${videoId}` : "YouTube video");
   const thumbnailUrl =
-    page.thumbnailUrl ||
     oembed.thumbnailUrl ||
+    page.thumbnailUrl ||
     (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined);
+  const description = cleanYoutubeDescription(page.description);
 
   return {
     title,
     thumbnailUrl,
-    description: page.description,
+    description,
     videoId,
     transcript: page.transcript,
     warning: page.warning ?? oembed.warning,
@@ -305,7 +308,7 @@ async function fetchCaptionTranscript(html: string): Promise<string | undefined>
   const track = pickCaptionTrack(tracks);
   if (!track?.baseUrl) return undefined;
 
-  const urls = [withCaptionFormat(track.baseUrl, "json3"), withCaptionFormat(track.baseUrl, "vtt"), track.baseUrl];
+  const urls = captionUrlCandidates(track);
   for (const url of urls) {
     try {
       const response = await axios.get<unknown>(url, {
@@ -324,6 +327,28 @@ async function fetchCaptionTranscript(html: string): Promise<string | undefined>
   }
 
   return undefined;
+}
+
+function captionUrlCandidates(track: CaptionTrack) {
+  if (!track.baseUrl) return [];
+
+  const urls = [
+    withCaptionFormat(track.baseUrl, "json3"),
+    withCaptionFormat(track.baseUrl, "vtt"),
+  ];
+
+  if (track.languageCode && !track.languageCode.startsWith("en")) {
+    urls.unshift(withCaptionFormat(addCaptionParam(track.baseUrl, "tlang", "en"), "json3"));
+    urls.push(withCaptionFormat(addCaptionParam(track.baseUrl, "tlang", "en"), "vtt"));
+  }
+
+  urls.push(track.baseUrl);
+  return Array.from(new Set(urls));
+}
+
+function addCaptionParam(baseUrl: string, key: string, value: string) {
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
 }
 
 function extractCaptionTracks(html: string): CaptionTrack[] {
@@ -436,6 +461,31 @@ function readJsonString(html: string, pattern: RegExp) {
   } catch {
     return normalizeText(match[1]);
   }
+}
+
+function preferredYoutubeTitle(oembedTitle?: string, pageTitle?: string) {
+  const candidates = [oembedTitle, pageTitle]
+    .map((title) => normalizeText(title))
+    .filter((title) => title && !isGenericYoutubeTitle(title));
+  return candidates[0];
+}
+
+function isGenericYoutubeTitle(title: string) {
+  const normalized = title.toLowerCase();
+  return (
+    normalized === "youtube" ||
+    normalized === "youtube video" ||
+    normalized === "1k" ||
+    normalized.includes("enjoy the videos and music you love")
+  );
+}
+
+function cleanYoutubeDescription(description?: string) {
+  const cleaned = normalizeText(description);
+  if (!cleaned) return undefined;
+  const normalized = cleaned.toLowerCase();
+  if (normalized.includes("enjoy the videos and music you love, upload original content")) return undefined;
+  return cleaned;
 }
 
 function createSummary(metadata: YoutubeMetadata): SourceSummary {
