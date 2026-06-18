@@ -10,7 +10,7 @@ export function CTASection() {
         <h2 className="text-6xl font-bold">
           Ready To Create
           <br />
-          30 Days Of Content?
+          30 Content Assets?
         </h2>
 
         <p className="mx-auto mt-8 max-w-2xl text-lg text-[#8A8A8A]">
@@ -18,7 +18,7 @@ export function CTASection() {
         </p>
 
         <Button size="lg" className="mt-12" asChild>
-          <Link href="/signup">Get Started</Link>
+          <Link href="/signup">Start Now</Link>
         </Button>
 
       </div>

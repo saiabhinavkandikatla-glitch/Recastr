@@ -121,7 +121,7 @@ It makes keeping your content sources organized simple!`;
   if (query.includes("generate") || query.includes("repurpose") || query.includes("how it works") || query.includes("how to use") || query.includes("ingest") || query.includes("site") || query.includes("platform")) {
     return `### 🚀 Getting Started with ReCastr
 
-ReCastr is an AI content engine designed to turn one source (video, article, podcast, or raw text) into a 30-day social media content pack. 
+ReCastr is an AI content engine designed to turn one source (video, article, podcast, or raw text) into 30 social media content assets. 
 
 Here is the basic workflow:
 1. **Ingest a Source:** Go to the **Generator** tab (or \`/generate\`), paste your source URL or raw text, and select your target platforms (like X, LinkedIn, Facebook, or YT Community).

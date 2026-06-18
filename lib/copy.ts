@@ -41,7 +41,7 @@ export const copy = {
   product: {
     name: "Recastr",
     tagline: "AI-powered content repurposing for founders, creators, and agencies.",
-    hero: "One video. 30 days of content.",
+    hero: "One video. 30 content assets.",
     primaryCta: "Start for free",
     secondaryCta: "Watch demo",
   },

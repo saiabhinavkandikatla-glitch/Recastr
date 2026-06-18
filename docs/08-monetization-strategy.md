@@ -4,7 +4,7 @@
 
 Recastr sells speed and content leverage:
 
-"Turn one video, podcast, or blog into 30 days of platform-ready content."
+"Turn one video, podcast, or blog into 30 platform-ready content assets."
 
 ## Plans
 

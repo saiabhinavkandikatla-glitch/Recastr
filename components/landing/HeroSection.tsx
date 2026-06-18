@@ -12,6 +12,14 @@ export function HeroSection() {
     }
   };
 
+  const handleStartFreeClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const ctaSection = document.getElementById("cta");
+    if (ctaSection) {
+      ctaSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto flex min-h-[85vh] max-w-7xl flex-col items-center justify-center px-6 text-center">
@@ -21,7 +29,7 @@ export function HeroSection() {
         </div>
 
         <h1 className="max-w-5xl text-5xl font-bold leading-tight text-white md:text-7xl">
-          Create 30 Days Of Content From One Video
+          Create 30 Content Assets From One Video
         </h1>
 
         <p className="mt-8 max-w-2xl text-lg leading-8 text-[#8A8A8A]">
@@ -31,7 +39,7 @@ export function HeroSection() {
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Button size="lg" asChild>
-            <Link href="/signup">Get Started</Link>
+            <Link href="#cta" onClick={handleStartFreeClick}>Start Now</Link>
           </Button>
 
           <Button variant="secondary" size="lg" asChild>

@@ -1,7 +1,7 @@
 # Recastr
 
 Recastr is an AI creator workflow that turns one video, podcast, or blog into
-30 days of platform-ready social content. The product now focuses on the core
+30 platform-ready social content assets. The product now focuses on the core
 loop: ingest a source, extract viral hooks, generate tweets, LinkedIn posts,
 Reel scripts, and captions, then copy or export the pack.
 

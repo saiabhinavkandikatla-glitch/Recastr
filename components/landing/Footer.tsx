@@ -10,7 +10,7 @@ export function Footer() {
           </h3>
 
           <p className="mt-3 text-[#8A8A8A]">
-            Create 30 days of content from one video.
+            Create 30 content assets from one video.
           </p>
         </div>
 

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function PricingSection() {
   const plans = [
@@ -85,8 +86,8 @@ export function PricingSection() {
 
               </div>
 
-              <Button className="mt-10 w-full">
-                Get Started
+              <Button className="mt-10 w-full" asChild>
+                <Link href="/signup">Start Now</Link>
               </Button>
 
             </div>

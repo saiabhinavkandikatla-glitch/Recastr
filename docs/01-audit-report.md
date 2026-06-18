@@ -116,7 +116,7 @@ Problems found:
 Recommended improvements:
 - Keep it as an advanced batch generation surface.
 - Make the workspace the default creation surface.
-- Add job progress polling for full 30-day generation.
+- Add job progress polling for full 30-asset generation.
 
 ### `/schedule`
 

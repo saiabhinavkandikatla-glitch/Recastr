@@ -39,7 +39,7 @@ type SettingsTab = "profile" | "team" | "posting" | "billing" | "notifications";
 const tabs: Array<{ value: SettingsTab; label: string; icon: ComponentType<{ className?: string }> }> = [
   { value: "profile", label: "Profile", icon: UserCircle },
   { value: "team", label: "Team & Workspace", icon: Users },
-  { value: "posting", label: "Posting", icon: Send },
+  { value: "posting", label: "Reminder", icon: Send },
   { value: "billing", label: "Workspace billing", icon: CreditCard },
   { value: "notifications", label: "Notifications", icon: Bell },
 ];
@@ -557,7 +557,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
               onClick={() => setActiveTab(tab.value)}
               className={cn(
                 "relative z-10 flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors sm:h-10 sm:gap-2 sm:rounded-full sm:px-5 sm:text-sm",
-                activeTab === tab.value ? "text-white" : "text-muted-foreground hover:text-foreground"
+                activeTab === tab.value ? "text-black" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {activeTab === tab.value && (
@@ -828,7 +828,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
             <div className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
               <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
                 <Send className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold font-display">Posting Workflow</h2>
+                <h2 className="text-lg font-bold font-display">Reminder Settings</h2>
               </div>
               <div className="p-6 sm:p-8 space-y-8">
                 <div>
@@ -1019,7 +1019,6 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                 {[
                   ["notifyContentReady", "Email when content is ready", "Send an email after an analysis or generation job finishes."],
                   ["notifyWeeklyDigest", "Weekly digest email", "Summarize usage, exports, and scheduled content every week."],
-                  ["notifyScheduleReminder", "Schedule reminder", "Remind me before a scheduled post goes out."],
                   ["notifyMarketing", "Marketing emails", "Occasional product updates and growth playbooks."],
                 ].map(([key, label, helper]) => {
                   const prefKey = key as keyof NotificationPreferences;

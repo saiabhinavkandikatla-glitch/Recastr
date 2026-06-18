@@ -36,7 +36,7 @@ export function WorkflowSection() {
           </p>
 
           <h2 className="mt-6 text-5xl font-bold">
-            From One Video To 30 Days Of Content
+            From One Video To 30 Content Assets
           </h2>
         </div>
 

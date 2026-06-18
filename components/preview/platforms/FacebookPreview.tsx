@@ -112,7 +112,7 @@ function FacebookLinkCard({ content, dark }: { content: PreviewContent; dark: bo
       </div>
       <div className={cn("p-3", dark ? "bg-[#3a3b3c]" : "bg-[#f0f2f5]")}>
         <p className="text-[12px] uppercase text-[#65676b] dark:text-[#b0b3b8]">recastr.app</p>
-        <p className="mt-1 text-[16px] font-semibold leading-5">{content.hook || "Turn one source into 30 days of content"}</p>
+        <p className="mt-1 text-[16px] font-semibold leading-5">{content.hook || "Turn one source into 30 content assets"}</p>
         <p className="mt-1 line-clamp-2 text-[13px] text-[#65676b] dark:text-[#b0b3b8]">{content.primaryText}</p>
       </div>
     </div>

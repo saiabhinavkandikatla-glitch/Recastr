@@ -37,7 +37,7 @@ Typography:
 
 Required sections:
 - Sticky navbar
-- Hero: "One video. 30 days of content."
+- Hero: "One video. 30 content assets."
 - Problem statement
 - How it works
 - Viral Hook Intelligence

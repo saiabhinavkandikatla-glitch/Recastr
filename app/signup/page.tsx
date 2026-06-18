@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Recastr — Create an account",
-  description: "Create an account to start turning one recording into 30 days of platform-native content.",
+  description: "Create an account to start turning one recording into 30 platform-native content assets.",
 };
 
 export default function SignupPage() {

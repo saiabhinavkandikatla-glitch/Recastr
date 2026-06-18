@@ -256,10 +256,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           </p>
           <h1
             className="text-4xl font-display font-semibold leading-tight tracking-tight mb-5"
-            aria-label="Turn one recording into 30 days of content."
+            aria-label="Turn one recording into 30 content assets."
           >
             Turn one recording into{" "}<br />
-            30 days of content.
+            30 content assets.
           </h1>
           <p className="mb-10 text-base leading-relaxed text-muted-foreground">
             Turn podcasts, videos, and articles into editable drafts you can review, schedule, and post manually.
