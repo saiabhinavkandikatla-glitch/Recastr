@@ -13,8 +13,10 @@ export async function POST(request: Request) {
     const user = await getRequestUser(request);
     await requireCredits(user);
     const payload = ingestYoutubeSchema.parse(await request.json());
+    console.log("[api:ingest:youtube] Request url:", payload.url);
     await assertCanCreateProject(user, "YOUTUBE");
     const project = await ingestYoutube(payload.url);
+    console.log("[api:ingest:youtube] Success projectId:", project.id, "transcript chars:", project.transcript?.length ?? 0);
     await trackServerEvent("source_ingested", {
       userId: user.id,
       projectId: project.id,
@@ -35,13 +37,14 @@ export async function POST(request: Request) {
     if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
+    console.error("[api:ingest:youtube] Unhandled error:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "video_unavailable",
         code: "video_unavailable",
-        fallback: "paste_text",
       },
       { status: 400 },
     );
   }
 }
+

@@ -114,16 +114,27 @@ export async function generatePlatformOutputs({
   }
 
   let summary = providedSummary;
+  let transcript: string | undefined;
+
   if (!summary) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      select: { summary: true },
+      select: { summary: true, transcript: true },
     });
+
+    console.log("[generate] transcript length:", project?.transcript?.length ?? 0);
+    console.log("[generate] summary present:", Boolean(project?.summary));
+
+    if (project?.transcript) {
+      transcript = project.transcript;
+    }
+
     if (project?.summary) {
       try {
         summary = summarySchema.parse(project.summary);
+        console.log("[generate] summary.tldr:", summary.tldr);
       } catch {
-        // Ignore
+        console.warn("[generate] Failed to parse project summary — will generate without it.");
       }
     }
   }
@@ -134,6 +145,9 @@ export async function generatePlatformOutputs({
   const completions = await Promise.all(
     platforms.map(async (platform) => {
       try {
+        const promptParts = buildGenerationPromptParts({ transcript, summary, platform, tone });
+        console.log(`[generate:${platform}] Prompt transcript chars: ${promptParts.transcriptChars}, tldr: ${promptParts.tldr}`);
+
         const response = await gemini.models.generateContent({
           model: "gemini-2.5-flash",
           contents: [
@@ -141,7 +155,7 @@ export async function generatePlatformOutputs({
               role: "user",
               parts: [
                 {
-                  text: `You are a social media ghostwriter. Return a JSON object exactly like: {"content": "the post body", "hook_score": 8, "estimated_engagement": "High", "platform_tips": ["tip1"]}\n\nPlatform: ${platform}\nTone: ${tone}\nTopic: ${summary?.tldr ?? "Content repurposing"}\n\nTask: ${platformPrompt[platform]}\nReturn valid JSON.`,
+                  text: promptParts.text,
                 },
               ],
             },
@@ -205,9 +219,73 @@ function createFallbackOutput(
   };
 }
 
+/**
+ * Builds a grounded generation prompt that includes the full source transcript.
+ * Returns the prompt text, the number of transcript chars included, and the tldr for logging.
+ */
+function buildGenerationPromptParts({
+  transcript,
+  summary,
+  platform,
+  tone,
+}: {
+  transcript: string | undefined;
+  summary: import("@/lib/types").SourceSummary | undefined;
+  platform: Platform;
+  tone: Tone | string;
+}): { text: string; transcriptChars: number; tldr: string } {
+  const tldr = summary?.tldr ?? "";
+  const hooks = summary?.hooks?.slice(0, 5).join("\n- ") ?? "";
+  const takeaways = summary?.takeaways?.join("\n- ") ?? "";
+  const topics = summary?.topics?.join(", ") ?? "";
+  const audience = summary?.targetAudience ?? "general audience";
+
+  // Truncate transcript to ~6000 words to stay within token budget
+  const truncatedTranscript = transcript
+    ? truncateWords(transcript, 6000)
+    : "";
+
+  const transcriptSection = truncatedTranscript
+    ? `SOURCE TRANSCRIPT:\n${truncatedTranscript}`
+    : "SOURCE TRANSCRIPT: [Not available — generate only if you have enough context from the summary below]";
+
+  const summarySection = tldr
+    ? [
+        `SUMMARY: ${tldr}`,
+        hooks ? `KEY HOOKS FROM SOURCE:\n- ${hooks}` : "",
+        takeaways ? `KEY TAKEAWAYS FROM SOURCE:\n- ${takeaways}` : "",
+        topics ? `TOPICS: ${topics}` : "",
+        `TARGET AUDIENCE: ${audience}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    : "";
+
+  const text = [
+    "You are a social media ghostwriter. Your job is to write platform-native content that is GROUNDED EXCLUSIVELY in the provided source transcript. Do NOT invent facts, quotes, statistics, or topics that are not present in the source material.",
+    "",
+    transcriptSection,
+    "",
+    summarySection,
+    "",
+    `PLATFORM: ${platform}`,
+    `TONE: ${tone}`,
+    "",
+    `TASK: ${platformPrompt[platform]}`,
+    "",
+    'Return a JSON object exactly like: {"content": "the post body", "hook_score": 8, "estimated_engagement": "High", "platform_tips": ["tip1"]}',
+    "The content field must directly reference ideas, arguments, or moments from the transcript. Return valid JSON only.",
+  ]
+    .filter((line) => line !== undefined)
+    .join("\n");
+
+  return { text, transcriptChars: truncatedTranscript.length, tldr };
+}
+
 function truncateWords(value: string, words: number) {
   return value.split(/\s+/).slice(0, words).join(" ");
 }
+
 
 function normalizeGeneratedContent(platform: Platform, content: unknown) {
   if (typeof content === "string") return normalizePlatformCopy(platform, content);
