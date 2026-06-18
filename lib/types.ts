@@ -11,7 +11,9 @@ export type Platform =
   | "YOUTUBE"
   | "CAROUSEL"
   | "COMMUNITY"
-  | "STORY";
+  | "STORY"
+  | "HOOKS"
+  | "CTA";
 
 export type PostStatus =
   | "DRAFT"

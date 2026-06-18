@@ -5,6 +5,7 @@ import { SourceCard } from "./SourceCard";
 import { PlatformTabs } from "./PlatformTabs";
 import { PreviewCard } from "./PreviewCard";
 import { ActionBar } from "./ActionBar";
+import { ToneSelector } from "./ToneSelector";
 import { GenerationTimeline } from "./GenerationTimeline";
 import { GeneratorProvider } from "./GeneratorProvider";
 
@@ -15,6 +16,7 @@ export function GeneratorWorkspace({ project }: { project: Project | null }) {
         {/* Left Column: Input & Configuration */}
         <div className="flex w-full lg:w-[400px] flex-col gap-6 overflow-y-auto pr-2 scrollbar-thin">
           <SourceCard />
+          <ToneSelector />
           <PlatformTabs />
           <GenerationTimeline />
         </div>

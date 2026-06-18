@@ -54,6 +54,8 @@ const platformLabels: Record<Platform, string> = {
   CAROUSEL: "Carousel",
   COMMUNITY: "Community",
   STORY: "Story",
+  HOOKS: "10 Hooks",
+  CTA: "Call to Action",
 };
 
 const bannedPhrases = [
@@ -305,7 +307,15 @@ function basePrompt(brief: ContentBrief, tone: Tone | string) {
     `Hook angle: ${brief.emotional_hook}`,
     `Audience: ${brief.audience}`,
     `Transformation: ${brief.transformation.before} -> ${brief.transformation.after}`,
-    `Tone: ${tone || brief.tone}`,
+    `Tone/Rewrite Mode: ${tone || brief.tone}`,
+    "REWRITE MODE INSTRUCTION:",
+    "If Tone/Rewrite Mode is Professional: Sound like a senior executive on LinkedIn.",
+    "If Tone/Rewrite Mode is Casual: Write like a quick text to a smart friend.",
+    "If Tone/Rewrite Mode is Storytelling: Start with a narrative hook and focus on personal transformation.",
+    "If Tone/Rewrite Mode is Viral: Use polarizing, high-curiosity hooks and extremely short sentences.",
+    "If Tone/Rewrite Mode is Educational: Focus purely on teaching, frameworks, and step-by-step logic.",
+    "If Tone/Rewrite Mode is Founder: Sound like an indie hacker building in public, transparent about numbers and failures.",
+    "If Tone/Rewrite Mode is Personal Brand: Use 'I' statements, vulnerability, and authoritative thought leadership.",
     `Strongest quote: ${brief.strongest_quote}`,
   ].join("\n");
 }
@@ -360,10 +370,12 @@ function platformInstruction(platform: Platform) {
     case "CAROUSEL":
       return [
         "CAROUSEL RULES:",
-        "- 7 slides strictly separated by '---'.",
+        "- STRICTLY Generate exactly 10 slides.",
+        "- They must be separated by '---'.",
         "- Format each slide exactly as: Slide N Headline\\n\\nSlide N Body",
-        "- Do not include the word 'Slide 1:', just write the actual text.",
-        "- Cover, 5 value slides, CTA slide.",
+        "- Slide 1 MUST be a Cover Hook.",
+        "- Slides 2-9 MUST be the core educational content or steps.",
+        "- Slide 10 MUST be a Call to Action (CTA).",
       ].join("\n");
     case "COMMUNITY":
       return [
@@ -378,6 +390,25 @@ function platformInstruction(platform: Platform) {
         "- 5 story frames.",
         "- Format each as Frame N: text | visual direction.",
         "- Include one interaction sticker prompt.",
+      ].join("\n");
+    case "HOOKS":
+      return [
+        "HOOKS GENERATOR RULES:",
+        "- Generate exactly 10 viral hooks based on the brief.",
+        "- Separate each hook by '---'.",
+        "- Generate a mix of: Curiosity gap, Contrarian, Question, and Personal Story hooks.",
+        "- Do not number them. Do not write 'Hook 1:'. Just the raw hook text.",
+      ].join("\n");
+    case "CTA":
+      return [
+        "CALL TO ACTION GENERATOR RULES:",
+        "- Generate exactly 4 distinct CTAs.",
+        "- Separate each CTA by '---'.",
+        "- 1x Engagement CTA (asking for comments/likes)",
+        "- 1x Lead CTA (lead magnet / free resource)",
+        "- 1x Sales CTA (booking a call or buying)",
+        "- 1x Newsletter CTA (subscribe to list)",
+        "- Do not label them. Just write the raw text.",
       ].join("\n");
   }
 }
@@ -520,6 +551,28 @@ function fallbackPostForPlatform(platform: Platform, brief: ContentBrief) {
         `Frame 3: ${brief.core_insight} | Show the shift.`,
         `Frame 4: ${brief.supporting_points[0]} | Add a simple visual.`,
         "Frame 5: Save this | Add a poll sticker.",
+      ].join("\n");
+    case "HOOKS":
+      return [
+        brief.emotional_hook,
+        "---",
+        "Most people get this completely wrong.",
+        "---",
+        "Why the old way is dead.",
+        "---",
+        "I spent 100 hours learning this so you don't have to.",
+        "---",
+        "Unpopular opinion: " + brief.core_insight,
+      ].join("\n");
+    case "CTA":
+      return [
+        "What do you think? Let me know below.",
+        "---",
+        "DM me 'SYSTEM' and I'll send you the free guide.",
+        "---",
+        "Link in my bio to book a 1-on-1 strategy call.",
+        "---",
+        "Subscribe to my newsletter for weekly breakdowns like this.",
       ].join("\n");
   }
 }
