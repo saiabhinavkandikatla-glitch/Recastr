@@ -107,11 +107,13 @@ export async function generatePlatformOutputs({
   platforms,
   tone,
   summary: providedSummary,
+  isRegeneration,
 }: {
   projectId: string;
   platforms: Platform[];
   tone: Tone | string;
   summary?: SourceSummary;
+  isRegeneration?: boolean;
 }): Promise<SocialOutput[]> {
   const source = await loadProjectSource(projectId, providedSummary);
   const brief = env.geminiKey
@@ -121,7 +123,7 @@ export async function generatePlatformOutputs({
   const outputs = await Promise.all(
     platforms.map(async (platform) => {
       const content = env.geminiKey
-        ? await generatePlatformPost({ brief, platform, tone }).catch(() => fallbackPostForPlatform(platform, brief))
+        ? await generatePlatformPost({ brief, platform, tone, isRegeneration }).catch(() => fallbackPostForPlatform(platform, brief))
         : fallbackPostForPlatform(platform, brief);
       const normalizedContent = platform === "TWITTER" ? content : normalizePlatformCopy(platform, content);
 
@@ -222,10 +224,12 @@ async function generatePlatformPost({
   brief,
   platform,
   tone,
+  isRegeneration,
 }: {
   brief: ContentBrief;
   platform: Platform;
   tone: Tone | string;
+  isRegeneration?: boolean;
 }) {
   const gemini = getGeminiClient();
   if (!gemini) return fallbackPostForPlatform(platform, brief);
@@ -234,9 +238,9 @@ async function generatePlatformPost({
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const response = await gemini.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: platformPrompt({ brief, platform, tone, retryErrors }) }] }],
+      contents: [{ role: "user", parts: [{ text: platformPrompt({ brief, platform, tone, retryErrors, isRegeneration }) }] }],
       config: {
-        temperature: 0.65,
+        temperature: 0.85,
         responseMimeType: "application/json",
       },
     });
@@ -255,19 +259,25 @@ function platformPrompt({
   platform,
   tone,
   retryErrors,
+  isRegeneration,
 }: {
   brief: ContentBrief;
   platform: Platform;
   tone: Tone | string;
   retryErrors: string[];
+  isRegeneration?: boolean;
 }) {
   const retryInstruction = retryErrors.length
     ? `\nPrevious draft failed validation: ${retryErrors.join("; ")}. Rewrite it now.`
+    : "";
+  const extraInstruction = isRegeneration
+    ? "\nCRITICAL: This is a regeneration request. You MUST use completely different hooks, different sentence structures, and focus on a different angle than a standard response."
     : "";
   return [
     basePrompt(brief, tone),
     platformInstruction(platform),
     retryInstruction,
+    extraInstruction,
     "",
     "BANNED: Do not explain what you are doing. Do not describe the post. Do not use meta-commentary. Write the final post itself.",
     'Return ONLY JSON exactly like: {"content":"final post text here"}',

@@ -80,6 +80,7 @@ export const generatePostSchema = z.object({
   contentTypes: z.array(z.string().min(1)).default(["tweet", "linkedin", "reel", "caption"]),
   tone: z.enum(["professional", "casual", "educational", "entertaining"]).default("casual"),
   hookId: z.string().optional(),
+  isRegeneration: z.boolean().default(false),
 });
 
 export const toneSchema = z.object({

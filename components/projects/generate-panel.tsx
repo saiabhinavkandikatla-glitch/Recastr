@@ -29,8 +29,11 @@ export function GeneratePanel({ project }: { project: Project }) {
   const [wordCount, setWordCount] = useState(160);
   const [stream, setStream] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   async function generate() {
+    const isRegen = hasGenerated;
+    setHasGenerated(true);
     setIsGenerating(true);
     setStream("");
     const response = await fetch("/api/generate", {
@@ -41,6 +44,7 @@ export function GeneratePanel({ project }: { project: Project }) {
         platforms,
         contentTypes,
         tone,
+        isRegeneration: isRegen,
       }),
     });
     if (!response.ok) {

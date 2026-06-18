@@ -18,6 +18,7 @@ import type { Platform, Tone } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 const allPlatforms: Platform[] = [
   "TWITTER",
@@ -43,8 +44,9 @@ export async function GET(request: Request) {
       ? parsePlatforms(url.searchParams.get("platforms"))
       : PLAN_RULES[user.plan].outputPlatforms;
     const tone = (url.searchParams.get("tone") ?? "Professional") as Tone;
+    const isRegeneration = url.searchParams.get("isRegeneration") === "true";
     await assertCanGenerateContent(user, platforms);
-    const outputs = await generatePlatformOutputs({ projectId, platforms, tone });
+    const outputs = await generatePlatformOutputs({ projectId, platforms, tone, isRegeneration });
     await recordGeneratedContentUsage({
       userId: user.id,
       count: outputs.length,
@@ -131,6 +133,7 @@ export async function POST(request: Request) {
       projectId: payload.projectId,
       platforms: payload.platforms,
       tone: payload.tone,
+      isRegeneration: payload.isRegeneration,
     });
     await recordGeneratedContentUsage({
       userId: user.id,

@@ -114,7 +114,7 @@ export function OutputTabs({
     setGeneratingPlatform(activePlatform);
     try {
       const response = await fetch(
-        `/api/generate?projectId=${encodeURIComponent(project.id)}&platforms=${activePlatform}&tone=${encodeURIComponent(activeTone)}`,
+        `/api/generate?projectId=${encodeURIComponent(project.id)}&platforms=${activePlatform}&tone=${encodeURIComponent(activeTone)}&isRegeneration=true`,
       );
 
       if (!response.body) throw new Error("stream_unavailable");
