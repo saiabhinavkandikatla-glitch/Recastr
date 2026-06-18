@@ -4,7 +4,6 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
 import { EmailVerifiedSuccess } from "@/components/auth/EmailVerifiedSuccess";
-import { CreditUpgradeModal } from "@/components/billing/CreditUpgradeModal";
 import { ScheduledNotificationHeartbeat } from "@/components/layout/ScheduledNotificationHeartbeat";
 import type { CurrentUser } from "@/lib/current-user";
 import type { Project } from "@/lib/types";
@@ -33,7 +32,6 @@ export function AppShell({
           </div>
         </main>
       </div>
-      <CreditUpgradeModal />
       <EmailVerifiedSuccess />
       <ScheduledNotificationHeartbeat enabled={Boolean(user)} />
     </div>
