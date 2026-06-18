@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestUser } from "@/lib/auth";
+import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { ingestYoutube } from "@/lib/ingest";
 import { ingestYoutubeSchema } from "@/lib/ai/schemas";
 import { trackServerEvent } from "@/lib/analytics";
@@ -15,7 +15,9 @@ export async function POST(request: Request) {
     const payload = ingestYoutubeSchema.parse(await request.json());
     console.log("[api:ingest:youtube] Request url:", payload.url);
     await assertCanCreateProject(user, "YOUTUBE");
-    const project = await ingestYoutube(payload.url);
+    // Ensure a DB user row exists before creating a project row (FK constraint)
+    await ensureUserRecord(user);
+    const project = await ingestYoutube(payload.url, user.id);
     console.log("[api:ingest:youtube] Success projectId:", project.id, "transcript chars:", project.transcript?.length ?? 0);
     await trackServerEvent("source_ingested", {
       userId: user.id,

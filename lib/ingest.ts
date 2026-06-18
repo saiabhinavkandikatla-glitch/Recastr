@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import { YoutubeTranscript } from "youtube-transcript";
 import { summarizeTranscript } from "@/lib/ai/service";
+import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
@@ -84,7 +85,7 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string> {
   return transcript;
 }
 
-export async function ingestYoutube(url: string): Promise<Project> {
+export async function ingestYoutube(url: string, userId: string): Promise<Project> {
   if (process.env.RECASTR_DEMO_MODE === "true") {
     return getStoredProject("demo-ai-youtube")!;
   }
@@ -103,7 +104,7 @@ export async function ingestYoutube(url: string): Promise<Project> {
     );
   }
 
-  // Step 2: Fetch transcript (throws on failure — no fallback)
+  // Step 2: Fetch transcript — throws on failure, no fallback
   const transcript = await fetchYouTubeTranscript(videoId);
 
   // Step 3: Summarize transcript via Gemini
@@ -111,17 +112,64 @@ export async function ingestYoutube(url: string): Promise<Project> {
   const summary = await summarizeTranscript(transcript);
   console.log("[ingest:youtube] Summary tldr:", summary.tldr);
 
-  // Step 4: Build the project from real source data
-  const projectId = `youtube-${hash(videoId).slice(0, 10)}`;
+  const title = summary.tldr.slice(0, 120) || "Imported YouTube Video";
+  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
   const wordCount = transcript.split(/\s+/).filter(Boolean).length;
 
+  // Step 4: Persist to Postgres so the project survives across serverless Lambda instances
+  let dbProject: { id: string } | null = null;
+  try {
+    dbProject = await prisma.project.create({
+      data: {
+        userId,
+        title,
+        sourceType: "youtube",
+        sourceUrl: url,
+        thumbnailUrl,
+        transcript,
+        summary: summary as object,
+        wordCount,
+      },
+      select: { id: true },
+    });
+    console.log("[ingest:youtube] Persisted project to DB:", dbProject.id);
+
+    // Persist hooks derived from the summary
+    if (summary.hooks.length > 0) {
+      await prisma.hook.createMany({
+        data: summary.hooks.map((text, index) => ({
+          projectId: dbProject!.id,
+          text,
+          hookType: (
+            ["Curiosity gap", "Data", "Story", "Controversy", "Question",
+             "Contrast", "Bold claim", "How-to", "Warning", "Result"] as const
+          )[index] ?? "Curiosity gap",
+          reachScore: Math.max(60, 95 - index * 3),
+        })),
+      });
+      console.log("[ingest:youtube] Persisted", summary.hooks.length, "hooks to DB");
+    }
+  } catch (dbError) {
+    // Log the failure but do NOT silently swallow — surface it
+    console.error("[ingest:youtube] DB write failed:", dbError);
+    throw new Response(
+      JSON.stringify({
+        error: "Failed to save project. Please check database connectivity.",
+        code: "db_write_failed",
+      }),
+      { status: 500 },
+    );
+  }
+
+  // Step 5: Build the in-memory project (same-request cache + client response)
+  const projectId = dbProject.id;
   const project: Project = {
     id: projectId,
-    userId: "local-user",
-    title: summary.tldr.slice(0, 120) || "Imported YouTube Video",
+    userId,
+    title,
     sourceType: "YOUTUBE",
     sourceUrl: url,
-    thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    thumbnailUrl,
     transcript,
     summary,
     duration: 0,
@@ -130,7 +178,10 @@ export async function ingestYoutube(url: string): Promise<Project> {
       id: `${projectId}-hook-${index + 1}`,
       projectId,
       text,
-      hookType: ["Curiosity gap", "Data", "Story", "Controversy", "Question", "Contrast", "Bold claim", "How-to", "Warning", "Result"][index] ?? "Curiosity gap",
+      hookType: (
+        ["Curiosity gap", "Data", "Story", "Controversy", "Question",
+         "Contrast", "Bold claim", "How-to", "Warning", "Result"] as const
+      )[index] ?? "Curiosity gap",
       reachScore: Math.max(60, 95 - index * 3),
     })),
     contents: [],
