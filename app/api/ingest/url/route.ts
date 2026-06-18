@@ -516,7 +516,7 @@ function createSummary(metadata: YoutubeMetadata): SourceSummary {
       `A source like "${metadata.title}" should become a content system, not a single link.`,
     ],
     detectedTone: "educational",
-    topics: uniqueList([topic, ...tags, "YouTube repurposing"]).slice(0, 5),
+    topics: uniqueList([topic, ...tags, "YouTube repurposing", "repurposing", "content creator"]).slice(0, 5),
     targetAudience: "Creators, learners, founders, and content teams",
   };
 }

@@ -575,7 +575,16 @@ function briefFromSummary(summary?: SourceSummary, transcript = ""): ContentBrie
 }
 
 function createFallbackBriefFromTranscript(transcript: string): ContentBrief {
-  const firstLine = cleanupPost(transcript.split(/\n+/).find((line) => line.trim().length > 20) ?? fallbackBrief.core_insight);
+  const lines = transcript.split(/\n+/).map((line) => line.trim());
+  const validLines = lines.filter(
+    (line) =>
+      line.length > 20 &&
+      !line.startsWith("Source URL:") &&
+      !line.startsWith("Video description:") &&
+      !line.startsWith("Recastr imported") &&
+      !line.startsWith("Full transcript extraction")
+  );
+  const firstLine = cleanupPost(validLines[0] ?? fallbackBrief.core_insight);
   return {
     ...fallbackBrief,
     core_insight: firstLine.slice(0, 240),

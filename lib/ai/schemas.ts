@@ -11,8 +11,8 @@ export const generatedArraySchema = z.array(generatedItemSchema);
 
 export const summarySchema = z.object({
   tldr: z.string(),
-  takeaways: z.array(z.string()).length(5),
-  hooks: z.array(z.string()).length(10),
+  takeaways: z.array(z.string()).min(1),
+  hooks: z.array(z.string()).min(1),
   detectedTone: z.enum([
     "educational",
     "motivational",
@@ -20,7 +20,7 @@ export const summarySchema = z.object({
     "storytelling",
     "news",
   ]),
-  topics: z.array(z.string()).min(3).max(5),
+  topics: z.array(z.string()).min(1),
   targetAudience: z.string(),
 });
 

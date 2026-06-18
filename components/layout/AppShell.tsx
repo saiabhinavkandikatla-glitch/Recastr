@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
 import { EmailVerifiedSuccess } from "@/components/auth/EmailVerifiedSuccess";
 import { ScheduledNotificationHeartbeat } from "@/components/layout/ScheduledNotificationHeartbeat";
+import { RealtimeNotifications } from "./RealtimeNotifications";
 import type { CurrentUser } from "@/lib/current-user";
 import type { Project } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export function AppShell({
       </div>
       <EmailVerifiedSuccess />
       <ScheduledNotificationHeartbeat enabled={Boolean(user)} />
+      <RealtimeNotifications />
     </div>
   );
 }

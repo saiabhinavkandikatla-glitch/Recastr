@@ -80,30 +80,7 @@ export function TopBar({
         </div>
       </div>
 
-      <div className="hidden items-center xl:flex">
-        <button
-          onClick={onOpenCommandPalette}
-          className="group flex h-9 w-[280px] shrink-0 items-center gap-2 overflow-hidden rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] px-3 text-sm text-[var(--app-muted)] transition-colors duration-150 hover:border-[var(--app-line-strong)] hover:text-[var(--app-text)]"
-        >
-          <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-primary" />
-          <span className="flex-1 text-left">Search or jump to...</span>
-          <kbd className="inline-flex h-5 items-center rounded border border-[var(--app-line)] bg-[var(--app-panel)] px-1.5 font-mono text-[10px] font-medium">
-            Ctrl K
-          </kbd>
-        </button>
-      </div>
-
       <div className="flex items-center gap-2 lg:gap-3">
-        <Button
-          aria-label="Notifications"
-          size="icon"
-          variant="ghost"
-          className="relative h-9 w-9 rounded-full hover:bg-[var(--app-panel)]"
-        >
-          <Bell className="h-[18px] w-[18px] text-[var(--app-muted)] transition-colors hover:text-[var(--app-text)]" />
-          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-[var(--violet)] ring-2 ring-[var(--app-bg)]" />
-        </Button>
-
         <div className="hidden sm:block">
           <ThemeToggle />
         </div>

@@ -11,9 +11,6 @@ export function TopNavbar() {
         <Breadcrumbs />
       </div>
       <div className="flex items-center gap-4">
-        <div className="hidden sm:block w-64">
-          <SearchBar />
-        </div>
         <UserMenu />
       </div>
     </header>
