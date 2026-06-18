@@ -113,6 +113,11 @@
     }
   }
 
+  button, [role="button"], a {
+    @apply transition-transform duration-200 active:scale-[0.98];
+  }
+
+
   body {
     background: #090909;
     color: white;

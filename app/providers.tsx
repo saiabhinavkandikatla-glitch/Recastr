@@ -5,7 +5,6 @@ import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { PostHogPageView } from "@/components/analytics/PostHogPageView";
-import { PageTransition } from "@/components/layout/PageTransition";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +13,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <Suspense fallback={null}>
           <PostHogPageView />
         </Suspense>
-        <PageTransition>{children}</PageTransition>
+        {children}
         <Toaster richColors position="top-right" />
       </QueryProvider>
     </ThemeProvider>
