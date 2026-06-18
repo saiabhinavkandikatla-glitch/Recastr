@@ -7,9 +7,9 @@ export function GenerationTimeline() {
   const { progress } = useGenerator();
 
   return (
-    <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-6">
-      <h3 className="text-sm font-medium text-white mb-6">Pipeline Progress</h3>
-      <div className="space-y-6">
+    <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5">
+      <h3 className="text-base font-semibold text-white mb-4">Pipeline Progress</h3>
+      <div className="space-y-5">
         {/* Step 1: Extract */}
         <div className="relative flex gap-4">
           <div className="absolute left-[11px] top-8 h-full w-px -translate-x-1/2 bg-[#232323]" />
