@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, CheckCircle2, KeyRound, Loader2, Sparkles } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { ArrowRight, CheckCircle2, KeyRound, Loader2 } from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { PasswordField } from "@/components/PasswordField";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const createPasswordSchema = z
   .object({
@@ -40,6 +40,7 @@ export function CreatePasswordForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreatePasswordValues>({
     resolver: zodResolver(createPasswordSchema),
@@ -97,12 +98,18 @@ export function CreatePasswordForm() {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--app-bg)] px-6 py-12 text-foreground">
       <section className="w-full max-w-lg overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8">
+        <div className="mb-6 flex justify-center">
+          <Logo
+            size="lg"
+            className="text-foreground [&_rect]:fill-foreground [&_circle]:fill-[var(--app-bg)] [&_path]:stroke-[var(--app-bg)]"
+          />
+        </div>
+
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           {verified ? <CheckCircle2 className="h-7 w-7" /> : <KeyRound className="h-7 w-7" />}
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-          <Sparkles className="h-4 w-4" />
+        <div className="mt-6 text-center text-sm font-semibold uppercase tracking-[0.2em] text-primary">
           {isChangeMode ? "Verified password change" : verified ? "Email verified" : "Secure setup"}
         </div>
 
@@ -147,35 +154,38 @@ export function CreatePasswordForm() {
 
         {sessionState === "ready" ? (
           <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                New password
-              </Label>
-              <Input
-                autoComplete="new-password"
-                className="h-12 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 focus-visible:ring-primary/50"
-                id="password"
-                placeholder="At least 8 characters"
-                type="password"
-                {...register("password")}
-              />
-              {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
-            </div>
+            <Controller
+              name="password"
+              control={control}
+              render={({ field }) => (
+                <PasswordField
+                  id="password"
+                  label="New password"
+                  value={field.value}
+                  onChange={field.onChange}
+                  showStrength
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  error={errors.password?.message}
+                />
+              )}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Confirm password
-              </Label>
-              <Input
-                autoComplete="new-password"
-                className="h-12 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 focus-visible:ring-primary/50"
-                id="confirmPassword"
-                placeholder="Repeat your password"
-                type="password"
-                {...register("confirmPassword")}
-              />
-              {errors.confirmPassword ? <p className="text-xs text-red-400">{errors.confirmPassword.message}</p> : null}
-            </div>
+            <Controller
+              name="confirmPassword"
+              control={control}
+              render={({ field }) => (
+                <PasswordField
+                  id="confirmPassword"
+                  label="Confirm password"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Repeat your password"
+                  autoComplete="new-password"
+                  error={errors.confirmPassword?.message}
+                />
+              )}
+            />
 
             <Button
               className="h-12 w-full rounded-full bg-[var(--violet)] text-base font-bold text-black hover:bg-[var(--violet-hover)]"

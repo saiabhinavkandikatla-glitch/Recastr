@@ -8,7 +8,7 @@ import { MagneticWrapper } from "./MagneticWrapper";
 export function HeroSection() {
   const handleDemoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    const demoSection = document.getElementById("demo");
+    const demoSection = document.getElementById("workflow");
     if (demoSection) {
       demoSection.scrollIntoView({ behavior: "smooth" });
     }

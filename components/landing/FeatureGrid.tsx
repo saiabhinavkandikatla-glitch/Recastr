@@ -49,7 +49,7 @@ export function FeatureGrid() {
 
   return (
     <section
-      id="features"
+      id="outputs"
       className="border-t border-[#232323] py-36"
     >
       <div className="mx-auto max-w-7xl px-6">

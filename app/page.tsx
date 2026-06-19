@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/LandingPage";
 
 export const metadata: Metadata = {
-  title: "Recastr - One video. 30 content assets.",
-  description: "AI-powered content repurposing for founders, creators, and agencies.",
+  title: "Recastr — Turn one source into 30 days of content",
+  description:
+    "Drop a video, podcast, or blog. Get platform-ready posts for Twitter, LinkedIn, Instagram, Facebook, and Reels.",
   openGraph: {
-    title: "Recastr",
-    description: "Turn one video, podcast, or blog into 30 content assets.",
+    title: "Recastr — Turn one source into 30 days of content",
+    description: "AI content repurposing for creators who publish everywhere.",
     images: ["/og-image.png"],
   },
 };

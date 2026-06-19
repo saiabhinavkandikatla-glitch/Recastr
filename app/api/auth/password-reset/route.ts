@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
   const supabase = createSupabaseServerClient();
   const origin = getRequestOrigin(request);
-  const createPasswordPath = `/create-password?mode=change&verified=1&next=${encodeURIComponent(
+  const createPasswordPath = `/reset-password?mode=change&verified=1&next=${encodeURIComponent(
     "/login?password=updated",
   )}`;
   const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(createPasswordPath)}`;

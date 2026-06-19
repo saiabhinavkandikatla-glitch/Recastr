@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Video, Bot } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { useAppStore } from "@/store/app-store";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 
@@ -30,9 +31,8 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-[260px] flex-col border-r border-[#232323] bg-[#090909] p-4 transition-all duration-300">
-      <div className="flex items-center h-12 px-2 mb-6">
-        <div className="h-6 w-6 rounded bg-white mr-3 flex items-center justify-center font-extrabold text-black text-[13px]">R</div>
-        <span className="text-lg font-semibold tracking-tight text-white">ReCastr</span>
+      <div className="mb-6 px-2">
+        <Logo size="sm" className="text-white" />
       </div>
 
       <nav className="flex-1 space-y-1">
