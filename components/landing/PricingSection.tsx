@@ -56,7 +56,7 @@ export function PricingSection() {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-[32px] border p-10 ${
+              className={`rounded-[32px] border p-10 transition-colors duration-300 hover:border-white ${
                 plan.featured
                   ? "border-white bg-[#151515]"
                   : "border-[#232323] bg-[#111111]"
