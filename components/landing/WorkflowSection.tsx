@@ -45,17 +45,17 @@ export function WorkflowSection() {
           {steps.map((step) => (
             <div
               key={step.number}
-              className="rounded-[32px] border border-[#232323] bg-[#151515] p-10"
+              className="group flex h-full flex-col rounded-[32px] border border-[#232323] bg-[#000000] p-10 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
             >
-              <p className="text-sm text-[#8A8A8A]">
+              <p className="text-sm font-medium tracking-wider text-[#8A8A8A] transition-colors group-hover:text-white/70">
                 {step.number}
               </p>
 
-              <h3 className="mt-5 text-3xl font-semibold text-white">
+              <h3 className="mt-5 text-3xl font-semibold text-white transition-colors">
                 {step.title}
               </h3>
 
-              <p className="mt-5 leading-8 text-[#8A8A8A]">
+              <p className="mt-5 flex-1 leading-8 text-[#8A8A8A]">
                 {step.description}
               </p>
             </div>

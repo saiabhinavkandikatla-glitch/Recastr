@@ -56,10 +56,10 @@ export function PricingSection() {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-[32px] border p-10 transition-colors duration-300 hover:border-white ${
+              className={`group flex h-full flex-col rounded-[32px] border p-10 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)] ${
                 plan.featured
-                  ? "border-white bg-[#151515]"
-                  : "border-[#232323] bg-[#111111]"
+                  ? "border-white bg-[#0A0A0A] hover:bg-[#111111]"
+                  : "border-[#232323] bg-[#000000] hover:border-white/30 hover:bg-[#111111]"
               }`}
             >
               <h3 className="text-2xl font-semibold">
@@ -68,28 +68,27 @@ export function PricingSection() {
 
               <div className="mt-8 text-5xl font-bold">
                 {plan.price}
-                <span className="text-lg text-[#8A8A8A]">
+                <span className="text-lg text-[#8A8A8A] font-normal">
                   /month
                 </span>
               </div>
 
-              <div className="mt-10 space-y-4">
-
+              <div className="mt-10 mb-10 space-y-4 flex-1">
                 {plan.features.map((feature) => (
                   <div
                     key={feature}
-                    className="text-[#8A8A8A]"
+                    className="text-[#8A8A8A] transition-colors group-hover:text-[#A0A0A0]"
                   >
                     {feature}
                   </div>
                 ))}
-
               </div>
 
-              <Button className="mt-10 w-full" asChild>
-                <Link href="/signup">Start Now</Link>
-              </Button>
-
+              <div className="mt-auto">
+                <Button className="w-full" asChild variant={plan.featured ? "default" : "secondary"}>
+                  <Link href="/signup">Start Now</Link>
+                </Button>
+              </div>
             </div>
           ))}
 

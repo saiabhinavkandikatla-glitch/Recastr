@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { MagneticWrapper } from "./MagneticWrapper";
 
 export function CTASection() {
   return (
@@ -17,9 +18,11 @@ export function CTASection() {
           Generate platform-ready content in minutes.
         </p>
 
-        <Button size="lg" className="mt-12" asChild>
-          <Link href="/signup">Start Now</Link>
-        </Button>
+        <MagneticWrapper>
+          <Button size="lg" className="mt-12" asChild>
+            <Link href="/signup">Start Now</Link>
+          </Button>
+        </MagneticWrapper>
 
       </div>
     </section>

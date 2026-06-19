@@ -74,17 +74,17 @@ export function FeatureGrid() {
             return (
               <div
                 key={feature.title}
-                className="rounded-[32px] border border-[#232323] bg-[#151515] p-10 transition hover:bg-[#1B1B1B]"
+                className="group flex h-full flex-col rounded-[32px] border border-[#232323] bg-[#000000] p-10 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#232323] bg-[#111111]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#232323] bg-[#111111] transition-colors group-hover:border-white/50">
                   <Icon className="h-6 w-6 text-white" />
                 </div>
 
-                <h3 className="mt-8 text-2xl font-semibold">
+                <h3 className="mt-8 text-2xl font-semibold transition-colors group-hover:text-white">
                   {feature.title}
                 </h3>
 
-                <p className="mt-5 leading-8 text-[#8A8A8A]">
+                <p className="mt-5 flex-1 leading-8 text-[#8A8A8A]">
                   {feature.description}
                 </p>
               </div>
