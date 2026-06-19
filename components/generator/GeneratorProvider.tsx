@@ -13,6 +13,8 @@ type GeneratorState = {
   tone: string;
   setTone: (t: string) => void;
   isGenerating: boolean;
+  isAnalyzing: boolean;
+  setIsAnalyzing: (b: boolean) => void;
   progress: string;
   generate: () => Promise<void>;
   outputs: SocialOutput[];
@@ -33,6 +35,7 @@ export function GeneratorProvider({
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["TWITTER", "LINKEDIN", "INSTAGRAM"]);
   const [tone, setTone] = useState("Professional");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState<string>("idle");
   const [outputs, setOutputs] = useState<SocialOutput[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<Platform>("TWITTER");
@@ -137,6 +140,8 @@ export function GeneratorProvider({
       tone,
       setTone,
       isGenerating,
+      isAnalyzing,
+      setIsAnalyzing,
       progress,
       generate,
       outputs,

@@ -17,7 +17,7 @@ const platforms: { id: Platform; name: string }[] = [
 ];
 
 export function PlatformTabs() {
-  const { selectedPlatforms, togglePlatform, isGenerating } = useGenerator();
+  const { selectedPlatforms, togglePlatform, isGenerating, isAnalyzing, project } = useGenerator();
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-6">
@@ -28,13 +28,14 @@ export function PlatformTabs() {
       <div className="flex flex-wrap gap-2">
         {platforms.map((platform) => {
           const isSelected = selectedPlatforms.includes(platform.id);
+          const isDisabled = isGenerating || isAnalyzing || !project;
           
           return (
             <button
               key={platform.id}
               onClick={() => togglePlatform(platform.id)}
-              disabled={isGenerating}
-              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+              disabled={isDisabled}
+              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 isSelected
                   ? "border-white bg-white text-black"
                   : "border-[#232323] bg-[#090909] text-[#8A8A8A] hover:bg-[#232323] hover:text-white"

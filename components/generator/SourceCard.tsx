@@ -9,13 +9,12 @@ import { useGenerator } from "./GeneratorProvider";
 import type { Project } from "@/lib/types";
 
 export function SourceCard() {
-  const { project, setProject } = useGenerator();
+  const { project, setProject, isAnalyzing: isIngesting, setIsAnalyzing: setIsIngesting } = useGenerator();
   const router = useRouter();
   const [mode, setMode] = useState<"url" | "text">("url");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
-  const [isIngesting, setIsIngesting] = useState(false);
 
   async function handleIngest(e?: React.FormEvent) {
     if (e) e.preventDefault();
