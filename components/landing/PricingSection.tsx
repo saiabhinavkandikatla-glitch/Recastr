@@ -5,31 +5,35 @@ export function PricingSection() {
   const plans = [
     {
       name: "Free",
-      price: "$0",
+      price: "₹0",
       features: [
-        "5 projects",
-        "Basic AI generation",
-        "Export posts"
+        "15 credits included",
+        "All output platforms",
+        "Email reminder scheduling",
+        "Basic exports (PDF, CSV)",
       ]
     },
     {
       name: "Pro",
-      price: "$19",
+      price: "₹999",
       featured: true,
       features: [
-        "Unlimited projects",
-        "All platforms",
-        "Scheduling",
-        "Advanced AI"
+        "30 projects per month",
+        "Podcast ingestion",
+        "3 brand voice profiles",
+        "Calendar scheduling",
+        "Priority queue processing",
       ]
     },
     {
-      name: "Business",
-      price: "$49",
+      name: "Team",
+      price: "₹2,999",
       features: [
-        "Teams",
-        "Analytics",
-        "Priority support"
+        "Unlimited projects",
+        "Unlimited brand voices",
+        "Shared team workspace",
+        "Client-ready exports",
+        "Dedicated priority support",
       ]
     }
   ];

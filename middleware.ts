@@ -131,11 +131,11 @@ function withSecurityHeaders(response: NextResponse) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://vitals.vercel-analytics.com https://app.posthog.com https://*.posthog.com",
       "frame-src https://challenges.cloudflare.com",
       "base-uri 'self'",
       "form-action 'self'",
