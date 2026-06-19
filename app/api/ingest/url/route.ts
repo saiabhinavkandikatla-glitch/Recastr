@@ -193,7 +193,7 @@ Recastr imported the real YouTube source metadata for "${metadata.title}".${cont
 Full transcript extraction requires usable captions, yt-dlp/FFmpeg, or a pasted transcript. This starter pack is grounded in the actual title and description instead of demo fallback copy.`;
   const summary = createSummary(metadata);
   const hooks = createHooks(id, metadata);
-  const contents = createContents(id, metadata);
+  const contents = createContents(id, hooks, metadata);
 
   return {
     id,
@@ -541,7 +541,7 @@ function createHooks(projectId: string, metadata: YoutubeMetadata): ViralHook[] 
   }));
 }
 
-function createContents(projectId: string, metadata: YoutubeMetadata): ContentPiece[] {
+function createContents(projectId: string, hooks: ViralHook[], metadata: YoutubeMetadata): ContentPiece[] {
   const now = new Date().toISOString();
   const topic = extractTopic(metadata.title);
   const tags = extractTags(metadata.description);
@@ -562,6 +562,7 @@ function createContents(projectId: string, metadata: YoutubeMetadata): ContentPi
     return {
       id: `${projectId}-content-${index + 1}`,
       projectId,
+      hookId: hooks[index % hooks.length]?.id,
       platform,
       contentType,
       body: normalizedBody,

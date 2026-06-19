@@ -215,10 +215,11 @@ function createGeneratedCards(
         platformValue,
         buildGeneratedBody(project.title, hookText, platformName, maxWords),
       );
+      const hookId = selectedHook?.id ?? (project.hooks && project.hooks.length > 0 ? project.hooks[typeIndex % project.hooks.length]?.id : undefined);
       cards.push({
         id: `${project.id}-${platform}-${stamp}-${platformIndex}-${typeIndex}`,
         projectId: project.id,
-        hookId: selectedHook?.id,
+        hookId,
         platform: platformValue,
         contentType,
         body,

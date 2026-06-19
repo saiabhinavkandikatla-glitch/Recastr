@@ -284,6 +284,7 @@ async function persistStoredContentForScheduling(
     where: { id: contentId },
     update: {
       projectId,
+      hookId: payload.hookId || undefined,
       platform,
       contentType,
       body,
@@ -295,6 +296,7 @@ async function persistStoredContentForScheduling(
     create: {
       id: contentId,
       projectId,
+      hookId: payload.hookId || undefined,
       platform,
       contentType,
       body,

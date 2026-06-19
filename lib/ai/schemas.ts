@@ -114,6 +114,7 @@ export const scheduleSchema = z.object({
   scheduledAt: z.string().datetime().optional(),
   platform: z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY"]),
   postingMethod: z.enum(["email_reminder", "direct_post"]).default("email_reminder"),
+  hookId: z.string().optional(),
   timezone: z.string().trim().min(1).max(80).default("Asia/Kolkata"),
   verificationRequired: z.boolean().default(false),
 }).refine((value) => value.contentId || value.outputId, {

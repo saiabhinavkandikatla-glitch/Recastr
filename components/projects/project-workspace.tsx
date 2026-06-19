@@ -197,6 +197,7 @@ export function ProjectWorkspace({
         contentType: content.contentType,
         tone: content.tone,
         postingMethod: method,
+        hookId: content.hookId,
       }, {
         onSuccess: (scheduledPost) => {
           setScheduledDates((current) => ({ ...current, [id]: date }));
