@@ -39,12 +39,13 @@ export async function POST(request: Request) {
 
     const gemini = getGeminiClient();
     let rewritten = "";
+    const isRegen = payload.regenerate === true;
 
     if (gemini) {
-      const isRegen = payload.regenerate === true;
-      let prompt = "";
-      if (isRegen) {
-        prompt = `You are an expert social media content creator.
+      try {
+        let prompt = "";
+        if (isRegen) {
+          prompt = `You are an expert social media content creator.
 Your task is to write a completely new, high-performance social media post for the platform: ${platform}.
 The post must be written in the tone: ${newTone}.
 
@@ -54,8 +55,8 @@ Base the post on the following source material from the project "${projectTitle}
 
 Make sure to choose a completely different hook, structure, and angle than before. Do NOT just repeat the same copy.
 Output ONLY the raw content of the new post. Do not include introductory text, explanations, or quotes.`;
-      } else {
-        prompt = `You are an expert copywriter.
+        } else {
+          prompt = `You are an expert copywriter.
 Your task is to rewrite the following social media post to sound more ${newTone} while keeping the core message and platform formatting:
 
 Original Post:
@@ -73,19 +74,30 @@ If available, here is the background context of the project "${projectTitle}":
 - Summary/Brief: ${JSON.stringify(projectSummary || {})}
 
 Output ONLY the rewritten raw content of the post. Do not include markdown wraps, quote marks, introductory text, or explanations.`;
-      }
+        }
 
-      const response = await gemini.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          temperature: isRegen ? 0.85 : 0.6,
-        },
-      });
-      rewritten = cleanupPost(response.text ?? "");
+        const response = await gemini.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: {
+            temperature: isRegen ? 0.85 : 0.6,
+          },
+        });
+        rewritten = cleanupPost(response.text ?? "");
+      } catch (geminiError) {
+        console.error("Gemini API call failed, falling back to local generator:", geminiError);
+        if (isRegen) {
+          rewritten = fallbackLocalRegenerate(projectSummary, platform, projectTitle);
+        } else {
+          rewritten = fallbackLocalRewrite(payload.content, newTone, blend);
+        }
+      }
     } else {
-      // Fallback local rewrite if Gemini key is missing
-      rewritten = fallbackLocalRewrite(payload.content, newTone, blend);
+      if (isRegen) {
+        rewritten = fallbackLocalRegenerate(projectSummary, platform, projectTitle);
+      } else {
+        rewritten = fallbackLocalRewrite(payload.content, newTone, blend);
+      }
     }
 
     await trackServerEvent(payload.regenerate ? "content_regenerated" : "tone_rewritten", {
@@ -127,4 +139,16 @@ function fallbackLocalRewrite(content: string, toTone: string, blend: number) {
       ? "\n\nSave this before your next sprint."
       : "";
   return `${prefix}${cleaned}${cta}`;
+}
+
+function fallbackLocalRegenerate(projectSummary: any, platform: string, projectTitle: string) {
+  const hooks = projectSummary?.hooks ?? [];
+  const seed = hooks[Math.floor(Math.random() * (hooks.length || 1))] ?? projectTitle;
+  const body =
+    platform === "TWITTER"
+      ? `${seed}\n\nOne simple idea. One clear next step. That is what makes the lesson easy to remember and use.`
+      : platform === "LINKEDIN"
+        ? `${seed}\n\nI used to overcomplicate this.\n\nThen I realized the best explanation does three things:\n\n1. Names the real problem\n2. Gives people a simple mental model\n3. Ends with one action they can use today\n\nThat is the difference between content people skim and content people save.`
+        : `${seed}\n\n-> Name the problem\n-> Give the simple mental model\n-> Show the next step\n\nSave this before your next project.`;
+  return body;
 }
