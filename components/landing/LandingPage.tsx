@@ -1,3 +1,5 @@
+"use client";
+
 import { Navbar } from "./Navbar";
 import { HeroSection } from "./HeroSection";
 import { WorkflowSection } from "./WorkflowSection";
