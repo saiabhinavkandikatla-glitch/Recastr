@@ -3,6 +3,9 @@ import { getRequestUser } from "@/lib/auth";
 import { toneSchema } from "@/lib/ai/schemas";
 import { trackServerEvent } from "@/lib/analytics";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
+import { prisma } from "@/lib/prisma/client";
+import { getGeminiClient } from "@/lib/ai/client";
+import { cleanupPost } from "@/lib/ai/validation";
 
 export const runtime = "nodejs";
 
@@ -11,12 +14,83 @@ export async function POST(request: Request) {
     const user = await getRequestUser(request);
     await requireCredits(user);
     const payload = toneSchema.parse(await request.json());
-    const newTone = payload.newTone ?? payload.toTone ?? "Professional";
+    const newTone = payload.newTone ?? payload.toTone ?? payload.tone ?? "casual";
     const blend = payload.blend ?? 80;
-    const rewritten = rewriteTone(payload.content, newTone, blend);
-    await trackServerEvent("tone_rewritten", {
+
+    let projectTitle = "";
+    let projectTranscript = "";
+    let projectSummary: any = null;
+    let platform = "social media";
+
+    if (payload.contentId) {
+      const existingContent = await prisma.content.findUnique({
+        where: { id: payload.contentId },
+        include: { project: true },
+      });
+      if (existingContent) {
+        platform = existingContent.platform;
+        if (existingContent.project) {
+          projectTitle = existingContent.project.title;
+          projectTranscript = existingContent.project.transcript;
+          projectSummary = existingContent.project.summary;
+        }
+      }
+    }
+
+    const gemini = getGeminiClient();
+    let rewritten = "";
+
+    if (gemini) {
+      const isRegen = payload.regenerate === true;
+      let prompt = "";
+      if (isRegen) {
+        prompt = `You are an expert social media content creator.
+Your task is to write a completely new, high-performance social media post for the platform: ${platform}.
+The post must be written in the tone: ${newTone}.
+
+Base the post on the following source material from the project "${projectTitle}":
+- Summary/Brief: ${JSON.stringify(projectSummary || {})}
+- Source Transcript snippet: ${projectTranscript.slice(0, 4000)}
+
+Make sure to choose a completely different hook, structure, and angle than before. Do NOT just repeat the same copy.
+Output ONLY the raw content of the new post. Do not include introductory text, explanations, or quotes.`;
+      } else {
+        prompt = `You are an expert copywriter.
+Your task is to rewrite the following social media post to sound more ${newTone} while keeping the core message and platform formatting:
+
+Original Post:
+"""
+${payload.content}
+"""
+
+Tone style guidelines for "${newTone}":
+- professional: authoritative, clear, industry-expert, polished, no slang.
+- casual: friendly, conversational, approachable, relaxed, everyday language.
+- educational: informative, structured, teaching key takeaways, analytical, helpful.
+- entertaining: engaging, lively, humorous or high energy, storytelling, catchy.
+
+If available, here is the background context of the project "${projectTitle}":
+- Summary/Brief: ${JSON.stringify(projectSummary || {})}
+
+Output ONLY the rewritten raw content of the post. Do not include markdown wraps, quote marks, introductory text, or explanations.`;
+      }
+
+      const response = await gemini.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          temperature: isRegen ? 0.85 : 0.6,
+        },
+      });
+      rewritten = cleanupPost(response.text ?? "");
+    } else {
+      // Fallback local rewrite if Gemini key is missing
+      rewritten = fallbackLocalRewrite(payload.content, newTone, blend);
+    }
+
+    await trackServerEvent(payload.regenerate ? "content_regenerated" : "tone_rewritten", {
       userId: user.id,
-      metadata: { tone: newTone, blend },
+      metadata: { tone: newTone, blend, contentId: payload.contentId },
     });
     await consumeCredits(user);
     return NextResponse.json({ rewritten, content: rewritten });
@@ -33,16 +107,16 @@ export async function POST(request: Request) {
   }
 }
 
-function rewriteTone(content: string, toTone: string, blend: number) {
+function fallbackLocalRewrite(content: string, toTone: string, blend: number) {
   const prefix =
-    toTone === "Witty"
+    toTone === "witty" || toTone === "entertaining"
       ? "Sharper version:\n\n"
-      : toTone === "Bold"
-        ? "Strong take:\n\n"
-        : toTone === "Empathetic"
-          ? "Human version:\n\n"
-          : toTone === "Controversial"
-            ? "Debate angle:\n\n"
+      : toTone === "bold" || toTone === "professional"
+        ? "Professional take:\n\n"
+        : toTone === "empathetic" || toTone === "casual"
+          ? "Friendly version:\n\n"
+          : toTone === "educational"
+            ? "Educational breakdown:\n\n"
             : "";
   const cleaned = content
     .replace(/In today's fast-paced world,?\s*/gi, "")
@@ -50,7 +124,7 @@ function rewriteTone(content: string, toTone: string, blend: number) {
     .trim();
   const cta =
     blend > 65
-      ? "\n\nSave this before your next content sprint."
-      : "\n\nUse this as a starting point for your next draft.";
+      ? "\n\nSave this before your next sprint."
+      : "";
   return `${prefix}${cleaned}${cta}`;
 }

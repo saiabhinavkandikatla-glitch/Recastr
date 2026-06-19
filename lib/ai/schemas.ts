@@ -93,6 +93,7 @@ export const toneSchema = z.object({
   toTone: z.string().optional(),
   blend: z.number().min(0).max(100).optional(),
   brandVoiceId: z.string().optional(),
+  regenerate: z.boolean().optional(),
 });
 
 export const exportSchema = z.object({

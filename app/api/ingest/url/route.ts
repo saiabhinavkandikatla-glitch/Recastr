@@ -689,6 +689,7 @@ function hookCreateRows(project: Project) {
 
 function contentCreateRows(project: Project) {
   return (project.contents ?? []).map((item) => ({
+    id: item.id,
     hookId: item.hookId,
     platform: item.platform,
     contentType: item.contentType,

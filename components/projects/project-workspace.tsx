@@ -80,6 +80,18 @@ export function ProjectWorkspace({
     },
   });
 
+  const regenerateMutation = useMutation({
+    mutationFn: regenerateContentPiece,
+    onSuccess: ({ id, rewritten, tone }) => {
+      streamReplaceContent(id, rewritten, setContents);
+      updateContentMutation.mutate({ id, body: rewritten, tone });
+    },
+    onError: (error) => {
+      if (error instanceof Error && error.message === "credit_exhausted") return;
+      toast.error("Regeneration failed");
+    },
+  });
+
   const scheduleMutation = useMutation({
     mutationFn: scheduleContent,
     onSuccess: () => toast.success("Post scheduled. You will receive an email reminder when it is time to post.", {
@@ -226,11 +238,11 @@ export function ProjectWorkspace({
       }
       const content = contents.find((item) => item.id === id);
       if (!content) return;
-      const next = regenerateBody(project, content, selectedHookId, hooks);
-      streamReplaceContent(id, next, setContents);
-      updateContentMutation.mutate({ id, body: next });
+
+      toast.info("Regenerating content piece...");
+      regenerateMutation.mutate({ id, content: content.body, tone: content.tone });
     },
-    [contents, hooks, project, readOnly, requireAccount, selectedHookId, updateContentMutation],
+    [contents, readOnly, requireAccount, regenerateMutation],
   );
 
   const addGeneratedCards = useCallback(
@@ -378,6 +390,24 @@ async function rewriteTone({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contentId: id, content, tone }),
+  });
+  const data = await readApiJson<{ rewritten?: string; content?: string }>(response);
+  return { id, tone, rewritten: data.rewritten ?? data.content ?? content };
+}
+
+async function regenerateContentPiece({
+  id,
+  content,
+  tone,
+}: {
+  id: string;
+  content: string;
+  tone: string;
+}) {
+  const response = await fetch("/api/tone", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contentId: id, content, tone, regenerate: true }),
   });
   const data = await readApiJson<{ rewritten?: string; content?: string }>(response);
   return { id, tone, rewritten: data.rewritten ?? data.content ?? content };
