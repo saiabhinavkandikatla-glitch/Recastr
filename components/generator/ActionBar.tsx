@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Save, Share2, Calendar } from "lucide-react";
+import { Copy, Save, Share2, Calendar, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useGenerator } from "./GeneratorProvider";
 
@@ -22,18 +23,49 @@ function getActiveContent(outputs: ReturnType<typeof useGenerator>["outputs"], a
 
 export function ActionBar() {
   const { outputs, activePreviewTab, project } = useGenerator();
+  const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState(() => {
-    // Default to tomorrow at 9:00 AM local time
+
+  const [selectedDay, setSelectedDay] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    const offsetMs = tomorrow.getTimezoneOffset() * 60 * 1000;
-    const localTime = new Date(tomorrow.getTime() - offsetMs);
-    return localTime.toISOString().slice(0, 16);
+    return tomorrow.getDate();
   });
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.getMonth();
+  });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.getFullYear();
+  });
+  const [selectedHour, setSelectedHour] = useState("09");
+  const [selectedMinute, setSelectedMinute] = useState("00");
+
+  const [calMonth, setCalMonth] = useState(selectedMonth);
+  const [calYear, setCalYear] = useState(selectedYear);
+
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear((prev) => prev - 1);
+    } else {
+      setCalMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear((prev) => prev + 1);
+    } else {
+      setCalMonth((prev) => prev + 1);
+    }
+  };
 
   const handleCopy = async () => {
     const content = getActiveContent(outputs, activePreviewTab);
@@ -107,7 +139,7 @@ export function ActionBar() {
         toast.success("Content saved to project!");
       }
       return matchingContent.id;
-    } catch (err) {
+    } catch {
       toast.error("Failed to save content to database");
       return null;
     } finally {
@@ -116,11 +148,7 @@ export function ActionBar() {
   };
 
   const handleConfirmSchedule = async () => {
-    if (!scheduleDate) {
-      toast.error("Please select a date and time");
-      return;
-    }
-    const scheduledTime = new Date(scheduleDate);
+    const scheduledTime = new Date(selectedYear, selectedMonth, selectedDay, parseInt(selectedHour), parseInt(selectedMinute));
     if (scheduledTime.getTime() <= Date.now()) {
       toast.error("Schedule time must be in the future");
       return;
@@ -157,12 +185,23 @@ export function ActionBar() {
         description: "Please check your spam or promotions folder if you don't see our emails.",
       });
       setIsModalOpen(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to schedule reminder");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to schedule reminder");
     } finally {
       setIsScheduling(false);
     }
   };
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDayIndex = new Date(calYear, calMonth, 1).getDay();
+  const paddingCells = Array.from({ length: firstDayIndex }, (_, i) => i);
+  const dayCells = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
     <div className="flex items-center justify-between border-t border-[#232323] bg-[#151515] p-4">
@@ -200,13 +239,24 @@ export function ActionBar() {
           <Calendar className="h-4 w-4 text-[#8A8A8A]" /> Schedule Reminder
         </Button>
       </div>
-      <Button
-        className="gap-2 bg-white text-black hover:bg-zinc-200"
-        onClick={() => handleSave(false)}
-        disabled={isSaving}
-      >
-        <Save className="h-4 w-4" /> {isSaving ? "Saving..." : "Save to Project"}
-      </Button>
+      <div className="flex gap-2">
+        {project && (
+          <Button
+            variant="outline"
+            className="gap-2 border-[#232323] bg-[#151515] text-white hover:bg-[#232323] hover:text-white"
+            onClick={() => router.push(`/projects/${project.id}`)}
+          >
+            <ExternalLink className="h-4 w-4 text-[#8A8A8A]" /> Open Full Project
+          </Button>
+        )}
+        <Button
+          className="gap-2 bg-white text-black hover:bg-zinc-200"
+          onClick={() => handleSave(false)}
+          disabled={isSaving}
+        >
+          <Save className="h-4 w-4" /> {isSaving ? "Saving..." : "Save to Project"}
+        </Button>
+      </div>
 
       {/* Schedule Dialog Modal */}
       {isModalOpen && (
@@ -222,12 +272,109 @@ export function ActionBar() {
                 <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                   Reminder Date &amp; Time
                 </label>
-                <input
-                  type="datetime-local"
-                  value={scheduleDate}
-                  onChange={(e) => setScheduleDate(e.target.value)}
-                  className="w-full rounded-xl border border-[#232323] bg-[#090909] px-4 py-3 text-sm text-white focus:border-[#444] focus:outline-none"
-                />
+                
+                <div className="flex items-center justify-between mb-3 bg-[#151515] p-2 rounded-xl border border-[#232323]">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#232323] transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-sm font-semibold text-white">
+                    {monthNames[calMonth]} {calYear}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#232323] transition-colors"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-zinc-500 mb-2">
+                  {dayNames.map((day) => (
+                    <div key={day} className="py-1">{day}</div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center text-xs mb-4">
+                  {paddingCells.map((_, i) => (
+                    <div key={`pad-${i}`} className="py-1"></div>
+                  ))}
+                  {dayCells.map((day) => {
+                    const isSelected = selectedDay === day && selectedMonth === calMonth && selectedYear === calYear;
+                    const cellDate = new Date(calYear, calMonth, day);
+                    const isPast = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate() + 1).getTime() <= Date.now();
+                    
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        disabled={isPast}
+                        onClick={() => {
+                          setSelectedDay(day);
+                          setSelectedMonth(calMonth);
+                          setSelectedYear(calYear);
+                        }}
+                        className={`w-7 h-7 flex items-center justify-center mx-auto rounded-full font-medium transition-colors ${
+                          isSelected
+                            ? "bg-white text-black font-bold"
+                            : isPast
+                              ? "text-zinc-700 cursor-not-allowed opacity-50"
+                              : "text-zinc-300 hover:bg-[#1A1A1A] hover:text-white"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Time Picker */}
+                <div className="flex gap-3 border-t border-[#232323] pt-4">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                      Hour
+                    </label>
+                    <select
+                      value={selectedHour}
+                      onChange={(e) => setSelectedHour(e.target.value)}
+                      className="w-full rounded-xl border border-[#232323] bg-[#090909] px-4 py-2 text-sm text-white focus:border-[#444] focus:outline-none appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white'><path d='M3 4l3 3 3-3z'/></svg>")`,
+                        backgroundPosition: 'right 12px center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      {Array.from({ length: 24 }, (_, i) => {
+                        const val = i.toString().padStart(2, "0");
+                        return <option key={val} value={val}>{val}</option>;
+                      })}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                      Minute
+                    </label>
+                    <select
+                      value={selectedMinute}
+                      onChange={(e) => setSelectedMinute(e.target.value)}
+                      className="w-full rounded-xl border border-[#232323] bg-[#090909] px-4 py-2 text-sm text-white focus:border-[#444] focus:outline-none appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white'><path d='M3 4l3 3 3-3z'/></svg>")`,
+                        backgroundPosition: 'right 12px center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      {Array.from({ length: 60 }, (_, i) => {
+                        const val = i.toString().padStart(2, "0");
+                        return <option key={val} value={val}>{val}</option>;
+                      })}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-2">

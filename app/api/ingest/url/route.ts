@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     if (process.env.RECASTR_DEMO_MODE === "true") {
       if (source === "youtube" && !/demo/i.test(payload.url)) {
-        const project = await createYoutubeProject(payload.url);
+        const project = await createYoutubeProject(payload.url, user.id);
         saveStoredProject(project);
         await consumeCredits(user);
         return NextResponse.json({
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     await assertCanCreateProject(user, sourceToSourceType(source));
 
     if (source === "youtube") {
-      const project = restrictProjectToPlan(await createYoutubeProject(payload.url), user.plan);
+      const project = restrictProjectToPlan(await createYoutubeProject(payload.url, user.id), user.plan);
       await assertCanGenerateContent(
         user,
         project.contents?.map((content) => content.platform) ?? [],
@@ -176,9 +176,9 @@ function restrictProjectToPlan(project: Project, plan: Plan): Project {
   };
 }
 
-async function createYoutubeProject(url: string): Promise<Project> {
+async function createYoutubeProject(url: string, userId: string): Promise<Project> {
   const metadata = await fetchYoutubeMetadata(url);
-  const id = `youtube-${hash(url).slice(0, 10)}`;
+  const id = `youtube-${hash(url).slice(0, 10)}-${userId}`;
   const context = metadata.description
     ? `
 Video description:

@@ -231,10 +231,10 @@ async function persistStoredContentForScheduling(
   contentId: string,
   payload: ScheduleRecoveryPayload,
 ) {
-  const projectId = payload.projectId ?? projectIdFromContentId(contentId);
-  if (!projectId) return null;
+  const rawProjectId = payload.projectId ?? projectIdFromContentId(contentId);
+  if (!rawProjectId) return null;
 
-  const project = getStoredProject(projectId);
+  const project = getStoredProject(rawProjectId);
   const storedContent = project?.contents?.find((item) => item.id === contentId);
   const body = payload.body ?? storedContent?.body;
   if (!body) return null;
@@ -247,6 +247,10 @@ async function persistStoredContentForScheduling(
   const transcript = project?.transcript ?? body;
   const sourceType = project?.sourceType.toLowerCase() ?? "text";
   const summary = project?.summary ? (project.summary as Prisma.InputJsonValue) : undefined;
+
+  // Suffix the IDs if it is a demo project to isolate it per user in the database
+  const projectId = rawProjectId.startsWith("demo-") ? `${rawProjectId}-${user.id}` : rawProjectId;
+  const dbContentId = contentId.startsWith("demo-") ? `${contentId}-${user.id}` : contentId;
 
   const existingProject = await prisma.project.findUnique({
     where: { id: projectId },
@@ -281,7 +285,7 @@ async function persistStoredContentForScheduling(
   });
 
   await prisma.content.upsert({
-    where: { id: contentId },
+    where: { id: dbContentId },
     update: {
       projectId,
       hookId: payload.hookId || undefined,
@@ -294,7 +298,7 @@ async function persistStoredContentForScheduling(
       order: storedContent?.order ?? 0,
     },
     create: {
-      id: contentId,
+      id: dbContentId,
       projectId,
       hookId: payload.hookId || undefined,
       platform,
@@ -308,7 +312,7 @@ async function persistStoredContentForScheduling(
   });
 
   return {
-    id: contentId,
+    id: dbContentId,
     body,
     platform,
   };

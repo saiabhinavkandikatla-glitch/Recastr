@@ -77,5 +77,6 @@ export async function PATCH(
 }
 
 function isLocalContent(contentId: string) {
-  return process.env.NODE_ENV !== "production" && /^(demo|text|youtube|blog|podcast)-/.test(contentId);
+  if (contentId.startsWith("demo-")) return true;
+  return process.env.NODE_ENV !== "production" && /^(text|youtube|blog|podcast)-/.test(contentId);
 }

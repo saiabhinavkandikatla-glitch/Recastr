@@ -17,6 +17,8 @@ const allPlatforms: Platform[] = [
   "CAROUSEL",
   "COMMUNITY",
   "STORY",
+  "HOOKS",
+  "CTA",
 ];
 
 export async function generateContentSuite(

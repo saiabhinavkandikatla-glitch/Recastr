@@ -29,6 +29,8 @@ const allPlatforms: Platform[] = [
   "CAROUSEL",
   "COMMUNITY",
   "STORY",
+  "HOOKS",
+  "CTA",
 ];
 
 export async function GET(request: Request) {

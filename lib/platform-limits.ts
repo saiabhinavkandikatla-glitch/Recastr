@@ -6,6 +6,11 @@ export const PLATFORM_CHARACTER_LIMITS = {
   INSTAGRAM: 2200,
   FACEBOOK: 63206,
   COMMUNITY: 500,
+  THREADS: 500,
+  CAROUSEL: 2200,
+  STORY: 2200,
+  HOOKS: 10000,
+  CTA: 5000,
 } as const;
 
 export function getPlatformCharacterLimit(platform: Platform | string) {
@@ -18,6 +23,9 @@ export function getPlatformCharacterLimit(platform: Platform | string) {
     return PLATFORM_CHARACTER_LIMITS.INSTAGRAM;
   }
   if (normalized === "FACEBOOK") return PLATFORM_CHARACTER_LIMITS.FACEBOOK;
+  if (normalized === "THREADS") return PLATFORM_CHARACTER_LIMITS.THREADS;
+  if (normalized === "HOOKS") return PLATFORM_CHARACTER_LIMITS.HOOKS;
+  if (normalized === "CTA") return PLATFORM_CHARACTER_LIMITS.CTA;
   return PLATFORM_CHARACTER_LIMITS.COMMUNITY;
 }
 
