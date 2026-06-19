@@ -220,7 +220,7 @@ export function TasksWorkspace({
             onClick={() => changeTab(item.id)}
             className={cn(
               "relative z-10 flex h-10 flex-1 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium transition-colors md:flex-none",
-              tab === item.id ? "text-white" : "text-muted-foreground hover:text-foreground"
+              tab === item.id ? "text-black" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {tab === item.id && (
@@ -297,7 +297,7 @@ function ScheduledTab({
             <button
               className={cn(
                 "h-7 rounded-full px-3 text-xs font-medium capitalize transition-colors",
-                filter === item ? "bg-[var(--violet)] text-white" : "text-muted-foreground hover:text-foreground",
+                filter === item ? "bg-[var(--violet)] text-black" : "text-muted-foreground hover:text-foreground",
               )}
               key={item}
               onClick={() => onFilterChange(item)}
@@ -651,7 +651,7 @@ function EmptyState({
       <h2 className="text-2xl font-bold font-display">{headline}</h2>
       <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">{subline}</p>
       {actionHref && actionLabel ? (
-        <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]">
+        <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] px-8 text-black hover:bg-[var(--violet-hover)]">
           <Link href={actionHref}>{actionLabel}</Link>
         </Button>
       ) : null}
