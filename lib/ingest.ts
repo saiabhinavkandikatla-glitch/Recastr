@@ -138,6 +138,7 @@ export async function ingestYoutube(url: string, userId: string): Promise<Projec
     if (summary.hooks.length > 0) {
       await prisma.hook.createMany({
         data: summary.hooks.map((text, index) => ({
+          id: `${dbProject!.id}-hook-${index + 1}`,
           projectId: dbProject!.id,
           text,
           hookType: (

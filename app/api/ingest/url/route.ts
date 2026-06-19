@@ -680,6 +680,7 @@ function escapeRegExp(value: string) {
 
 function hookCreateRows(project: Project) {
   return (project.hooks ?? []).map((hook) => ({
+    id: hook.id,
     text: hook.text,
     hookType: hook.hookType,
     reachScore: hook.reachScore,

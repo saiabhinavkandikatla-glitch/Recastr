@@ -32,11 +32,7 @@ export function normalizeSupportedPlatform(platform: Platform): Platform {
 }
 
 export function platformDot(platform: ContentCardPlatform) {
-  if (platform === "twitter") return "bg-sky-500";
-  if (platform === "linkedin") return "bg-[#0A66C2]";
-  if (platform === "instagram") return "bg-[#E1306C]";
-  if (platform === "facebook") return "bg-[#1877F2]";
-  return "bg-[#FF0000]";
+  return "bg-zinc-400";
 }
 
 export function formatContentType(contentType: string) {

@@ -98,9 +98,5 @@ export const HookSidebar = memo(function HookSidebar({
 });
 
 function hookPillClass(type: string) {
-  const normalized = type.toLowerCase();
-  if (normalized.includes("story")) return "bg-[#d9fff2] text-[#1e614d]";
-  if (normalized.includes("data")) return "bg-[#ffe6c4] text-[#7a4c1d]";
-  if (normalized.includes("controversy")) return "bg-[#ffd3df] text-[#8a2643]";
-  return "bg-[#eee9ff] text-[#4e3996]";
+  return "bg-zinc-800 text-zinc-200 border border-zinc-700";
 }
