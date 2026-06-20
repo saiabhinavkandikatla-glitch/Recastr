@@ -8,6 +8,7 @@ export const generationBriefSchema = z.object({
   hook_angle: z.string().min(8),
   target_audience: z.string().min(4),
   cta: z.string().min(4),
+  specific_detail: z.string().min(10).optional(),
 });
 
 export type GenerationBrief = z.infer<typeof generationBriefSchema>;

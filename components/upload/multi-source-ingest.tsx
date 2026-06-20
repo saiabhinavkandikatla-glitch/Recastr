@@ -12,6 +12,7 @@ import {
   Sparkles,
   UploadCloud,
   Video,
+  X,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useRef, useState } from "react";
@@ -55,6 +56,9 @@ export function MultiSourceIngest() {
   const [isComplete, setIsComplete] = useState(false);
   const [fileName, setFileName] = useState("");
   const [generatedProjectId, setGeneratedProjectId] = useState<string | null>(null);
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [pendingYoutubeUrl, setPendingYoutubeUrl] = useState<string>("");
+  const [manualTranscript, setManualTranscript] = useState("");
 
   const form = useForm<IngestForm>({
     resolver: zodResolver(ingestFormSchema),
@@ -99,9 +103,20 @@ export function MultiSourceIngest() {
       const data = (await response.json()) as {
         projectId?: string;
         error?: string;
+        code?: string;
         warning?: string;
       };
-      if (!response.ok || !data.projectId) throw new Error(data.error ?? "ingestion_failed");
+
+      if (!response.ok || !data.projectId) {
+        if (data.code === "NO_TRANSCRIPT") {
+          setPendingYoutubeUrl(values.url || "");
+          setShowTranscriptModal(true);
+          setIsProcessing(false);
+          return;
+        }
+        throw new Error(data.error ?? "ingestion_failed");
+      }
+
       const projectId = data.projectId;
       setGeneratedProjectId(projectId);
       setIsComplete(true);
@@ -111,6 +126,53 @@ export function MultiSourceIngest() {
     } catch (error) {
       toast.error("Ingestion failed", {
         description: error instanceof Error ? error.message : "Paste a manual transcript and try again.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function submitWithTranscript() {
+    if (!manualTranscript.trim()) {
+      toast.error("Transcript is empty", {
+        description: "Paste at least 50 words of transcript content.",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setShowTranscriptModal(false);
+
+    try {
+      const response = await fetch("/api/ingest/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `YouTube: ${pendingYoutubeUrl.split("v=")[1]?.split("&")[0] || "Video"}`,
+          text: manualTranscript,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        projectId?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.projectId) {
+        throw new Error(data.error ?? "ingestion_failed");
+      }
+
+      setGeneratedProjectId(data.projectId);
+      setIsComplete(true);
+      setManualTranscript("");
+      setPendingYoutubeUrl("");
+
+      toast.success("Source ingested with manual transcript", {
+        description: "Open the project to generate platform-specific posts.",
+      });
+    } catch (error) {
+      toast.error("Failed to ingest transcript", {
+        description: error instanceof Error ? error.message : "Try again.",
       });
     } finally {
       setIsProcessing(false);
@@ -271,6 +333,54 @@ export function MultiSourceIngest() {
         </form>
       </CardContent>
       </Card>
+
+      {showTranscriptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-2xl mx-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b">
+              <CardTitle>No transcript found</CardTitle>
+              <button
+                onClick={() => setShowTranscriptModal(false)}
+                className="rounded-md hover:bg-muted"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <p className="text-sm text-muted-foreground">
+                This YouTube video doesn't have captions or transcript available. Paste the transcript manually to generate content.
+              </p>
+              <div>
+                <Label htmlFor="manual-transcript">Video transcript</Label>
+                <Textarea
+                  id="manual-transcript"
+                  className="min-h-48 font-mono text-xs mt-2"
+                  placeholder="Paste the complete video transcript here (at least 50 words)..."
+                  value={manualTranscript}
+                  onChange={(e) => setManualTranscript(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowTranscriptModal(false);
+                    setManualTranscript("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitWithTranscript}
+                  disabled={isProcessing || !manualTranscript.trim()}
+                >
+                  Generate from transcript
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </AnimatedBorderCard>
   );
 }

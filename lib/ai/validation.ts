@@ -7,6 +7,37 @@ export function containsBannedPhrase(text: string) {
   return BANNED_PHRASES.some((phrase) => lower.includes(phrase));
 }
 
+export function validateContentIsReal(content: string, sourceTitle: string) {
+  const contentLower = content.toLowerCase().slice(0, 200);
+  const titleLower = sourceTitle.toLowerCase().slice(0, 100);
+
+  // Check if content is too similar to title (suspicious if most of title appears in first part of content)
+  const titleWords = titleLower.split(/\s+/).filter((w) => w.length > 3);
+  const matchedWords = titleWords.filter((word) => contentLower.includes(word));
+
+  if (titleWords.length > 0 && matchedWords.length / titleWords.length > 0.7) {
+    return {
+      isValid: false,
+      error: "Content appears to just echo the title",
+    };
+  }
+
+  // Check for suspicious generic patterns
+  const suspiciousPatterns = [
+    /^(so|here's|here is|this|in this)/i,
+    /^(key point|main idea|important thing)/i,
+  ];
+
+  if (suspiciousPatterns.some((pattern) => pattern.test(content))) {
+    return {
+      isValid: false,
+      error: "Content lacks specificity",
+    };
+  }
+
+  return { isValid: true, error: null };
+}
+
 export function parseTwitterThread(raw: string) {
   return raw
     .split("---")

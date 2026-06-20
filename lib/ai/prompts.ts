@@ -24,22 +24,39 @@ export const BANNED_PHRASES = [
   "turn the strongest idea",
   "platform-native content pack",
   "recastr",
+  "gets easier when you stop treating it like magic",
+  "most beginners get stuck because",
+  "most beginners do not get stuck because",
+  "the hard part was not the technology",
+  "it was missing the mental model",
+  "you do not need to understand the whole kitchen",
+  "you just need to know the menu",
+  "think of it like ordering food",
+  "think of it like ordering at a restaurant",
 ];
 
 export function extractBriefPrompt(transcript: string, title: string) {
-  return `You are a content strategist. Extract key elements from this source.
+  return `You are a content strategist. Extract key elements from the SOURCE CONTENT transcript ONLY. Never fabricate or use the title as a substitute for content.
+
+CRITICAL RULES:
+1. All fields MUST be traced to specific details in the transcript
+2. Never use generic statements that could apply to any title
+3. Each insight must reference actual quotes, examples, or specific points from the source
+4. If the transcript is too short or generic to extract real insights, return null values
 
 SOURCE TITLE: ${title}
-SOURCE CONTENT: ${transcript}
+SOURCE CONTENT TRANSCRIPT:
+${transcript}
 
 Return ONLY this JSON. No explanation, no markdown fences:
 {
-  "core_promise": "the single biggest benefit in 1 sentence",
-  "pain_point": "what the audience struggles with before this",
-  "key_steps": ["insight 1", "insight 2", "insight 3"],
-  "hook_angle": "the most surprising or counterintuitive thing here",
-  "target_audience": "who this is for, in 5 words",
-  "cta": "what the creator wants viewers to do next"
+  "core_promise": "the single biggest benefit mentioned or demonstrated (1 sentence, traceable to transcript)",
+  "pain_point": "specific problem the audience struggles with (must reference transcript detail, not generic)",
+  "key_steps": ["specific step 1 from content", "specific step 2 from content", "specific step 3 from content"],
+  "hook_angle": "most surprising or counterintuitive statement actually in the transcript",
+  "target_audience": "who this is for based on content context (5 words)",
+  "cta": "what the creator wants viewers to do next (explicit or implied in transcript)",
+  "specific_detail": "one concrete fact, quote, or example from the transcript that proves this is real content"
 }`;
 }
 

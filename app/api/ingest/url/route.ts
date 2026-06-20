@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import axios from "axios";
+import { YoutubeTranscript } from "youtube-transcript";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
@@ -26,6 +27,29 @@ type YoutubeMetadata = {
   warning?: string;
 };
 
+async function getYouTubeTranscript(videoId: string): Promise<string | null> {
+  if (!videoId) return null;
+
+  try {
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+    if (!transcript || transcript.length === 0) return null;
+
+    const fullTranscript = transcript.map((item) => item.text).join(" ");
+    const wordCount = fullTranscript.split(/\s+/).filter(Boolean).length;
+
+    if (wordCount < 50) {
+      console.warn(`[Transcript Warning] Video ${videoId} has transcript but only ${wordCount} words`);
+      return null;
+    }
+
+    return fullTranscript;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.warn(`[Transcript Fetch] Failed for video ${videoId}: ${errorMsg}`);
+    return null;
+  }
+}
+
 type CaptionTrack = {
   baseUrl?: string;
   languageCode?: string;
@@ -46,18 +70,26 @@ export async function POST(request: Request) {
 
     if (process.env.RECASTR_DEMO_MODE === "true") {
       if (source === "youtube" && !/demo/i.test(payload.url)) {
-        const project = await createYoutubeProject(payload.url, user.id);
-        saveStoredProject(project);
-        await consumeCredits(user);
-        return NextResponse.json({
-          projectId: project.id,
-          title: project.title,
-          duration: project.duration ?? 0,
-          wordCount: project.wordCount ?? project.transcript.split(/\s+/).length,
-          project,
-          warning:
-            "Demo mode imported public YouTube metadata. Paste transcript or turn demo mode off for full media processing.",
-        });
+        try {
+          const project = await createYoutubeProject(payload.url, user.id);
+          saveStoredProject(project);
+          await consumeCredits(user);
+          return NextResponse.json({
+            projectId: project.id,
+            title: project.title,
+            duration: project.duration ?? 0,
+            wordCount: project.wordCount ?? 0,
+            project,
+          });
+        } catch (error) {
+          if (error instanceof Error && (error as any).code === "NO_TRANSCRIPT") {
+            return NextResponse.json(
+              { error: error.message, code: "NO_TRANSCRIPT" },
+              { status: 400 }
+            );
+          }
+          throw error;
+        }
       }
       const project =
         source === "youtube" ? getStoredProject("demo-ai-youtube")! : getStoredProject("demo-marketing-blog")!;
@@ -74,45 +106,51 @@ export async function POST(request: Request) {
     await assertCanCreateProject(user, sourceToSourceType(source));
 
     if (source === "youtube") {
-      const project = restrictProjectToPlan(await createYoutubeProject(payload.url, user.id), user.plan);
-      await assertCanGenerateContent(
-        user,
-        project.contents?.map((content) => content.platform) ?? [],
-        project.contents?.length ?? 0,
-      );
-      saveStoredProject(project);
-      let savedProject = project;
       try {
-        await persistProject(user, project);
-        const dbProject = await prisma.project.findUnique({
-          where: { id: project.id },
-          include: {
-            contents: { orderBy: { order: "asc" } },
-            hooks: { orderBy: { reachScore: "desc" } },
-          },
-        });
-        if (dbProject) {
-          savedProject = mergePersistedProject(project, dbProject);
-          saveStoredProject(savedProject);
-        }
-      } catch (error) {
-        console.error(
-          "[ingest/url] YouTube persistProject failed:",
-          error instanceof Error ? error.message : error,
+        const project = restrictProjectToPlan(await createYoutubeProject(payload.url, user.id), user.plan);
+        await assertCanGenerateContent(
+          user,
+          project.contents?.map((content) => content.platform) ?? [],
+          project.contents?.length ?? 0,
         );
+        saveStoredProject(project);
+        let savedProject = project;
+        try {
+          await persistProject(user, project);
+          const dbProject = await prisma.project.findUnique({
+            where: { id: project.id },
+            include: {
+              contents: { orderBy: { order: "asc" } },
+              hooks: { orderBy: { reachScore: "desc" } },
+            },
+          });
+          if (dbProject) {
+            savedProject = mergePersistedProject(project, dbProject);
+            saveStoredProject(savedProject);
+          }
+        } catch (error) {
+          console.error(
+            "[ingest/url] YouTube persistProject failed:",
+            error instanceof Error ? error.message : error,
+          );
+        }
+        await consumeCredits(user);
+        return NextResponse.json({
+          projectId: savedProject.id,
+          title: savedProject.title,
+          duration: savedProject.duration ?? 0,
+          wordCount: savedProject.wordCount ?? 0,
+          project: savedProject,
+        });
+      } catch (error) {
+        if (error instanceof Error && (error as any).code === "NO_TRANSCRIPT") {
+          return NextResponse.json(
+            { error: error.message, code: "NO_TRANSCRIPT" },
+            { status: 400 }
+          );
+        }
+        throw error;
       }
-      await consumeCredits(user);
-      return NextResponse.json({
-        projectId: savedProject.id,
-        title: savedProject.title,
-        duration: savedProject.duration ?? 0,
-        wordCount: savedProject.wordCount ?? 0,
-        project: savedProject,
-        warning:
-          project.transcript.length > 1200
-            ? "Imported available YouTube metadata and captions."
-            : "Imported real YouTube metadata. Full transcript extraction needs captions, yt-dlp/FFmpeg, or pasted transcript.",
-      });
     }
 
     const parsed = await ingestBlog(payload.url);
@@ -184,13 +222,23 @@ async function createYoutubeProject(url: string, userId: string): Promise<Projec
 Video description:
 ${metadata.description}`
     : "";
-  const transcript =
-    metadata.transcript?.trim() ||
-    `Source URL: ${url}
 
-Recastr imported the real YouTube source metadata for "${metadata.title}".${context}
+  const transcript = metadata.transcript?.trim();
+  const wordCount = transcript?.split(/\s+/).filter(Boolean).length ?? 0;
 
-Full transcript extraction requires usable captions, yt-dlp/FFmpeg, or a pasted transcript. This starter pack is grounded in the actual title and description instead of demo fallback copy.`;
+  if (!transcript || wordCount < 50) {
+    const error = new Error(
+      "⚠️ No transcript available. Recastr needs real video content to generate posts.\n\n" +
+        "This video has no usable captions. You can:\n" +
+        "1) Enable captions in YouTube Studio for this video\n" +
+        "2) Use youtube-transcript for transcribed videos\n" +
+        "3) Paste the transcript manually (coming next)\n\n" +
+        "Without real content, posts would just repeat the title."
+    );
+    (error as any).code = "NO_TRANSCRIPT";
+    throw error;
+  }
+
   const summary = createSummary(metadata);
   const hooks = createHooks(id, metadata);
   const contents = createContents(id, hooks, metadata);
@@ -241,12 +289,19 @@ async function fetchYoutubeMetadata(url: string): Promise<YoutubeMetadata> {
     (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined);
   const description = cleanYoutubeDescription(page.description);
 
+  let transcript = page.transcript;
+
+  if (!transcript && videoId) {
+    console.log(`[Transcript] Caption parsing failed for ${videoId}, trying youtube-transcript API...`);
+    transcript = await getYouTubeTranscript(videoId);
+  }
+
   return {
     title,
     thumbnailUrl,
     description,
     videoId,
-    transcript: page.transcript,
+    transcript,
     warning: page.warning ?? oembed.warning,
   };
 }

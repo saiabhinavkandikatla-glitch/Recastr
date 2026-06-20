@@ -16,6 +16,7 @@ import {
 import { summarySchema } from "@/lib/ai/schemas";
 import {
   cleanupPost,
+  validateContentIsReal,
   validatePlatformPost,
   validateTwitterThread,
 } from "@/lib/ai/validation";
@@ -102,6 +103,10 @@ export async function extractBrief(transcript: string, title: string): Promise<G
   if (!gemini) return briefFromTranscript(transcript);
 
   const source = truncateWords(transcript, 5000);
+  console.log("[DEBUG] extractBrief called with:");
+  console.log("[DEBUG] title:", title);
+  console.log("[DEBUG] transcript length:", transcript.length, "words");
+  console.log("[DEBUG] truncated source (first 500 chars):", source.slice(0, 500));
   const response = await gemini.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: extractBriefPrompt(source, title) }] }],
@@ -131,7 +136,7 @@ async function generateAllPosts({
   const results = await Promise.allSettled(
     platforms.map(async (platform) => {
       const content = env.geminiKey
-        ? await generateWithRetry(platform, () =>
+        ? await generateWithRetry(platform, title, () =>
             writePlatformPost({ brief, title, platform, tone, isRegeneration }),
           ).catch(() => fallbackPostForPlatform(platform, brief))
         : fallbackPostForPlatform(platform, brief);
@@ -175,6 +180,11 @@ async function writePlatformPost({
       "\n\nCRITICAL: Regeneration — use a completely different hook, structure, and angle.";
   }
 
+  console.log("[DEBUG] writePlatformPost for", platform);
+  console.log("[DEBUG] title:", title);
+  console.log("[DEBUG] brief:", JSON.stringify(brief, null, 2));
+  console.log("[DEBUG] Full prompt being sent to Gemini:", prompt);
+
   const response = await gemini.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -187,15 +197,26 @@ async function writePlatformPost({
   return cleanupPost(response.text ?? "");
 }
 
-async function generateWithRetry(platform: Platform, generateFn: () => Promise<string>) {
+async function generateWithRetry(platform: Platform, title: string, generateFn: () => Promise<string>) {
   const run = async () => {
     const raw = await generateFn();
-    return validateGenerated(platform, raw);
+    const cleaned = cleanupPost(raw);
+
+    const isRealCheck = validateContentIsReal(cleaned, title);
+    if (!isRealCheck.isValid) {
+      console.warn(
+        `[Validation] Post rejected for ${platform}: ${isRealCheck.error}`,
+      );
+      return { content: cleaned, isValid: false };
+    }
+
+    return validateGenerated(platform, cleaned);
   };
 
   const first = await run();
   if (first.isValid) return first.content;
 
+  console.log(`[Retry] First attempt failed for ${platform}, retrying...`);
   const second = await run();
   return second.isValid ? second.content : second.content || first.content;
 }
@@ -242,6 +263,12 @@ async function loadProjectSource(projectId: string, providedSummary?: SourceSumm
       summary.targetAudience,
     ].join("\n");
   }
+
+  console.log("[DEBUG] loadProjectSource:");
+  console.log("[DEBUG] projectId:", projectId);
+  console.log("[DEBUG] title:", title);
+  console.log("[DEBUG] transcript from DB/storage (first 200 chars):", transcript.slice(0, 200));
+  console.log("[DEBUG] transcript length:", transcript.length);
 
   return {
     transcript,
