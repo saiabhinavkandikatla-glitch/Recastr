@@ -1091,7 +1091,7 @@ function getUnlimitedUsagePercent(used: number) {
 }
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === "profile" || value === "posting" || value === "billing" || value === "notifications";
+  return value === "profile" || value === "team" || value === "posting" || value === "billing" || value === "notifications";
 }
 
 function createEmptyPostingCredentialForms(): Record<PostingPlatform, PostingCredentialForm> {
