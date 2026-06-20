@@ -130,7 +130,7 @@ export async function POST(request: Request) {
 
     // Handle YouTube transcript blocked error specifically
     if (error instanceof Error &&
-        error.message === "YouTube transcript is blocked on this network, and no description was provided. Please verify your credentials or configure your proxy.") {
+        error.message === "Unable to retrieve subtitles automatically. We couldn't access subtitles for this video.\n\nPossible reasons:\n• Captions are disabled.\n• The video is private or restricted.\n• YouTube temporarily blocked transcript access.\n\nYou can paste a transcript manually or try another video.") {
       return NextResponse.json(
         {
           error: error.message,
