@@ -9,13 +9,11 @@ import { ingestUrlSchema } from "@/lib/ai/schemas";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
 import { hash, ingestBlog } from "@/lib/ingest";
 import { assertCanCreateProject, assertCanGenerateContent, planLimitErrorResponse } from "@/lib/plan-limits";
-import { normalizePlatformCopy } from "@/lib/platform-limits";
 import { PLAN_RULES } from "@/lib/plans";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
-import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { assertIngestRateLimit } from "@/lib/rate-limit";
-import type { ContentPiece, Platform, Plan, Project, SourceSummary, SourceType, ViralHook } from "@/lib/types";
+import type { Platform, Plan, Project, SourceType } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -23,8 +21,8 @@ type YoutubeMetadata = {
   title: string;
   thumbnailUrl?: string;
   description?: string;
-  videoId?: string;
-  transcript?: string;
+  videoId?: string | null;
+  transcript?: string | null;
   warning?: string;
 };
 
@@ -513,7 +511,6 @@ function isGenericYoutubeTitle(title: string) {
     normalized.includes("enjoy the videos and music you love")
   );
 }
-
 function cleanYoutubeDescription(description?: string) {
   const cleaned = normalizeText(description);
   if (!cleaned) return undefined;
@@ -522,96 +519,32 @@ function cleanYoutubeDescription(description?: string) {
   return cleaned;
 }
 
-function createSummary(metadata: YoutubeMetadata): SourceSummary {
-  const topic = extractTopic(metadata.title);
-  const tags = extractTags(metadata.description);
-  const descriptionLine = summarizeDescription(metadata.description);
-  return {
-    tldr: `${metadata.title} is ready for a platform-native content pack. ${descriptionLine} Recastr extracted a title-led starter set and can become fully transcript-accurate when captions, media processing, or pasted transcript are available.`,
-    takeaways: [
-      `The real YouTube title was imported: "${metadata.title}".`,
-      descriptionLine,
-      `The strongest reusable content angle is ${topic}.`,
-      tags.length > 0 ? `Useful topical tags: ${tags.slice(0, 4).join(", ")}.` : "No reliable hashtag set was found in the description.",
-      metadata.transcript
-        ? "Captions were found and can support more source-specific generation."
-        : "No usable captions were available, so paste the transcript for exact quote-level output.",
-    ],
-    hooks: [
-      `"${metadata.title}" should become more than one upload.`,
-      `The promise inside "${topic}" can become a thread, a LinkedIn post, a reel, and a community prompt.`,
-      `If someone clicks "${metadata.title}", they want a clear payoff. Lead every asset with that payoff.`,
-      `Most creators publish "${topic}" once. The smarter move is to distribute the best lesson all week.`,
-      `Turn "${metadata.title}" into platform-native posts, not pasted summaries.`,
-      `The strongest beginner question inside "${topic}" is probably your best opening line.`,
-      `"${metadata.title}" already has the hard part: a clear audience promise.`,
-      `Use "${topic}" as the anchor, then change the angle for each platform.`,
-      `Your audience should not need to watch the full video to get one useful idea from "${topic}".`,
-      `A source like "${metadata.title}" should become a content system, not a single link.`,
-    ],
-    detectedTone: "educational",
-    topics: uniqueList([topic, ...tags, "YouTube repurposing", "repurposing", "content creator"]).slice(0, 5),
-    targetAudience: "Creators, learners, founders, and content teams",
-  };
+// extractTags, uniqueList and truncate functions were removed because they were unused
+
+function normalizeText(value: unknown) {
+  if (typeof value !== "string") return "";
+  const decoded = decodeHtml(value)
+    .replace(/\\u0026/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+  return decoded;
 }
 
-function createHooks(projectId: string, metadata: YoutubeMetadata): ViralHook[] {
-  const topic = extractTopic(metadata.title);
-  const tags = extractTags(metadata.description);
-  const tagContext = tags.length > 0 ? ` around ${tags.slice(0, 2).join(" and ")}` : "";
-  return [
-    [`"${metadata.title}" should not disappear after one upload.`, "Curiosity gap", 86],
-    [`The conversation inside "${topic}"${tagContext} can become posts, scripts, captions, and community questions.`, "Data", 84],
-    [`The title "${metadata.title}" is the promise. The content pack should distribute that promise.`, "Story", 81],
-    [`Most creators would publish "${topic}" once. That leaves the best angles unused.`, "Controversy", 79],
-    [`Start with the strongest question behind "${topic}", then translate it by platform.`, "Curiosity gap", 76],
-  ].map(([text, hookType, reachScore], index) => ({
-    id: `${projectId}-hook-${index + 1}`,
-    projectId,
-    text: String(text),
-    hookType: String(hookType),
-    reachScore: Number(reachScore),
-  }));
+function decodeHtml(value: string) {
+  return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 10)))
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
 
-function createContents(projectId: string, hooks: ViralHook[], metadata: YoutubeMetadata): ContentPiece[] {
-  const now = new Date().toISOString();
-  const topic = extractTopic(metadata.title);
-  const tags = extractTags(metadata.description);
-  const captionTags = tags.length > 0 ? `\n\n${tags.slice(0, 8).map((tag) => `#${tag.replace(/\s+/g, "")}`).join(" ")}` : "";
-  const context = summarizeDescription(metadata.description);
-  const rows: Array<[Platform, string, string]> = [
-    ["TWITTER", "Tweet", `${topic} gets easier when you stop treating it like magic.\n\nAsk for something. Send the request. Get a response. Use the result.\n\nThat simple loop is the bridge from idea to working system.`],
-    ["TWITTER", "Tweet", `Most beginners do not get stuck because ${topic} is too advanced.\n\nThey get stuck because nobody gives them a simple mental model first.\n\nStart with the request and response. Everything else gets less scary.`],
-    ["TWITTER", "Thread", `1/ ${topic} looks complicated until you see the pattern.\n\n2/ One side asks for something.\n\n3/ The other side sends back data or action.\n\n4/ Your job is to understand the menu, not rebuild the kitchen.\n\nSave this before your next build.`],
-    ["LINKEDIN", "LinkedIn post", `I used to think ${topic} was the hard part.\n\nThen I realized the hard part was not the technology.\n\nIt was missing the mental model.\n\n${context}\n\nHere is the simple version:\n\n1. Know what you want to ask for\n2. Send the request in the format the system expects\n3. Read the response\n4. Use that response in your workflow\n\nYou do not need to understand the whole kitchen before you order from the menu.\n\nThat is the shift this video makes clear.\n\nSave this if you are learning by building.\n\n#AI #APIs #ChatGPT #BuildInPublic`],
-    ["LINKEDIN", "LinkedIn post", `The biggest mistake I see beginners make with ${topic} is trying to learn everything at once.\n\nThey read docs for hours, get overwhelmed, and give up.\n\nHere is a better approach:\n\n1. Focus on a single use case.\n2. Write down exactly what input you have.\n3. Identify the expected output format.\n4. Call the endpoint/function and get a result.\n\nYou don't need to be an expert to build something useful.\n\nJust focus on the next step.\n\n#SoftwareDevelopment #Productivity #Learning`],
-    ["INSTAGRAM", "Reel script", `[HOOK - 0 to 3 seconds]\nYou are probably making ${topic} harder than it needs to be.\n\n[BODY - 3 to 35 seconds]\nThink of it like ordering food.\nYou ask for something.\nThe kitchen handles the work.\nYou get the result back.\nThat is the mental model.\nYou do not need to know every internal detail first.\nYou need to know what to ask for and how to read the response.\n\n[CTA - 35 to 60 seconds]\nSave this before your next build.`],
-    ["INSTAGRAM", "Caption", `${topic} is less scary with the right mental model.\n\n-> Ask for something\n-> Send the request\n-> Read the response\n-> Use it in your workflow\n\nYou do not need to rebuild the kitchen.\nYou just need to know the menu.\n\nSave this before your next project.${captionTags}`],
-    ["FACEBOOK", "Facebook post", `Understanding ${topic} doesn't have to be complicated.\n\nAt its core, it's just a request and response loop. You ask for something, the system processes it, and you get the result back.\n\nIf you're stuck, try breaking down your workflow into these basic steps. It makes building much easier.\n\n${context}`],
-    ["FACEBOOK", "Facebook post", `Looking for a simple mental model for ${topic}?\n\nThink of it like ordering at a restaurant. You don't need to know how the kitchen prepares the food to enjoy the meal. You just need to know what's on the menu.\n\nFocus on the inputs you have and the outputs you need. The rest is implementation details.`],
-    ["COMMUNITY", "YouTube community post", `What part of ${topic} should we break down next?\n\nA) Beginner mental model\nB) Real project walkthrough\nC) Common mistakes\nD) Full roadmap`],
-    ["COMMUNITY", "YouTube community post", `We just finished analyzing ${topic}. The biggest takeaway? Keep your mental model simple. You don't need to rebuild the kitchen, just know the menu.\n\nWhat are you currently building with this?`],
-  ];
-
-  return rows.map(([platform, contentType, body], index) => {
-    const normalizedBody = normalizePlatformCopy(platform, body);
-    return {
-      id: `${projectId}-content-${index + 1}`,
-      projectId,
-      hookId: hooks[index % hooks.length]?.id,
-      platform,
-      contentType,
-      body: normalizedBody,
-      originalBody: normalizedBody,
-      tone: "casual",
-      approved: false,
-      order: index,
-      createdAt: now,
-    };
-  });
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
 function browserHeaders() {
   return {
     Accept: "text/html,application/json,text/plain,*/*",
@@ -621,6 +554,28 @@ function browserHeaders() {
   };
 }
 
+function hookCreateRows(project: Project) {
+  return (project.hooks ?? []).map((hook) => ({
+    id: hook.id,
+    text: hook.text,
+    hookType: hook.hookType,
+    reachScore: hook.reachScore,
+  }));
+}
+
+function contentCreateRows(project: Project) {
+  return (project.contents ?? []).map((item) => ({
+    id: item.id,
+    hookId: item.hookId,
+    platform: item.platform,
+    contentType: item.contentType,
+    body: item.body,
+    originalBody: item.originalBody,
+    tone: item.tone,
+    approved: item.approved,
+    order: item.order,
+  }));
+}
 async function persistProject(user: { id: string; email: string; plan: string }, project: Project) {
   await ensureUserRecord({
     id: user.id,
@@ -652,90 +607,10 @@ async function persistProject(user: { id: string; email: string; plan: string },
       summary: project.summary as Prisma.InputJsonValue,
       duration: project.duration,
       wordCount: project.wordCount,
-      hooks: {
-        create: hookCreateRows(project),
-      },
-      contents: {
-        create: contentCreateRows(project),
-      },
+      hooks: { create: hookCreateRows(project) },
+      contents: { create: contentCreateRows(project) },
     },
   });
-}
-
-function extractTopic(title: string) {
-  return title
-    .replace(/\s*\([^)]*\)\s*/g, " ")
-    .replace(/\s*[-:|]\s*(official video|full beginner course|beginner course|full course|explained|tutorial|guide).*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim() || title;
-}
-
-function summarizeDescription(description?: string) {
-  const cleaned = normalizeText(description);
-  if (!cleaned) return "The available YouTube metadata gives enough context for starter hooks, but not full quote-level analysis.";
-  return truncate(cleaned.replace(/#[^\s#]+/g, "").trim(), 220);
-}
-
-function extractTags(description?: string) {
-  const matches = normalizeText(description).match(/#[A-Za-z0-9_-]+/g) ?? [];
-  return uniqueList(matches.map((tag) => tag.replace(/^#/, "").replace(/_/g, " "))).slice(0, 10);
-}
-
-function uniqueList(values: string[]) {
-  return Array.from(new Set(values.map((value) => normalizeText(value)).filter(Boolean)));
-}
-
-function truncate(value: string, maxLength: number) {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 1).trim()}...`;
-}
-
-function normalizeText(value: unknown) {
-  if (typeof value !== "string") return "";
-  const decoded = decodeHtml(value)
-    .replace(/\\u0026/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-  return decoded;
-}
-
-function decodeHtml(value: string) {
-  return value
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 10)))
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function hookCreateRows(project: Project) {
-  return (project.hooks ?? []).map((hook) => ({
-    id: hook.id,
-    text: hook.text,
-    hookType: hook.hookType,
-    reachScore: hook.reachScore,
-  }));
-}
-
-function contentCreateRows(project: Project) {
-  return (project.contents ?? []).map((item) => ({
-    id: item.id,
-    hookId: item.hookId,
-    platform: item.platform,
-    contentType: item.contentType,
-    body: item.body,
-    originalBody: item.originalBody,
-    tone: item.tone,
-    approved: item.approved,
-    order: item.order,
-  }));
 }
 
 type PersistedProject = Prisma.ProjectGetPayload<{

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { SourceSummary } from "@/lib/types";
 import { getRequestUser } from "@/lib/auth";
 import { toneSchema } from "@/lib/ai/schemas";
 import { trackServerEvent } from "@/lib/analytics";
-import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
+import { creditErrorResponse, requireCredits } from "@/lib/credits";
 import { prisma } from "@/lib/prisma/client";
 import { getGeminiClient } from "@/lib/ai/client";
 import { cleanupPost } from "@/lib/ai/validation";
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
     let projectTitle = "";
     let projectTranscript = "";
-    let projectSummary: any = null;
+    let projectSummary: SourceSummary | null = null;
     let platform = "social media";
 
     if (payload.contentId) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
         if (existingContent.project) {
           projectTitle = existingContent.project.title;
           projectTranscript = existingContent.project.transcript;
-          projectSummary = existingContent.project.summary;
+          projectSummary = existingContent.project.summary as SourceSummary | null;
         }
       }
     }
@@ -100,11 +101,14 @@ Output ONLY the rewritten raw content of the post. Do not include markdown wraps
       }
     }
 
-    await trackServerEvent(payload.regenerate ? "content_regenerated" : "tone_rewritten", {
+    await trackServerEvent(payload.regenerate ? "content_generated" : "tone_rewritten", {
       userId: user.id,
-      metadata: { tone: newTone, blend, contentId: payload.contentId },
+      metadata: {
+        tone: newTone,
+        blend,
+        ...(payload.contentId !== undefined ? { contentId: payload.contentId } : {})
+      }
     });
-    await consumeCredits(user);
     return NextResponse.json({ rewritten, content: rewritten });
   } catch (error) {
     const creditResponse = creditErrorResponse(error);
@@ -141,7 +145,7 @@ function fallbackLocalRewrite(content: string, toTone: string, blend: number) {
   return `${prefix}${cleaned}${cta}`;
 }
 
-function fallbackLocalRegenerate(projectSummary: any, platform: string, projectTitle: string) {
+function fallbackLocalRegenerate(projectSummary: SourceSummary | null, platform: string, projectTitle: string) {
   const hooks = projectSummary?.hooks ?? [];
   const seed = hooks[Math.floor(Math.random() * (hooks.length || 1))] ?? projectTitle;
   const body =

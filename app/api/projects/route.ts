@@ -16,31 +16,37 @@ const createProjectSchema = z.object({
 });
 
 export async function GET(request: Request) {
-  const user = await getRequestUser(request);
-
-
   try {
-    const projects = await prisma.project.findMany({
-      where: { userId: user.id },
-      include: { contents: true, hooks: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const user = await getRequestUser(request);
 
-    return NextResponse.json(projects.map(serializeProject));
-  } catch (error) {
-    console.error("Failed to load full projects:", error);
+
     try {
       const projects = await prisma.project.findMany({
         where: { userId: user.id },
-        select: projectShellSelect,
+        include: { contents: true, hooks: true },
         orderBy: { createdAt: "desc" },
       });
 
-      return NextResponse.json(projects.map(serializeProjectShell));
-    } catch (fallbackError) {
-      console.error("Failed to load project shells:", fallbackError);
-      return NextResponse.json([]);
+      return NextResponse.json(projects.map(serializeProject));
+    } catch (error) {
+      console.error("Failed to load full projects:", error);
+      try {
+        const projects = await prisma.project.findMany({
+          where: { userId: user.id },
+          select: projectShellSelect,
+          orderBy: { createdAt: "desc" },
+        });
+
+        return NextResponse.json(projects.map(serializeProjectShell));
+      } catch (fallbackError) {
+        console.error("Failed to load project shells:", fallbackError);
+        return NextResponse.json([]);
+      }
     }
+  } catch (error) {
+    if (error instanceof Response) return error;
+    console.error("Unexpected error in GET /api/projects:", error);
+    return NextResponse.json([]); // Return empty array for unexpected errors to avoid breaking UI
   }
 }
 

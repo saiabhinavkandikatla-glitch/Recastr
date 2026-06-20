@@ -1,9 +1,13 @@
 import { getGeminiClient } from "@/lib/ai/client";
+import { YoutubeTranscript } from "youtube-transcript";
+import axios from "axios";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
-import type { ContentPiece, Platform, SourceSummary, ViralHook, Project, SourceType } from "@/lib/types";
+import type { ContentPiece, Platform, SourceSummary, ViralHook, SourceType } from "@/lib/types";
 import { hash } from "@/lib/ingest";
+import * as cheerio from "cheerio";
+import sanitizeHtml from "sanitize-html";
 
 // ==========================================
 // 12-Stage Content Intelligence Pipeline
@@ -62,7 +66,7 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
     tldr: knowledgeGraph.tldr,
     takeaways: knowledgeGraph.takeaways.slice(0, 5),
     hooks: hooks.map(h => h.text),
-    detectedTone: (options.tonePref as any) || "educational",
+    detectedTone: options.tonePref || "educational",
     topics: knowledgeGraph.topics.slice(0, 5),
     targetAudience: "Creators and Professionals",
   };
@@ -527,7 +531,13 @@ function buildWriterPrompt(opts: {
     TWITTER: "Write a short post (under 280 characters). High curiosity, human tone, punchy hook line. No hashtags. Do not write a thread.",
     LINKEDIN: "Write a storytelling post with professional lessons. Use paragraph breaks, a conversational hook, and actionable takeaways at the end. Keep it under 1500 characters. No hashtags.",
     INSTAGRAM: "Write a multi-slide carousel layout script. Use short paragraphs. Outline Slide 1 (Hook), Slide 2, Slide 3, Slide 4, and Slide 5 (CTA). Add 5 relevant hashtags at the very end.",
+    FACEBOOK: "Write a engaging Facebook post with a hook, short paragraphs, and a clear call-to-action. Keep it under 2000 characters.",
     THREADS: "Write a casual, conversational, and highly opinionated post. Keep it very relaxed, under 500 characters.",
+    CAROUSEL: "Write a multi-slide carousel layout script. Use short paragraphs. Outline Slide 1 (Hook), Slide 2, Slide 3, Slide 4, and Slide 5 (CTA). Add 5 relevant hashtags at the very end.",
+    COMMUNITY: "Write a YouTube Community post that engages subscribers with a question, update, or behind-the-scenes content. Keep it under 200 characters.",
+    STORY: "Write a story-style narrative with a beginning, middle, and end. Focus on engagement and sharing personal experiences or lessons learned.",
+    HOOKS: "Write compelling hook variations that grab attention in the first 3 seconds. Focus on curiosity gaps, bold statements, or intriguing questions.",
+    CTA: "Write a clear call-to-action that tells the audience exactly what to do next. Use action verbs and create urgency.",
     NEWSLETTER: "Write a detailed long-form newsletter structure with clear subheaders, main story, and next action items.",
     BLOG: "Write a structured SEO-optimized blog article in markdown format.",
   }[opts.platform] || "Write a casual post.";
@@ -736,7 +746,7 @@ async function scrapeWatchPageCaptions(videoId: string): Promise<string | null> 
     if (!match) return null;
 
     const tracks = JSON.parse(match[1]);
-    const track = tracks.find((t: any) => t.languageCode === "en" || t.languageCode?.startsWith("en"));
+    const track = tracks.find((t: { languageCode?: string; baseUrl?: string }) => t.languageCode === "en" || t.languageCode?.startsWith("en"));
     if (!track?.baseUrl) return null;
 
     const xmlRes = await axios.get(track.baseUrl, { timeout: 5000 });
@@ -768,7 +778,7 @@ async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string | 
   try {
     const segments = await YoutubeTranscript.fetchTranscript(videoId);
     if (!segments || segments.length === 0) return null;
-    return segments.map(s => s.text).join(" ");
+    return segments.map((segment: { text: string }) => segment.text).join(" ");
   } catch (error) {
     console.error("[pipeline:extract] youtube-transcript lib failed:", error);
     return null;
@@ -780,18 +790,16 @@ async function scrapeBlogText(url: string): Promise<string> {
     timeout: 10000,
     headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
   });
-  const cheerio = require("cheerio");
   const $ = cheerio.load(response.data);
   $("script, style, nav, header, footer, aside, noscript, iframe, [class*=ad]").remove();
   const rawBody =
     $("article").text() ||
     $("main").text() ||
     $("p")
-      .map((_: any, element: any) => $(element).text())
-      .get()
+      .toArray()
+      .map((element) => $(element).text())
       .join("\n");
 
-  const sanitizeHtml = require("sanitize-html");
   const transcript = sanitizeHtml(rawBody, { allowedTags: [], allowedAttributes: {} })
     .replace(/\s+/g, " ")
     .trim();

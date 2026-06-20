@@ -1,7 +1,7 @@
 import { z } from "zod";
 import crypto from "crypto";
 import { getCurrentUser } from "@/lib/current-user";
-import { requireOrgAccess } from "@/lib/auth";
+import { requireOrgAccess, type AuthenticatedUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import { err } from "@/lib/api-response";
 
@@ -10,7 +10,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const user = await getCurrentUser();
     if (!user) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(user as any, params.id, ["owner", "admin", "editor", "viewer"]);
+    await requireOrgAccess(user as AuthenticatedUser, params.id, ["owner", "admin", "editor", "viewer"]);
 
     const invitations = await prisma.invitation.findMany({
       where: { organizationId: params.id },
@@ -34,7 +34,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const currentUser = await getCurrentUser();
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(currentUser as any, params.id, ["owner", "admin"]);
+    await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
 
     const payload = createInvitationSchema.parse(await request.json());
 
@@ -106,7 +106,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     const currentUser = await getCurrentUser();
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(currentUser as any, params.id, ["owner", "admin"]);
+    await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
 
     const url = new URL(request.url);
     const inviteId = url.searchParams.get("inviteId");

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/current-user";
-import { requireOrgAccess } from "@/lib/auth";
+import { requireOrgAccess, type AuthenticatedUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import { err } from "@/lib/api-response";
 
@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const user = await getCurrentUser();
     if (!user) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(user as any, params.id, ["owner", "admin", "editor", "viewer"]);
+    await requireOrgAccess(user as AuthenticatedUser, params.id, ["owner", "admin", "editor", "viewer"]);
 
     const members = await prisma.organizationMembership.findMany({
       where: { organizationId: params.id },
@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
     // Only owners and admins can add members
-    await requireOrgAccess(currentUser as any, params.id, ["owner", "admin"]);
+    await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
 
     const payload = addMemberSchema.parse(await request.json());
 
@@ -118,9 +118,9 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     // A user can remove themselves (leave), otherwise requires owner/admin
     if (currentUser.id !== userIdToRemove) {
-      await requireOrgAccess(currentUser as any, params.id, ["owner", "admin"]);
+      await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
     } else {
-      await requireOrgAccess(currentUser as any, params.id, ["owner", "admin", "editor", "viewer"]);
+      await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin", "editor", "viewer"]);
     }
 
     // Check if trying to remove the owner
