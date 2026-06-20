@@ -24,7 +24,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              Videos, podcasts and blogs.
+              You can upload YouTube video URLs, podcast audio files (MP3/WAV), or paste in a blog post URL or raw text. We support files up to 500MB on Pro and Business plans.
             </AccordionContent>
           </AccordionItem>
 
@@ -34,7 +34,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              LinkedIn, X and Instagram.
+              Recastr generates content for LinkedIn (long-form posts), X/Twitter (threads up to 10 tweets), Instagram (captions + hashtags), and Instagram Reels (spoken scripts with timestamps).
             </AccordionContent>
           </AccordionItem>
 
@@ -44,7 +44,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              Yes, with the Pro plan.
+              Yes — on Pro and Business plans you can set a publish date and time per post. Recastr sends you an email reminder when it&apos;s time to post. Direct auto-publishing is coming soon.
             </AccordionContent>
           </AccordionItem>
 

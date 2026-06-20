@@ -27,9 +27,19 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
-  title: "Recastr",
-  description:
-    "Repurpose long-form content into platform-native social media assets.",
+  title: { default: "Recastr — One video. 30 content assets.", template: "%s | Recastr" },
+  description: "AI-powered content repurposing for founders, creators, and agencies.",
+  openGraph: {
+    title: "Recastr — Turn one video into 30 content assets",
+    description: "AI-powered content repurposing for founders, creators, and agencies.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Recastr — Turn one video into 30 content assets",
+    description: "AI-powered content repurposing for founders, creators, and agencies.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({

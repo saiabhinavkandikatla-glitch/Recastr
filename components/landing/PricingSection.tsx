@@ -75,6 +75,7 @@ export function PricingSection() {
                 <span className="text-lg text-[#8A8A8A] font-normal">
                   /month
                 </span>
+                <p className="mt-1.5 text-xs text-[#52525b] font-medium">Billed monthly</p>
               </div>
 
               <div className="mt-10 mb-10 space-y-4 flex-1">
@@ -90,7 +91,19 @@ export function PricingSection() {
 
               <div className="mt-auto">
                 <Button className="w-full" asChild variant={plan.featured ? "default" : "secondary"}>
-                  <Link href="/signup">Start Now</Link>
+                  <Link
+                    href={
+                      plan.name.toLowerCase() === "team"
+                        ? "/contact"
+                        : `/signup?plan=${plan.name.toLowerCase()}`
+                    }
+                  >
+                    {plan.name.toLowerCase() === "team"
+                      ? "Talk to us"
+                      : plan.name.toLowerCase() === "free"
+                      ? "Start free"
+                      : "Start Pro trial"}
+                  </Link>
                 </Button>
               </div>
             </div>

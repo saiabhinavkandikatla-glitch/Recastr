@@ -12,7 +12,7 @@ export function Logo({ size = "md", className = "" }: LogoProps) {
   const dim = dims[size];
 
   return (
-    <Link href="/" className={`logo-component ${className}`.trim()} aria-label="Recastr home">
+    <Link href="/" className={`logo-component inline-flex items-center gap-2 ${className}`.trim()} aria-label="Recastr home">
       <svg width={dim} height={dim} viewBox="0 0 32 32" fill="none" aria-hidden>
         <rect width="32" height="32" rx="8" fill="currentColor" className="text-white" />
         <text

@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
+
+export const metadata: Metadata = {
+  title: "Recastr — Blog",
+  description: "Product updates, creator tips, and news from Recastr.",
+};
 
 export default function BlogPage() {
   return (

@@ -5,8 +5,8 @@ import { AuthForm } from "@/components/auth/AuthForm";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Recastr — Create account",
-  description: "Turn one source into 30 days of content.",
+  title: "Recastr — Create your free account",
+  description: "Start repurposing your content for free. No credit card required.",
 };
 
 export default function SignupPage() {

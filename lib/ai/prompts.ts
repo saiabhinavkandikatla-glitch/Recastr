@@ -54,45 +54,57 @@ CTA: ${brief.cta}`;
 }
 
 export function writeTwitterThreadPrompt(brief: GenerationBrief, title: string) {
-  return `Write a Twitter/X thread.
+  return `Write an expert X/Twitter thread.
 
 ${briefContext(brief, title)}
 
 RULES:
-- Tweet 1: bold hook under 220 chars. Stop-scroll quality.
-- Tweets 2-7: one idea per tweet, numbered "1/", "2/" etc, max 2 lines
-- Last tweet: clear CTA
-- 6-8 tweets total, human voice, no corporate language
-
-BANNED: "Delve", "In conclusion", "It's important to note", "Game-changing",
-"In today's world", "I hope this helps", "Synergy", "Leverage"
+1. Thread format — every tweet is numbered:
+   1/ [Hook — the most surprising fact, surprising number, or counter-intuitive claim]
+   2/ [First point]
+   ...
+   X/ [Summary + follow CTA]
+2. EVERY TWEET must be under 280 characters (count carefully).
+3. Tweet 1 (the hook) formula: State surprising number/outcome, tell how briefly, end with a thread emoji 🧵. Make it stop-scroll quality.
+4. Body tweets: One insight/framework per tweet. Use concrete numbers. Short punchy sentences.
+5. Final tweet: Summarize the core lesson, then say "Follow @[handle] for more".
+6. Length: 5-8 tweets.
+7. Banned words: "delve", "in conclusion", "it's important to note", "game-changing", "in today's world", "synergy", "leverage".
 
 FORMAT — EXACTLY THIS:
-TWEET_1: [content]
+1/ [Tweet 1 content]
 ---
-TWEET_2: 1/ [content]
+2/ [Tweet 2 content]
 ---
-[continue to TWEET_7 or 8]
+3/ [Tweet 3 content]
 
-OUTPUT ONLY THE TWEETS. NO PREAMBLE. NO LABELS BEYOND THE FORMAT ABOVE.`;
+OUTPUT ONLY THE THREAD. NO PREAMBLE. NO OTHER LABELS.`;
 }
 
 export function writeLinkedInPostPrompt(brief: GenerationBrief, title: string) {
-  return `Write a LinkedIn post.
+  return `Write an expert LinkedIn post.
 
 ${briefContext(brief, title)}
 
 RULES:
-- Personal story or lesson format, 150-220 words
-- Short single-sentence paragraphs (broetry style)
-- Numbered list of 3-5 insights
-- 3-5 relevant hashtags at the end
-- Human voice, first person when natural
+1. FIRST LINE is everything: under 10 words, creates curiosity or tension.
+2. Structure:
+   [Hook line — 1 sentence, max 10 words]
+   
+   [Context — 1-2 sentences max]
+   
+   [Body — use em dashes (—) as section breaks, short paragraphs of 1-3 lines]
+   
+   [The lesson — your sharpest insight from the content]
+   
+   [CTA — a self-reflective question OR a repost ask (♻️ Repost if you agree), never both]
+3. Focus on the BUSINESS MODEL or PROFESSIONAL LESSON, not the personal story.
+4. Use specific numbers. Do not say "grew a lot" when you have specific stats.
+5. NO HASHTAGS ON LINKEDIN AT ALL.
+6. Length: 150-300 words. Never exceed 400 words.
+7. Banned words: "delve", "in conclusion", "it's important to note", "game-changing", "in today's world", "synergy", "leverage".
 
-BANNED: "Delve", "In conclusion", "It's important to note", "Game-changing",
-"In today's world", "I hope this helps", "Synergy", "Leverage"
-
-OUTPUT ONLY THE POST TEXT. NO PREAMBLE. NO LABELS.`;
+OUTPUT ONLY THE POST TEXT. NO PREAMBLE. NO OTHER LABELS.`;
 }
 
 export function writeInstagramCaptionPrompt(brief: GenerationBrief, title: string) {
@@ -101,13 +113,16 @@ export function writeInstagramCaptionPrompt(brief: GenerationBrief, title: strin
 ${briefContext(brief, title)}
 
 RULES:
-- Hook line under 125 characters
-- Arrow list (→) for 3-4 key points
-- 10-15 hashtags on final line
-- Conversational, high energy
-
-BANNED: "Delve", "In conclusion", "It's important to note", "Game-changing",
-"In today's world", "I hope this helps", "Synergy", "Leverage"
+1. FIRST TWO LINES are what users see before "...more".
+   - Line 1: Hook — number, question, or bold claim. NEVER start with "I" as the first word.
+   - Line 2: Create curiosity.
+2. Line breaks after every 1-3 sentences.
+3. Use arrows (→) for lists.
+4. Emojis: 1-3 maximum at natural pause points.
+5. Save CTA: end the body with "Save this if [reason]" or "Share this with [someone who needs it]".
+6. Lead with the PERSONAL JOURNEY (emotional arc).
+7. Hashtags: 5-8 hashtags at the very end after 2 blank lines (no inline hashtags).
+8. Banned words: "delve", "in conclusion", "it's important to note", "game-changing", "in today's world", "synergy", "leverage".
 
 OUTPUT ONLY THE CAPTION. NO PREAMBLE.`;
 }
@@ -119,13 +134,13 @@ ${briefContext(brief, title)}
 
 RULES:
 - Slide 1: Hook headline + subline
-- Slides 2-4: Problem → Steps → Insight (one headline + 2-3 bullets each)
+- Slides 2-4: Problem → Steps → Insight (one headline + 2-3 bullets each, using → instead of bullets)
 - Slide 5: CTA
 - Format each slide exactly as:
 
 SLIDE N: [Headline]
-- bullet 1
-- bullet 2
+→ bullet 1
+→ bullet 2
 
 Separate slides with ---
 
@@ -167,22 +182,33 @@ export function writeReelScriptPrompt(brief: GenerationBrief, title: string) {
 ${briefContext(brief, title)}
 
 RULES:
-- [HOOK — 0 to 3 sec]: one punchy line
-- [BODY — 3 to 40 sec]: 2-3 short spoken beats
-- [CTA — 40 to 60 sec]: one clear action
-- 80-100 words total, written to be spoken aloud
+1. Structure with timestamps:
+   [HOOK — 0 to 3 sec]
+   [lines]
+   
+   [CONTEXT — 3 to 8 sec]
+   [lines]
+   
+   [POINT 1 — 8 to 20 sec]
+   [lines]
+   
+   [POINT 2 — 20 to 32 sec]
+   [lines]
+   
+   [POINT 3 — 32 to 45 sec]
+   [lines]
+   
+   [CTA — 45 to 55 sec]
+   [lines]
+2. HOOK (first 3 seconds): State surprising number/outcome, question, or bold claim.
+3. Sentence length: max 10 words per sentence.
+4. Natural speech: use contractions ("didn't" instead of "did not"). Mark pauses with "...".
+5. Include [TEXT: "key stat"] overlay cues and [B-ROLL: description] cues.
+6. CTA: last 5-10 seconds, focus on what they get by following.
+7. Length: 45-60 seconds (~100-130 words).
+8. Banned words: "delve", "in conclusion", "it's important to note", "game-changing", "in today's world", "synergy", "leverage".
 
-FORMAT:
-[HOOK — 0 to 3 sec]
-[line]
-
-[BODY — 3 to 40 sec]
-[lines]
-
-[CTA — 40 to 60 sec]
-[line]
-
-OUTPUT ONLY THE SCRIPT. NO PREAMBLE.`;
+OUTPUT ONLY THE SCRIPT. NO PREAMBLE. NO OTHER LABELS.`;
 }
 
 export function writeThreadsPrompt(brief: GenerationBrief, title: string) {

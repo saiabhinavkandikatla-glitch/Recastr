@@ -14,13 +14,6 @@ export function HeroSection() {
     }
   };
 
-  const handleStartFreeClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const ctaSection = document.getElementById("cta");
-    if (ctaSection) {
-      ctaSection.scrollIntoView({ behavior: "smooth" });
-    }
-  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -61,13 +54,13 @@ export function HeroSection() {
         <motion.div variants={itemVariants} className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <MagneticWrapper>
             <Button size="lg" asChild>
-              <Link href="#cta" onClick={handleStartFreeClick}>Get Started</Link>
+              <Link href="/signup">Get Started</Link>
             </Button>
           </MagneticWrapper>
 
           <MagneticWrapper>
             <Button variant="secondary" size="lg" asChild>
-              <Link href="#demo" onClick={handleDemoClick}>Watch Demo</Link>
+              <Link href="#workflow" onClick={handleDemoClick}>Watch Demo</Link>
             </Button>
           </MagneticWrapper>
         </motion.div>

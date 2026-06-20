@@ -455,7 +455,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
             <Link
               className="font-medium text-violet-400 hover:text-violet-300 transition-colors"
-              href={`${isSignup ? "/login" : "/signup"}?next=${encodeURIComponent(nextPath)}`}
+              href={
+                isSignup
+                  ? `/login?next=${encodeURIComponent(searchParams.get("next") ?? "/dashboard")}`
+                  : `/signup?next=${encodeURIComponent(searchParams.get("next") ?? "/onboarding")}`
+              }
             >
               {isSignup ? "Sign in instead" : "Create one now"}
             </Link>
