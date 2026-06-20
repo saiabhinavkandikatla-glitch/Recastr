@@ -4,25 +4,25 @@ export function WorkflowSection() {
       number: "01",
       title: "Upload Content",
       description:
-        "Upload podcasts, YouTube videos, blogs or long-form content."
+        "Upload YouTube videos, podcasts, blogs and long-form documents."
     },
     {
       number: "02",
-      title: "AI Finds Viral Hooks",
+      title: "Content Analysis",
       description:
-        "Extract the most engaging ideas and moments automatically."
+        "Identify key ideas, highlights and topics automatically."
     },
     {
       number: "03",
       title: "Generate Posts",
       description:
-        "Create LinkedIn posts, X threads, captions and scripts."
+        "Create LinkedIn posts, X threads, captions, summaries and scripts."
     },
     {
       number: "04",
-      title: "Approve, Export & Schedule",
+      title: "Review & Schedule",
       description:
-        "Review, edit, export your content, and schedule email reminders."
+        "Organize your content and receive email reminders when your content is ready."
     }
   ];
 
@@ -36,7 +36,7 @@ export function WorkflowSection() {
           </p>
 
           <h2 className="mt-6 text-5xl font-bold">
-            From One Video To 30 Content Assets
+            Transform Long-Form Content Into Shareable Posts
           </h2>
         </div>
 

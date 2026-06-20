@@ -5,6 +5,7 @@ import { Navbar } from "./Navbar";
 import { HeroSection } from "./HeroSection";
 import { WorkflowSection } from "./WorkflowSection";
 import { FeatureGrid } from "./FeatureGrid";
+import { PlatformSection } from "./PlatformSection";
 import { PricingSection } from "./PricingSection";
 import { FAQSection } from "./FAQSection";
 import { CTASection } from "./CTASection";
@@ -61,6 +62,10 @@ export function LandingPage() {
 
         <motion.div variants={itemVariants}>
           <FeatureGrid />
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <PlatformSection />
         </motion.div>
 
         <motion.div variants={itemVariants}>
