@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/app-store";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Bot, CheckSquare } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export function MobileSidebar() {
   const { sidebarOpen, setSidebarOpen } = useAppStore();
@@ -29,10 +30,7 @@ export function MobileSidebar() {
       />
       <div className="fixed inset-y-0 left-0 z-50 w-[280px] bg-[#090909] border-r border-[#232323] p-6 shadow-2xl transition-transform duration-300 md:hidden flex flex-col">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center">
-            <div className="h-6 w-6 rounded bg-white mr-3 flex items-center justify-center font-extrabold text-black text-[13px]">R</div>
-            <span className="text-xl font-bold tracking-tight text-white">ReCastr</span>
-          </div>
+          <Logo size="md" className="text-white" />
           <button onClick={() => setSidebarOpen(false)} className="text-[#8A8A8A] hover:text-white">
             <X className="h-6 w-6" />
           </button>
