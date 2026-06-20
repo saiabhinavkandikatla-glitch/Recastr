@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     await requireCredits(user);
     const payload = ingestBlogSchema.parse(await request.json());
     await assertCanCreateProject(user, "BLOG");
-    const project = await ingestBlog(payload.url);
+    const project = await ingestBlog(payload.url, user.id);
     await trackServerEvent("source_ingested", {
       userId: user.id,
       projectId: project.id,

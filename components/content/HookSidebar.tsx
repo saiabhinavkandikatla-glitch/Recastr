@@ -36,7 +36,7 @@ export const HookSidebar = memo(function HookSidebar({
     <aside className="w-full shrink-0 min-[700px]:sticky min-[700px]:top-20 min-[700px]:w-[248px]">
       <div className="mb-3 px-1">
         <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Viral hooks
+          Content Assets
         </p>
       </div>
 
@@ -98,5 +98,15 @@ export const HookSidebar = memo(function HookSidebar({
 });
 
 function hookPillClass(type: string) {
+  const t = type.toLowerCase();
+  if (t === "insight") return "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+  if (t === "story") return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+  if (t === "quote") return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+  if (t === "lesson") return "bg-teal-500/10 text-teal-400 border border-teal-500/20";
+  if (t === "framework") return "bg-violet-500/10 text-violet-400 border border-violet-500/20";
+  if (t === "data") return "bg-sky-500/10 text-sky-400 border border-sky-500/20";
+  if (t === "curiosity") return "bg-pink-500/10 text-pink-400 border border-pink-500/20";
+  if (t === "contrarian") return "bg-orange-500/10 text-orange-400 border border-orange-500/20";
+  if (t === "mistake") return "bg-rose-500/10 text-rose-400 border border-rose-500/20";
   return "bg-zinc-800 text-zinc-200 border border-zinc-700";
 }

@@ -76,7 +76,7 @@ export function GenerateDrawer({
           <div>
             <p className="text-sm font-medium">Generate more</p>
             <p className="text-xs text-muted-foreground">
-              {selectedHook ? "Using selected hook" : "Using full source"}
+              {selectedHook ? "Using selected asset" : "Using full source"}
             </p>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose}>
@@ -244,25 +244,25 @@ function buildGeneratedBody(
   if (platform === "Twitter/X") {
     return normalizePlatformCopy(
       "TWITTER",
-      `${hook}\n\nThe useful part is not more content. It is one clear idea, explained simply, with a next step people can use today.`,
+      `${hook}\n\nThe useful part is not more content. It is one clear idea, explained simply, with a next step creators can use today.`,
     );
   }
   if (platform === "YouTube Shorts") {
-    return `[HOOK - 0 to 3 seconds]\n${hook}\n\n[BODY - 3 to 35 seconds]\nMost people skip the simple mental model.\nStart with the problem.\nName the shift.\nGive one action they can try today.\nKeep it short enough to remember.\n\n[CTA - 35 to 60 seconds]\nSave this before your next build.`;
+    return `[HOOK - 0 to 3 seconds]\n${hook}\n\n[BODY - 3 to 35 seconds]\nWe often skip the simple mental model.\nStart with the problem.\nName the shift.\nGive one action they can try today.\nKeep it short enough to remember.\n\n[CTA - 35 to 60 seconds]\nSave this before your next build.`;
   }
   if (platform === "Facebook") {
-    return `${hook}\n\nMost people do not need another complicated explanation. They need one simple mental model they can remember when they sit down to build.\n\nThat is the value inside "${title}".\n\nWhat would help you most next: a checklist, a walkthrough, or common mistakes?`;
+    return `${hook}\n\nWe rarely need another complex explanation. A simple mental model is much easier to remember when we sit down to build.\n\nThat is the value inside "${title}".\n\nWhat would help you most next: a checklist, a walkthrough, or common mistakes?`;
   }
   if (platform === "LinkedIn") {
     return [
       hook,
       "",
-      `I used to overcomplicate ideas like "${title}".`,
+      `It is easy to overcomplicate ideas like "${title}".`,
       "",
-      "Then I realized the best explanation usually has three parts:",
+      "A great explanation usually has three parts:",
       "",
       "1. Name the problem",
-      "2. Give people a simple mental model",
+      "2. Give a simple mental model",
       "3. End with one action they can take",
       "",
       "That is what makes content useful.",

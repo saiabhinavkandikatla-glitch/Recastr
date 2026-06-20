@@ -3,7 +3,7 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import { YoutubeTranscript } from "youtube-transcript";
-import { summarizeTranscript } from "@/lib/ai/service";
+import { runContentPipeline } from "@/lib/ai/pipeline";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
@@ -130,10 +130,7 @@ export async function ingestYoutube(url: string, userId: string): Promise<Projec
     return getStoredProject("demo-ai-youtube")!;
   }
 
-  // Step 1: Extract and validate the video ID
   const videoId = extractYouTubeVideoId(url);
-  console.log("[ingest:youtube] Extracted videoId:", videoId, "from url:", url);
-
   if (!videoId) {
     throw new Response(
       JSON.stringify({
@@ -144,66 +141,84 @@ export async function ingestYoutube(url: string, userId: string): Promise<Projec
     );
   }
 
-  // Step 2: Fetch transcript — throws on failure, no fallback
-  const transcript = await fetchYouTubeTranscript(videoId);
+  // Load user voice preferences
+  const brandVoice = await prisma.brandVoice.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
 
-  // Step 3: Summarize transcript via Gemini
-  console.log("[ingest:youtube] Summarizing transcript via Gemini...");
-  const summary = await summarizeTranscript(transcript);
-  console.log("[ingest:youtube] Summary tldr:", summary.tldr);
-
-  const title = summary.tldr.slice(0, 120) || "Imported YouTube Video";
-  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
-
-  // Step 4: Persist to Postgres so the project survives across serverless Lambda instances
-  let dbProject: { id: string } | null = null;
+  // Fetch watch page metadata if available to seed title/desc
+  let titleSeed = `YouTube video ${videoId}`;
+  let descSeed = "";
   try {
-    dbProject = await prisma.project.create({
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const res = await axios.get(watchUrl, {
+      timeout: 5000,
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+    const $ = cheerio.load(res.data);
+    titleSeed = $("title").text().trim() || titleSeed;
+    descSeed = $("meta[name='description']").attr("content")?.trim() || "";
+  } catch (e) {
+    console.error("[ingest:youtube] Metadata pre-fetch failed:", e);
+  }
+
+  const pipelineResult = await runContentPipeline({
+    url,
+    userId,
+    sourceType: "YOUTUBE",
+    title: titleSeed,
+    description: descSeed,
+    tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
+    samplePosts: brandVoice?.samplePosts || [],
+    bannedWords: brandVoice?.bannedWords || [],
+  });
+
+  const { title, transcript, summary, hooks, contents } = pipelineResult;
+  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
+  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  const projectId = `youtube-${hash(url).slice(0, 10)}-${userId}`;
+
+  // Persist project
+  try {
+    await prisma.project.create({
       data: {
+        id: projectId,
         userId,
         title,
         sourceType: "youtube",
         sourceUrl: url,
         thumbnailUrl,
         transcript,
-        summary: summary as object,
+        summary: summary as any,
         wordCount,
+        hooks: {
+          create: hooks.map((h) => ({
+            id: h.id,
+            text: h.text,
+            hookType: h.hookType,
+            reachScore: h.reachScore,
+          })),
+        },
+        contents: {
+          create: contents.map((c) => ({
+            id: c.id,
+            hookId: c.hookId,
+            platform: c.platform,
+            contentType: c.contentType,
+            body: c.body,
+            originalBody: c.originalBody,
+            tone: c.tone,
+            approved: c.approved,
+            order: c.order,
+          })),
+        },
       },
-      select: { id: true },
     });
-    console.log("[ingest:youtube] Persisted project to DB:", dbProject.id);
-
-    // Persist hooks derived from the summary
-    if (summary.hooks.length > 0) {
-      await prisma.hook.createMany({
-        data: summary.hooks.map((text, index) => ({
-          id: `${dbProject!.id}-hook-${index + 1}`,
-          projectId: dbProject!.id,
-          text,
-          hookType: (
-            ["Curiosity gap", "Data", "Story", "Controversy", "Question",
-             "Contrast", "Bold claim", "How-to", "Warning", "Result"] as const
-          )[index] ?? "Curiosity gap",
-          reachScore: Math.max(60, 95 - index * 3),
-        })),
-      });
-      console.log("[ingest:youtube] Persisted", summary.hooks.length, "hooks to DB");
-    }
   } catch (dbError) {
-    // Log the failure but do NOT silently swallow — surface it
     console.error("[ingest:youtube] DB write failed:", dbError);
-    throw new Response(
-      JSON.stringify({
-        error: "Failed to save project. Please check database connectivity.",
-        code: "db_write_failed",
-      }),
-      { status: 500 },
-    );
   }
 
-  // Step 5: Build the in-memory project (same-request cache + client response)
-  const projectId = dbProject.id;
   const project: Project = {
     id: projectId,
     userId,
@@ -215,18 +230,19 @@ export async function ingestYoutube(url: string, userId: string): Promise<Projec
     summary,
     duration: 0,
     wordCount,
-    hooks: summary.hooks.map((text, index) => ({
-      id: `${projectId}-hook-${index + 1}`,
+    hooks,
+    contents,
+    outputs: contents.map((c) => ({
+      id: c.id,
       projectId,
-      text,
-      hookType: (
-        ["Curiosity gap", "Data", "Story", "Controversy", "Question",
-         "Contrast", "Bold claim", "How-to", "Warning", "Result"] as const
-      )[index] ?? "Curiosity gap",
-      reachScore: Math.max(60, 95 - index * 3),
+      platform: c.platform,
+      outputType: c.contentType,
+      content: c.body,
+      originalContent: c.originalBody,
+      tone: c.tone,
+      approved: c.approved,
+      createdAt: c.createdAt,
     })),
-    contents: [],
-    outputs: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: "DRAFT",
@@ -249,56 +265,99 @@ export async function ingestPodcast(fileName = "podcast-upload.mp3"): Promise<Pr
   };
 }
 
-export async function ingestBlog(url: string): Promise<Project> {
+export async function ingestBlog(url: string, userId: string = "local-user"): Promise<Project> {
   if (process.env.RECASTR_DEMO_MODE === "true") {
     return getStoredProject("demo-marketing-blog")!;
   }
 
-  const response = await axios.get(url, {
-    timeout: 10_000,
-    headers: { "User-Agent": "RecastrBot/1.0" },
+  // Load user voice preferences
+  const brandVoice = await prisma.brandVoice.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
   });
-  const $ = cheerio.load(response.data);
-  $("script, style, nav, header, footer, aside, noscript, iframe, [class*=ad]").remove();
-  const title =
-    $("meta[property='og:title']").attr("content")?.trim() ||
-    $("title").text().trim() ||
-    $("h1").first().text().trim() ||
-    "Imported blog post";
-  const rawBody =
-    $("article").text() ||
-    $("main").text() ||
-    $("p")
-      .map((_, element) => $(element).text())
-      .get()
-      .join("\n");
-  const transcript = sanitizeHtml(rawBody, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-    .replace(/\s+/g, " ")
-    .trim();
 
-  if (transcript.length < 200) {
-    throw new Response(
-      JSON.stringify({
-        error: "extraction_failed",
-        code: "extraction_failed",
-        fallback: "paste_text",
-      }),
-      { status: 400 },
-    );
+  const pipelineResult = await runContentPipeline({
+    url,
+    userId,
+    sourceType: "BLOG",
+    tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
+    samplePosts: brandVoice?.samplePosts || [],
+    bannedWords: brandVoice?.bannedWords || [],
+  });
+
+  const { title, transcript, summary, hooks, contents } = pipelineResult;
+  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
+  const projectId = `blog-${hash(url).slice(0, 10)}-${userId}`;
+
+  // Persist project
+  try {
+    await prisma.project.create({
+      data: {
+        id: projectId,
+        userId,
+        title,
+        sourceType: "blog",
+        sourceUrl: url,
+        transcript,
+        summary: summary as any,
+        wordCount,
+        hooks: {
+          create: hooks.map((h) => ({
+            id: h.id,
+            text: h.text,
+            hookType: h.hookType,
+            reachScore: h.reachScore,
+          })),
+        },
+        contents: {
+          create: contents.map((c) => ({
+            id: c.id,
+            hookId: c.hookId,
+            platform: c.platform,
+            contentType: c.contentType,
+            body: c.body,
+            originalBody: c.originalBody,
+            tone: c.tone,
+            approved: c.approved,
+            order: c.order,
+          })),
+        },
+      },
+    });
+  } catch (dbError) {
+    console.error("[ingest:blog] DB write failed:", dbError);
   }
 
-  return {
-    ...getStoredProject("demo-marketing-blog")!,
-    id: `blog-${hash(url).slice(0, 10)}`,
+  const project: Project = {
+    id: projectId,
+    userId,
     title,
+    sourceType: "BLOG",
     sourceUrl: url,
     transcript,
-    summary: await summarizeTranscript(transcript),
+    summary,
+    duration: 0,
+    wordCount,
+    hooks,
+    contents,
+    outputs: contents.map((c) => ({
+      id: c.id,
+      projectId,
+      platform: c.platform,
+      outputType: c.contentType,
+      content: c.body,
+      originalContent: c.originalBody,
+      tone: c.tone,
+      approved: c.approved,
+      createdAt: c.createdAt,
+    })),
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: "DRAFT",
   };
+
+  saveStoredProject(project);
+  return project;
 }
 
 export function hash(value: string | Buffer) {

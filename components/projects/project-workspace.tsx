@@ -328,7 +328,7 @@ export function ProjectWorkspace({
                 <Sparkles className="mx-auto h-8 w-8 text-primary" />
                 <h3 className="mt-4 text-lg font-medium">No cards for this filter yet</h3>
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  Clear the hook filter or generate more content from the right drawer.
+                  Clear the asset filter or generate more content from the right drawer.
                 </p>
                 <Button className="mt-5 rounded-full bg-[var(--violet)] px-5 text-black hover:bg-[var(--violet-hover)]" onClick={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}>
                   <Plus className="h-4 w-4" />
@@ -503,23 +503,7 @@ function buildFeedItems(contents: ContentPiece[]): FeedItem[] {
 
 
 
-function regenerateBody(
-  project: Project,
-  content: ContentPiece,
-  selectedHookId: string | null,
-  hooks: ViralHook[],
-) {
-  const hook = hooks.find((item) => item.id === (selectedHookId ?? content.hookId));
-  const seed = hook?.text ?? project.summary.hooks[0] ?? project.title;
-  const platform = platformLabels[toCardPlatform(content.platform)];
-  const body =
-    platform === "Twitter/X"
-      ? `${seed}\n\nOne simple idea. One clear next step. That is what makes the lesson easy to remember and use.`
-      : platform === "LinkedIn"
-        ? `${seed}\n\nI used to overcomplicate this.\n\nThen I realized the best explanation does three things:\n\n1. Names the real problem\n2. Gives people a simple mental model\n3. Ends with one action they can use today\n\nThat is the difference between content people skim and content people save.`
-        : `${seed}\n\n-> Name the problem\n-> Give the simple mental model\n-> Show the next step\n\nSave this before your next project.`;
-  return normalizePlatformCopy(content.platform, body);
-}
+
 
 function streamReplaceContent(
   id: string,

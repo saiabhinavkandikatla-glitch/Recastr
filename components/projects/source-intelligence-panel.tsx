@@ -80,7 +80,7 @@ export function SourceIntelligencePanel({ summary }: { summary: SourceSummary })
               </ul>
             </div>
             <div>
-              <h3 className="text-sm font-medium">10 hook angles</h3>
+              <h3 className="text-sm font-medium">Content Assets</h3>
               <div className="mt-3 flex flex-wrap gap-2">
                 {summary.hooks.map((hook) => (
                   <span

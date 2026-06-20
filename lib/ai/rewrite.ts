@@ -190,17 +190,52 @@ Rewrite this content now in ${mode} tone for ${platform}. Output only the rewrit
           temperature: 0.6,
         },
       });
-      return (response.text ?? "").trim();
+      return runHumanizerFilter((response.text ?? "").trim());
     } catch (err) {
       console.error("Gemini rewrite API failed, falling back to local:", err);
     }
   }
 
   // Fallback if gemini not configured or in demo mode
-  return fallbackLocalRewrite(originalContent, mode);
+  return runHumanizerFilter(fallbackLocalRewrite(originalContent, mode));
 }
 
 function fallbackLocalRewrite(content: string, mode: RewriteMode): string {
   const title = mode.charAt(0).toUpperCase() + mode.slice(1).replace("_", " ");
   return `[${title} Tone Version]\n\n${content}`;
+}
+
+function runHumanizerFilter(text: string): string {
+  let cleaned = text;
+  const banned = [
+    /most people/gi,
+    /nobody talks about/gi,
+    /game changer/gi,
+    /game-changing/gi,
+    /here's the thing/gi,
+    /10x/gi,
+    /go viral/gi,
+    /the truth is/gi,
+    /in today's world/gi,
+    /it's important to note/gi,
+    /in conclusion/gi,
+    /delve/gi,
+    /crucial/gi,
+  ];
+
+  for (const regex of banned) {
+    cleaned = cleaned.replace(regex, (match) => {
+      if (match.toLowerCase().includes("most people")) return "many creators";
+      if (match.toLowerCase().includes("nobody talks about")) return "we rarely discuss";
+      if (match.toLowerCase().includes("game changer") || match.toLowerCase().includes("game-changing")) return "incredibly useful";
+      if (match.toLowerCase().includes("here's the thing")) return "the reality is";
+      if (match.toLowerCase().includes("10x")) return "significantly speed up";
+      if (match.toLowerCase().includes("go viral")) return "reach more people";
+      if (match.toLowerCase().includes("the truth is")) return "honestly";
+      if (match.toLowerCase().includes("delve")) return "look into";
+      if (match.toLowerCase().includes("crucial")) return "essential";
+      return "";
+    });
+  }
+  return cleaned.trim();
 }

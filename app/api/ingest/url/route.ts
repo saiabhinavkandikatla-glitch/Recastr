@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { fetchTranscript } from "@/lib/transcript";
-import { generateContentPack } from "@/lib/ai/content-pack";
+import { runContentPipeline } from "@/lib/ai/pipeline";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
@@ -113,28 +113,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const parsed = await ingestBlog(payload.url);
-    const project = await prisma.project.create({
-      data: {
-        userId: user.id,
-        title: parsed.title,
-        sourceUrl: parsed.sourceUrl,
-        sourceType: "blog",
-        thumbnailUrl: parsed.thumbnailUrl,
-        transcript: parsed.transcript,
-        summary: parsed.summary as Prisma.InputJsonValue,
-        wordCount: parsed.transcript.split(/\s+/).filter(Boolean).length,
-        hooks: {
-          create: parsed.summary.hooks.slice(0, 5).map((hook, index) => ({
-            text: hook,
-            hookType: index % 2 === 0 ? "Curiosity gap" : "Data",
-            reachScore: 84 - index * 3,
-          })),
-        },
-      },
-      include: { hooks: true, contents: true },
-    });
-    await addRecastrJob(jobNames.extractHooks, { projectId: project.id, userId: user.id });
+    const project = await ingestBlog(payload.url, user.id);
     await consumeCredits(user);
 
     return NextResponse.json({
@@ -178,38 +157,30 @@ async function createYoutubeProject(url: string, userId: string): Promise<Projec
   const metadata = await fetchYoutubeMetadata(url);
   const id = `youtube-${hash(url).slice(0, 10)}-${userId}`;
 
-  // Use transcript when available, otherwise use title + description as source
-  const rawTranscript = metadata.transcript?.trim() || "";
-  const transcriptWordCount = rawTranscript.split(/\s+/).filter(Boolean).length;
-  const hasRealTranscript = transcriptWordCount >= 50;
-
-  // Build the source text that will be stored and used for generation
-  const sourceText = hasRealTranscript
-    ? rawTranscript
-    : [
-        `Video Title: ${metadata.title}`,
-        metadata.description ? `\nVideo Description:\n${metadata.description}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-  console.log(`[createYoutubeProject] Transcript available: ${hasRealTranscript} (${transcriptWordCount} words)`);
-  console.log(`[createYoutubeProject] Source text length: ${sourceText.length} chars`);
-
-  // Try Gemini-powered generation
-  const contentPack = await generateContentPack(id, {
-    title: metadata.title,
-    description: metadata.description,
-    transcript: hasRealTranscript ? rawTranscript : undefined,
+  // Fetch brand voice details
+  const brandVoice = await prisma.brandVoice.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
   });
 
-  console.log(`[createYoutubeProject] ✅ Gemini content pack generated successfully`);
-  const { summary, hooks, contents } = contentPack;
+  const pipelineResult = await runContentPipeline({
+    url,
+    userId,
+    sourceType: "YOUTUBE",
+    title: metadata.title,
+    transcript: metadata.transcript || undefined,
+    description: metadata.description || undefined,
+    tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
+    samplePosts: brandVoice?.samplePosts || [],
+    bannedWords: brandVoice?.bannedWords || [],
+  });
+
+  const { title, transcript: sourceText, summary, hooks, contents } = pipelineResult;
 
   return {
     id,
-    userId: "local-user",
-    title: metadata.title,
+    userId,
+    title,
     sourceType: "YOUTUBE",
     sourceUrl: url,
     thumbnailUrl: metadata.thumbnailUrl,
