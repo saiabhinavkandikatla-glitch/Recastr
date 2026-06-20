@@ -20,9 +20,9 @@ export function WorkflowSection() {
     },
     {
       number: "04",
-      title: "Approve & Export",
+      title: "Approve, Export & Schedule",
       description:
-        "Review, edit and export your content everywhere."
+        "Review, edit, export your content, and schedule email reminders."
     }
   ];
 

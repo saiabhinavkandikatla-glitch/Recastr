@@ -62,7 +62,7 @@ export function PricingSection() {
               key={plan.name}
               className={`group flex h-full flex-col rounded-[32px] border p-10 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)] ${
                 plan.featured
-                  ? "border-white bg-[#0A0A0A] hover:bg-[#111111]"
+                  ? "border-[#232323] bg-[#0A0A0A] hover:border-white hover:bg-[#111111]"
                   : "border-[#232323] bg-[#000000] hover:border-white/30 hover:bg-[#111111]"
               }`}
             >

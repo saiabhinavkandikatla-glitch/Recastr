@@ -25,7 +25,7 @@ export function FeatureGrid() {
       icon: Share2,
       title: "Multi Platform",
       description:
-        "Generate content for LinkedIn, X and Instagram."
+        "Generate content for LinkedIn, X, Instagram, Facebook, Threads, and YouTube."
     },
     {
       icon: Calendar,
@@ -43,7 +43,7 @@ export function FeatureGrid() {
       icon: FileOutput,
       title: "Export Anywhere",
       description:
-        "Copy, download or publish directly."
+        "Copy, download or schedule reminders."
     }
   ];
 
