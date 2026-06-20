@@ -68,8 +68,8 @@ export function Navbar() {
           <Button variant="ghost" asChild className="text-[#8A8A8A] hover:bg-white hover:text-black transition-all duration-300">
             <Link href="/login">Sign in</Link>
           </Button>
-          <Button asChild>
-            <Link href="/signup">Start now</Link>
+          <Button variant="ghost" asChild className="text-[#8A8A8A] hover:bg-white hover:text-black transition-all duration-300">
+            <Link href="/signup">Sign up</Link>
           </Button>
         </div>
 
@@ -108,7 +108,7 @@ export function Navbar() {
             onClick={() => setMobileOpen(false)}
             className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-semibold text-black"
           >
-            Start now
+            Sign up
           </Link>
         </div>
       ) : null}

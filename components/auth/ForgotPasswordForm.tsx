@@ -43,7 +43,7 @@ export function ForgotPasswordForm() {
             </p>
             <Link
               href="/login"
-              className="mt-6 inline-block text-sm font-medium text-violet-400 hover:text-violet-300"
+              className="mt-6 inline-block text-sm font-medium text-zinc-400 hover:text-white transition-colors"
             >
               ← Back to sign in
             </Link>

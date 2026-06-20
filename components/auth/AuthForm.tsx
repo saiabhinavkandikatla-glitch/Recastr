@@ -249,7 +249,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         />
 
         <div className="relative z-10 max-w-lg">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-violet-400 mb-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#8A8A8A] mb-5">
             AI Content Studio
           </p>
           <h1
@@ -274,8 +274,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 key={index}
                 className="flex items-center gap-3"
               >
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500/15 shrink-0">
-                  <svg className="h-3 w-3 text-violet-400" viewBox="0 0 12 12" fill="none">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 shrink-0">
+                  <svg className="h-3 w-3 text-white/80" viewBox="0 0 12 12" fill="none">
                     <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
@@ -318,7 +318,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                  className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-white/20 focus-visible:ring-white/20"
                   {...register("email")}
                 />
                 {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
@@ -333,7 +333,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                     id="name"
                     autoComplete="name"
                     placeholder="John Doe"
-                    className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                    className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm placeholder:text-muted-foreground/60 focus-visible:border-white/20 focus-visible:ring-white/20"
                     {...register("name")}
                   />
                   {errors.name ? <p className="text-xs text-red-400">{errors.name.message}</p> : null}
@@ -355,7 +355,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 <div className="text-right">
                   <Link
                     href="/forgot-password"
-                    className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors"
+                    className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
                   >
                     Forgot password?
                   </Link>
@@ -375,9 +375,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               ) : null}
 
               {!isSignup && mfaPending ? (
-                <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 p-4">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
                   <div className="mb-3 flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-300">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-zinc-300">
                       <ShieldCheck className="h-4 w-4" />
                     </span>
                     <div>
@@ -392,7 +392,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   </Label>
                   <Input
                     autoComplete="one-time-code"
-                    className="mt-1.5 h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm tracking-[0.28em] placeholder:tracking-normal placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                    className="mt-1.5 h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm tracking-[0.28em] placeholder:tracking-normal placeholder:text-muted-foreground/60 focus-visible:border-white/20 focus-visible:ring-white/20"
                     id="mfaCode"
                     inputMode="numeric"
                     maxLength={6}
@@ -454,7 +454,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
             <Link
-              className="font-medium text-violet-400 hover:text-violet-300 transition-colors"
+              className="font-medium text-zinc-400 hover:text-white transition-colors"
               href={
                 isSignup
                   ? `/login?next=${encodeURIComponent(searchParams.get("next") ?? "/dashboard")}`
