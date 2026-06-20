@@ -16,9 +16,9 @@ export function HeroSection() {
 
   const handleGetStartedClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    const workflowSection = document.getElementById("workflow");
-    if (workflowSection) {
-      workflowSection.scrollIntoView({ behavior: "smooth" });
+    const ctaSection = document.getElementById("cta");
+    if (ctaSection) {
+      ctaSection.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -62,7 +62,7 @@ export function HeroSection() {
         <motion.div variants={itemVariants} className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <MagneticWrapper>
             <Button size="lg" asChild>
-              <Link href="#workflow" onClick={handleGetStartedClick}>Get Started</Link>
+              <Link href="#cta" onClick={handleGetStartedClick}>Get Started</Link>
             </Button>
           </MagneticWrapper>
 
