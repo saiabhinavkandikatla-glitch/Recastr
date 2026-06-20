@@ -127,14 +127,14 @@ export function ContentActionBar({
 
   const handleOpenWorkspace = () => {
     if (projectId) {
-      router.push(`/workspace/${projectId}?platform=${platform.toLowerCase()}`);
+      router.push(`/projects/${projectId}`);
     } else {
       toast.info("Saving to project first...");
       handleSave().then(() => {
         if (projectId) {
-          router.push(`/workspace/${projectId}?platform=${platform.toLowerCase()}`);
+          router.push(`/projects/${projectId}`);
         } else {
-          router.push("/workspace");
+          router.push("/projects");
         }
       });
     }
