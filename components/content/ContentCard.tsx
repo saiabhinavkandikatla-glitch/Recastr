@@ -78,7 +78,7 @@ const platformMeta: Record<
     limit: getPlatformCharacterLimit("FACEBOOK"),
   },
   youtube: {
-    label: "YouTube",
+    label: "YouTube Community",
     dot: "bg-[var(--platform-youtube)]",
     accent: "border-l-[var(--platform-youtube)]",
     limit: getPlatformCharacterLimit("COMMUNITY"),

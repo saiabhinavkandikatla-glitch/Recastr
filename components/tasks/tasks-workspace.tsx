@@ -691,7 +691,7 @@ function platformLabel(platform: Platform) {
   if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "Instagram";
   if (platform === "FACEBOOK") return "Facebook";
   if (platform === "THREADS") return "Threads";
-  return "YouTube";
+  return "YouTube Community";
 }
 
 function buildContentIndex(projects: Project[]) {

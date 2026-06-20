@@ -9,7 +9,7 @@ export const platformFilters: Array<{ value: PlatformFilter; label: string }> = 
   { value: "linkedin", label: "LinkedIn" },
   { value: "instagram", label: "Instagram" },
   { value: "facebook", label: "Facebook" },
-  { value: "youtube", label: "YouTube" },
+  { value: "youtube", label: "YouTube Community" },
 ];
 
 export const platformOrder: ContentCardPlatform[] = ["twitter", "linkedin", "instagram", "facebook", "youtube"];
@@ -19,5 +19,5 @@ export const platformLabels: Record<ContentCardPlatform, string> = {
   linkedin: "LinkedIn",
   instagram: "Instagram",
   facebook: "Facebook",
-  youtube: "YouTube",
+  youtube: "YouTube Community",
 };
