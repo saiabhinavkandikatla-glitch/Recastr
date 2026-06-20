@@ -261,7 +261,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             into ready-to-use posts.
           </h1>
           <p className="mb-10 text-base leading-relaxed text-muted-foreground">
-            Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.
+            Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.
           </p>
 
           <div className="space-y-4">

@@ -55,7 +55,7 @@ export function HeroSection() {
         </motion.h1>
 
         <motion.p variants={itemVariants} className="mt-8 max-w-2xl text-lg leading-8 text-[#8A8A8A]">
-          Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.
+          Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.
         </motion.p>
 
         <motion.div variants={itemVariants} className="mt-10 flex flex-wrap items-center justify-center gap-4">

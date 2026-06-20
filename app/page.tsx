@@ -4,7 +4,7 @@ import { LandingPage } from "@/components/landing/LandingPage";
 export const metadata: Metadata = {
   title: "Recastr — Content Repurposing Workspace",
   description:
-    "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.",
+    "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
   openGraph: {
     title: "Recastr — Content Repurposing Workspace",
     description: "Repurpose long-form content into ready-to-use posts.",

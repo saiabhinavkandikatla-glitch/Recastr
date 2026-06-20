@@ -13,7 +13,7 @@ export function CTASection() {
         </h2>
 
         <p className="mx-auto mt-8 max-w-2xl text-lg text-[#8A8A8A]">
-          Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.
+          Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.
         </p>
 
         <MagneticWrapper>

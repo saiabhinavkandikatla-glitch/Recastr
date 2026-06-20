@@ -28,16 +28,16 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
   title: { default: "Recastr — Turn Long-Form Content Into Ready-to-Use Posts", template: "%s | Recastr" },
-  description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.",
+  description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
   openGraph: {
     title: "Recastr — Turn Long-Form Content Into Ready-to-Use Posts",
-    description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.",
+    description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Recastr — Turn Long-Form Content Into Ready-to-Use Posts",
-    description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, captions and summaries without starting from scratch.",
+    description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
     images: ["/og-image.png"],
   },
 };
