@@ -51,16 +51,46 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string> {
   let segments;
   try {
     segments = await YoutubeTranscript.fetchTranscript(videoId);
+    console.log(
+      "[ingest:youtube] Transcript fetch SUCCESS - segments count:",
+      segments?.length ?? 0
+    );
   } catch (error) {
-    console.error("[ingest:youtube] Transcript fetch failed:", error);
+    console.error(
+      "[ingest:youtube] Transcript fetch FAILED - Full Error Object:",
+      error
+    );
+    if (error instanceof Error) {
+      console.error("[ingest:youtube] Error message:", error.message);
+      console.error("[ingest:youtube] Error stack:", error.stack);
+      console.error("[ingest:youtube] Error name:", error.name);
+      console.error("[ingest:youtube] Error constructor:", error.constructor.name);
+    }
+    if (typeof error === "object" && error !== null) {
+      console.error("[ingest:youtube] Error keys:", Object.keys(error));
+      for (const key of Object.keys(error)) {
+        console.error(`[ingest:youtube] error.${key}:`, (error as Record<string, unknown>)[key]);
+      }
+    }
     throw new Response(
       JSON.stringify({ error: "Transcript unavailable" }),
       { status: 422 },
     );
   }
 
-  if (!segments || segments.length === 0) {
-    console.error("[ingest:youtube] Empty transcript for videoId:", videoId);
+  // Check for explicit silent failure: null/undefined returned without throwing
+  if (!segments) {
+    console.error("[ingest:youtube] SILENT FAILURE - segments is null/undefined");
+    throw new Response(
+      JSON.stringify({ error: "Transcript unavailable" }),
+      { status: 422 },
+    );
+  }
+
+  if (segments.length === 0) {
+    console.error(
+      "[ingest:youtube] SILENT FAILURE - Empty array returned (no captions or access denied)"
+    );
     throw new Response(
       JSON.stringify({ error: "Transcript unavailable" }),
       { status: 422 },
@@ -73,6 +103,16 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string> {
     .join(" ");
 
   console.log("[ingest:youtube] Transcript length (chars):", transcript.length);
+
+  if (transcript.length === 0) {
+    console.error(
+      "[ingest:youtube] SILENT FAILURE - All segments filtered to empty string"
+    );
+    throw new Response(
+      JSON.stringify({ error: "Transcript unavailable" }),
+      { status: 422 },
+    );
+  }
 
   if (transcript.length < 50) {
     console.error("[ingest:youtube] Transcript too short:", transcript.length);

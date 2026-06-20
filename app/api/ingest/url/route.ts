@@ -28,24 +28,48 @@ type YoutubeMetadata = {
 };
 
 async function getYouTubeTranscript(videoId: string): Promise<string | null> {
-  if (!videoId) return null;
+  if (!videoId) {
+    console.error("[getYouTubeTranscript] No videoId provided");
+    return null;
+  }
 
   try {
+    console.log(`[getYouTubeTranscript] Fetching transcript via youtube-transcript package for videoId: ${videoId}`);
     const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-    if (!transcript || transcript.length === 0) return null;
+    if (!transcript) {
+      console.error(`[getYouTubeTranscript] Silent Failure - transcript is null or undefined for videoId: ${videoId}`);
+      return null;
+    }
+    if (transcript.length === 0) {
+      console.error(`[getYouTubeTranscript] Silent Failure - transcript returned an empty array for videoId: ${videoId}`);
+      return null;
+    }
 
     const fullTranscript = transcript.map((item) => item.text).join(" ");
     const wordCount = fullTranscript.split(/\s+/).filter(Boolean).length;
+    console.log(`[getYouTubeTranscript] Success - Word count: ${wordCount} for videoId: ${videoId}`);
 
     if (wordCount < 50) {
-      console.warn(`[Transcript Warning] Video ${videoId} has transcript but only ${wordCount} words`);
+      console.warn(`[getYouTubeTranscript Warning] Video ${videoId} has transcript but only ${wordCount} words`);
       return null;
     }
 
     return fullTranscript;
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.warn(`[Transcript Fetch] Failed for video ${videoId}: ${errorMsg}`);
+    console.error(`[getYouTubeTranscript] Error fetching transcript for videoId: ${videoId}`);
+    console.error("[getYouTubeTranscript] Full error object:", error);
+    if (error instanceof Error) {
+      console.error("[getYouTubeTranscript] Error message:", error.message);
+      console.error("[getYouTubeTranscript] Error stack:", error.stack);
+      console.error("[getYouTubeTranscript] Error name:", error.name);
+      console.error("[getYouTubeTranscript] Error constructor:", error.constructor.name);
+    }
+    if (typeof error === "object" && error !== null) {
+      console.error("[getYouTubeTranscript] Error keys:", Object.keys(error));
+      for (const key of Object.keys(error)) {
+        console.error(`[getYouTubeTranscript] error.${key}:`, (error as Record<string, unknown>)[key]);
+      }
+    }
     return null;
   }
 }
@@ -308,6 +332,7 @@ async function fetchYoutubeMetadata(url: string): Promise<YoutubeMetadata> {
 
 async function fetchYoutubeOembed(canonicalUrl: string): Promise<Partial<YoutubeMetadata>> {
   try {
+    console.log(`[fetchYoutubeOembed] Querying Oembed for canonicalUrl: ${canonicalUrl}`);
     const response = await axios.get<{
       title?: string;
       thumbnail_url?: string;
@@ -320,7 +345,13 @@ async function fetchYoutubeOembed(canonicalUrl: string): Promise<Partial<Youtube
       title: normalizeText(response.data.title),
       thumbnailUrl: response.data.thumbnail_url,
     };
-  } catch {
+  } catch (error) {
+    console.error(`[fetchYoutubeOembed] Failed for canonicalUrl ${canonicalUrl}:`);
+    console.error("[fetchYoutubeOembed] Full error object:", error);
+    if (error instanceof Error) {
+      console.error("[fetchYoutubeOembed] Error message:", error.message);
+      console.error("[fetchYoutubeOembed] Error stack:", error.stack);
+    }
     return { warning: "youtube_oembed_unavailable" };
   }
 }
@@ -330,6 +361,7 @@ async function fetchYoutubeWatchPage(
   videoId?: string,
 ): Promise<Partial<YoutubeMetadata>> {
   try {
+    console.log(`[fetchYoutubeWatchPage] Querying HTML watch page for canonicalUrl: ${canonicalUrl}, videoId: ${videoId}`);
     const response = await axios.get<string>(canonicalUrl, {
       headers: browserHeaders(),
       timeout: 15000,
@@ -346,6 +378,8 @@ async function fetchYoutubeWatchPage(
       readJsonString(html, /"shortDescription"\s*:\s*"((?:\\.|[^"\\])*)"/);
     const thumbnailUrl =
       readMeta(html, "og:image") || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined);
+    
+    console.log(`[fetchYoutubeWatchPage] Watch page title resolved: "${title}"`);
     const transcript = await fetchCaptionTranscript(html);
 
     return {
@@ -354,19 +388,36 @@ async function fetchYoutubeWatchPage(
       thumbnailUrl,
       transcript,
     };
-  } catch {
+  } catch (error) {
+    console.error(`[fetchYoutubeWatchPage] Failed for canonicalUrl ${canonicalUrl}:`);
+    console.error("[fetchYoutubeWatchPage] Full error object:", error);
+    if (error instanceof Error) {
+      console.error("[fetchYoutubeWatchPage] Error message:", error.message);
+      console.error("[fetchYoutubeWatchPage] Error stack:", error.stack);
+    }
     return { warning: "youtube_page_metadata_unavailable" };
   }
 }
 
 async function fetchCaptionTranscript(html: string): Promise<string | undefined> {
   const tracks = extractCaptionTracks(html);
+  if (!tracks || tracks.length === 0) {
+    console.error("[fetchCaptionTranscript] Silent Failure - No caption tracks found in HTML page");
+    return undefined;
+  }
+  
   const track = pickCaptionTrack(tracks);
-  if (!track?.baseUrl) return undefined;
+  if (!track?.baseUrl) {
+    console.error("[fetchCaptionTranscript] Silent Failure - Selected caption track has no baseUrl");
+    return undefined;
+  }
 
   const urls = captionUrlCandidates(track);
+  console.log(`[fetchCaptionTranscript] Found ${tracks.length} caption tracks. Selected track language: ${track.languageCode}, kind: ${track.kind}. Url count: ${urls.length}`);
+  
   for (const url of urls) {
     try {
+      console.log(`[fetchCaptionTranscript] Fetching caption URL candidate: ${url}`);
       const response = await axios.get<unknown>(url, {
         headers: browserHeaders(),
         timeout: 15000,
@@ -376,12 +427,29 @@ async function fetchCaptionTranscript(html: string): Promise<string | undefined>
         typeof response.data === "string"
           ? parseCaptionText(response.data)
           : parseJsonCaption(response.data);
-      if (transcript.length > 80) return transcript;
-    } catch {
-      // Try the next caption format.
+      
+      if (!transcript) {
+        console.error(`[fetchCaptionTranscript] Silent Failure - Parsed transcript is empty for URL: ${url}`);
+        continue;
+      }
+      if (transcript.length <= 80) {
+        console.warn(`[fetchCaptionTranscript] Warning - Transcript length ${transcript.length} <= 80 for URL: ${url}`);
+        continue;
+      }
+      
+      console.log(`[fetchCaptionTranscript] Success! Extracted transcript of length ${transcript.length} characters`);
+      return transcript;
+    } catch (error) {
+      console.error(`[fetchCaptionTranscript] Error fetching caption URL: ${url}`);
+      console.error("[fetchCaptionTranscript] Full error object:", error);
+      if (error instanceof Error) {
+        console.error("[fetchCaptionTranscript] Error message:", error.message);
+        console.error("[fetchCaptionTranscript] Error stack:", error.stack);
+      }
     }
   }
 
+  console.error("[fetchCaptionTranscript] Silent Failure - Exhausted all caption track URL candidates without success");
   return undefined;
 }
 
