@@ -222,15 +222,27 @@ async function notifyContentReady(userId: string, projectId: string) {
         notifyContentReady: true,
         projects: {
           where: { id: projectId },
-          select: { title: true },
+          select: {
+            title: true,
+            contents: {
+              select: { platform: true },
+            },
+          },
           take: 1,
         },
       },
     });
 
     if (!user?.notifyContentReady) return;
-    await sendContentReadyEmail(user.email, user.projects[0]?.title ?? "your Recastr project");
-  } catch {
+    const project = user.projects[0];
+    const platforms = project ? Array.from(new Set(project.contents.map((c) => c.platform))) : [];
+    await sendContentReadyEmail(
+      user.email,
+      project?.title ?? "your Recastr project",
+      platforms
+    );
+  } catch (error) {
+    console.error("notifyContentReady error:", error);
     return;
   }
 }

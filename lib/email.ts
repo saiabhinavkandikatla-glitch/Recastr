@@ -84,7 +84,29 @@ export async function sendTestEmail(to: string) {
   });
 }
 
-export async function sendContentReadyEmail(userEmail: string, projectTitle: string) {
+export async function sendContentReadyEmail(
+  userEmail: string,
+  projectTitle: string,
+  platforms: string[] = ["LINKEDIN", "TWITTER", "INSTAGRAM"]
+) {
+  const platformLabel = platforms
+    .map((p) => {
+      const mapping: Record<string, string> = {
+        TWITTER: "X",
+        LINKEDIN: "LinkedIn",
+        INSTAGRAM: "Instagram",
+        FACEBOOK: "Facebook",
+        THREADS: "Threads",
+        CAROUSEL: "Carousel",
+        COMMUNITY: "Community",
+        STORY: "Story",
+        HOOKS: "Hooks",
+        CTA: "CTA"
+      };
+      return mapping[p.toUpperCase()] || p;
+    })
+    .join(" • ");
+
   await sendEmail({
     to: userEmail,
     subject: `Your content for "${projectTitle}" is ready`,
@@ -93,10 +115,14 @@ export async function sendContentReadyEmail(userEmail: string, projectTitle: str
       intro: "Your AI-generated content has finished processing and is ready for review.",
       body: `
         <p style="margin:0 0 16px 0;color:#e5e5e5;line-height:1.6">Your content is ready. Open Recastr to review, edit, and publish it.</p>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;word-wrap:break-word;word-break:break-word;">
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;word-wrap:break-word;word-break:break-word;margin-bottom:16px;">
           <p style="margin:0;font-size:14px;line-height:1.5;color:#ffffff;font-weight:500;">
             ${escapeHtml(projectTitle)}
           </p>
+        </div>
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;text-align:center;word-wrap:break-word;word-break:break-word;">
+          <p style="margin:0 0 8px 0;font-size:13px;color:#8A8A8A;font-family:inherit;font-weight:500;">Platforms</p>
+          <p style="margin:0;font-size:20px;color:#ffffff;font-weight:700;font-family:inherit;line-height:1.4;">${platformLabel}</p>
         </div>
       `,
       ctaHref: `${env.appUrl}/dashboard`,
