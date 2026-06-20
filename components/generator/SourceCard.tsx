@@ -30,7 +30,7 @@ export function SourceCard() {
       const response = await fetch("/api/projects");
       if (response.ok) {
         const data = await response.json();
-        setHistory(data.slice(0, 5));
+        setHistory(data.slice(0, 3));
       }
     } catch (error) {
       console.error("Failed to load history:", error);
@@ -215,14 +215,14 @@ export function SourceCard() {
                 <History className="h-3.5 w-3.5" /> Recent Analysis
               </h4>
               <div className="flex flex-col gap-2">
-                {history.map((item) => (
+                {history.slice(0, 3).map((item) => (
                   <button
                     key={item.id}
                     onClick={() => {
                       setProject(item);
                       toast.success(`Loaded "${item.title}"`);
                     }}
-                    className="flex flex-col text-left p-2.5 rounded-xl border border-[#232323] bg-[#090909] hover:border-white/30 hover:bg-[#151515] transition-all group"
+                    className="flex flex-col text-left py-3 px-6 rounded-full border border-[#232323] bg-[#090909] hover:border-white/30 hover:bg-[#151515] transition-all group"
                   >
                     <span className="text-xs font-medium text-white truncate w-full group-hover:text-blue-400 transition-colors">
                       {item.title}
