@@ -242,20 +242,13 @@ export function ActionBar() {
       <div className="flex flex-shrink-0 items-center gap-2">
         {project && (
           <Button
-            variant="outline"
-            className="gap-2 border-[#232323] bg-[#151515] text-white hover:bg-[#232323] hover:text-white"
+            variant="default"
+            className="gap-2 bg-white text-black hover:bg-zinc-200"
             onClick={() => router.push(`/projects/${project.id}`)}
           >
-            <ExternalLink className="h-4 w-4 text-[#8A8A8A]" /> Open in Workspace
+            <ExternalLink className="h-4 w-4 text-black" /> Open in Workspace
           </Button>
         )}
-        <Button
-          className="gap-2 bg-white text-black hover:bg-zinc-200"
-          onClick={() => handleSave(false)}
-          disabled={isSaving}
-        >
-          <Save className="h-4 w-4" /> {isSaving ? "Saving..." : "Save to Project"}
-        </Button>
       </div>
 
       {/* Schedule Dialog Modal */}

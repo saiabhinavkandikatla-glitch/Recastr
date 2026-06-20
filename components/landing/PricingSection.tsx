@@ -86,7 +86,11 @@ export function PricingSection() {
               </div>
 
               <div className="mt-auto">
-                <Button className="w-full" asChild variant={plan.featured ? "default" : "secondary"}>
+                <Button
+                  className="w-full hover:bg-white hover:text-black hover:border-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300"
+                  asChild
+                  variant="secondary"
+                >
                   <Link
                     href={
                       plan.name.toLowerCase() === "team"

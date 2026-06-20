@@ -233,22 +233,11 @@ export function ContentActionBar({
         {/* Open in Workspace button */}
         {!hideOpenWorkspace && projectId && (
           <Button
-            variant="outline"
+            variant="default"
             onClick={handleOpenWorkspace}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-neutral-800 border-[#333] hover:bg-neutral-700 text-sm text-neutral-200 transition-colors"
-          >
-            <ExternalLink className="h-4 w-4" /> Open in Workspace
-          </Button>
-        )}
-
-        {onSave && (
-          <Button
-            onClick={handleSave}
-            disabled={saving}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white hover:bg-neutral-100 text-sm text-neutral-900 font-medium transition-colors"
           >
-            <Save className="h-4 w-4" />
-            {saving ? "Saving..." : "Save to Project"}
+            <ExternalLink className="h-4 w-4 text-neutral-900" /> Open in Workspace
           </Button>
         )}
       </div>
