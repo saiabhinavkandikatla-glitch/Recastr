@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Video, PlayCircle, Loader2 } from "lucide-react";
+import { FileText, Video, PlayCircle, Loader2, History } from "lucide-react";
 import { toast } from "sonner";
 import { readApiJson } from "@/lib/client-api";
 import { useGenerator } from "./GeneratorProvider";
@@ -15,6 +15,29 @@ export function SourceCard() {
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
+  const [history, setHistory] = useState<Project[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (!project) {
+      loadHistory();
+    }
+  }, [project]);
+
+  async function loadHistory() {
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch("/api/projects");
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.slice(0, 5));
+      }
+    } catch (error) {
+      console.error("Failed to load history:", error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }
 
   async function handleIngest(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -75,7 +98,17 @@ export function SourceCard() {
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5 transition-all duration-300 hover:border-white/30 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]">
-      <h3 className="text-base font-semibold text-white mb-3">Source Content</h3>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-base font-semibold text-white">Source Content</h3>
+        {project && (
+          <button
+            onClick={() => setProject(null)}
+            className="text-xs text-[#8A8A8A] hover:text-white transition-colors"
+          >
+            Reset
+          </button>
+        )}
+      </div>
       
       {project ? (
         <div className="flex flex-col gap-3 rounded-xl border border-[#232323] bg-[#090909] p-4">
@@ -175,6 +208,35 @@ export function SourceCard() {
               {isIngesting ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Source"}
             </button>
           </form>
+
+          {history.length > 0 && (
+            <div className="mt-6 border-t border-[#232323] pt-4">
+              <h4 className="text-xs font-semibold text-[#8A8A8A] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <History className="h-3.5 w-3.5" /> Recent Analysis
+              </h4>
+              <div className="flex flex-col gap-2">
+                {history.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setProject(item);
+                      toast.success(`Loaded "${item.title}"`);
+                    }}
+                    className="flex flex-col text-left p-2.5 rounded-xl border border-[#232323] bg-[#090909] hover:border-white/30 hover:bg-[#151515] transition-all group"
+                  >
+                    <span className="text-xs font-medium text-white truncate w-full group-hover:text-blue-400 transition-colors">
+                      {item.title}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1 text-[10px] text-[#8A8A8A]">
+                      <span className="capitalize">{item.sourceType.toLowerCase()}</span>
+                      <span>•</span>
+                      <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

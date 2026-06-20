@@ -44,9 +44,16 @@ export function GeneratorProvider({
   useEffect(() => {
     setCurrentProject(project);
     if (project) {
-      // If project has content, mark as completed to show preview directly
-      setProgress(project.contents && project.contents.length > 0 ? "completed" : "idle");
+      if (project.outputs && project.outputs.length > 0) {
+        setOutputs(project.outputs);
+        setActivePreviewTab(project.outputs[0].platform);
+        setProgress("completed");
+      } else {
+        setOutputs([]);
+        setProgress("idle");
+      }
     } else {
+      setOutputs([]);
       setProgress("idle");
     }
   }, [project]);
