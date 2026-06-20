@@ -127,6 +127,19 @@ export async function POST(request: Request) {
     if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
+
+    // Handle YouTube transcript blocked error specifically
+    if (error instanceof Error &&
+        error.message === "YouTube transcript is blocked on this network, and no description was provided. Please verify your credentials or configure your proxy.") {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: "NO_TRANSCRIPT",
+        },
+        { status: 422 }
+      );
+    }
+
     return apiError(error, "ingest_failed", 400);
   }
 }

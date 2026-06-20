@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";

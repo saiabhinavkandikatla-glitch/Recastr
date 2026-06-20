@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+﻿import { getGeminiClient } from "@/lib/ai/client";
 import { YoutubeTranscript } from "youtube-transcript";
 import axios from "axios";
 import { env } from "@/lib/env";
@@ -557,7 +557,7 @@ PLATFORM GUIDELINES:
 ${platformGuidelines}
 
 HUMANIZER DIRECTIVE:
-Never use standard AI clichés:
+Never use standard AI clichÃ©s:
 - "Most people..."
 - "Nobody talks about..."
 - "Game changer..."
@@ -749,7 +749,9 @@ async function scrapeWatchPageCaptions(videoId: string): Promise<string | null> 
     const track = tracks.find((t: { languageCode?: string; baseUrl?: string }) => t.languageCode === "en" || t.languageCode?.startsWith("en"));
     if (!track?.baseUrl) return null;
 
-    const xmlRes = await axios.get(track.baseUrl, { timeout: 5000 });
+    const xmlRes = await axios.get(track.baseUrl, {
+      timeout: 5000
+    });
     const textMatches = xmlRes.data.match(/<text.*?>([\s\S]*?)<\/text>/g) || [];
 
     const fullText = textMatches
