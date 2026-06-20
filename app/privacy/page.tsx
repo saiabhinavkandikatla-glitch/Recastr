@@ -52,7 +52,7 @@ export default function PrivacyPage() {
         <h2>Data retention</h2>
         <p>
           We retain account and project data while your account is active. You may request deletion by emailing{" "}
-          <a href="mailto:hello@recastr.app">hello@recastr.app</a>.
+          <a href="mailto:recastr.schedule@gmail.com">recastr.schedule@gmail.com</a>.
         </p>
 
         <h2>Your rights</h2>
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
 
         <h2>Contact</h2>
         <p>
-          Questions: <a href="mailto:hello@recastr.app">hello@recastr.app</a> or visit our{" "}
+          Questions: <a href="mailto:recastr.schedule@gmail.com">recastr.schedule@gmail.com</a> or visit our{" "}
           <Link href="/contact">contact page</Link>.
         </p>
       </article>

@@ -462,7 +462,7 @@ function baseEmailTemplate({
                     <span style="color:#27272a;">&bull;</span>
                     <a href="${env.appUrl}/docs" style="color:#71717a;text-decoration:none;margin:0 6px;">Docs</a>
                     <span style="color:#27272a;">&bull;</span>
-                    <a href="mailto:hello@recastr.app" style="color:#71717a;text-decoration:none;margin:0 6px;">Support</a>
+                    <a href="mailto:recastr.schedule@gmail.com" style="color:#71717a;text-decoration:none;margin:0 6px;">Support</a>
                   </p>
                 </td>
               </tr>

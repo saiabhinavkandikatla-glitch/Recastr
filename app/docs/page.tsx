@@ -55,7 +55,7 @@ export default function DocsPage() {
         <section className="mt-12 rounded-2xl border border-[#232323] bg-[#111] p-6">
           <h2 className="text-lg font-semibold">Need help?</h2>
           <p className="mt-2 text-sm text-[#8A8A8A]">
-            Email <a href="mailto:hello@recastr.app" className="text-white hover:underline">hello@recastr.app</a> or
+            Email <a href="mailto:recastr.schedule@gmail.com" className="text-white hover:underline">recastr.schedule@gmail.com</a> or
             read the <Link href="/#faq" className="text-white hover:underline">FAQ on the homepage</Link>.
           </p>
         </section>

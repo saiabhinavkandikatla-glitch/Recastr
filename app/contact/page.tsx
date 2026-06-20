@@ -18,10 +18,10 @@ export default function ContactPage() {
           Questions about your account, billing, or the product? We read every message.
         </p>
         <a
-          href="mailto:hello@recastr.app"
+          href="mailto:recastr.schedule@gmail.com"
           className="mt-8 inline-flex rounded-full bg-white px-8 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
         >
-          hello@recastr.app
+          recastr.schedule@gmail.com
         </a>
         <p className="mt-10 text-sm text-[#71717a]">
           Studio and team plans: mention &quot;Studio&quot; in the subject line.{" "}

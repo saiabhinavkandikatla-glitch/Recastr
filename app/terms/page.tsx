@@ -64,7 +64,7 @@ export default function TermsPage() {
 
         <h2>Contact</h2>
         <p>
-          <a href="mailto:hello@recastr.app">hello@recastr.app</a> · <Link href="/privacy">Privacy Policy</Link>
+          <a href="mailto:recastr.schedule@gmail.com">recastr.schedule@gmail.com</a> · <Link href="/privacy">Privacy Policy</Link>
         </p>
       </article>
       <Footer />
