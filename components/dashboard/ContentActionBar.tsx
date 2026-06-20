@@ -188,9 +188,9 @@ export function ContentActionBar({
   const dayCells = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="flex items-center gap-2 pt-4 border-t border-[#232323]">
+    <div className="flex items-center justify-between gap-4 overflow-x-auto pt-4 border-t border-[#232323] scrollbar-none">
       {/* Left group */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-shrink-0 items-center gap-2">
         <Button
           variant="outline"
           onClick={handleCopy}
@@ -229,7 +229,7 @@ export function ContentActionBar({
       <div className="flex-1" />
 
       {/* Right group */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-shrink-0 items-center gap-2">
         {/* Open in Workspace button */}
         {!hideOpenWorkspace && projectId && (
           <Button

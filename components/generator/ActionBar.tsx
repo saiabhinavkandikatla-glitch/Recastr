@@ -204,8 +204,8 @@ export function ActionBar() {
   const dayCells = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="flex items-center justify-between border-t border-[#232323] bg-[#151515] p-4">
-      <div className="flex gap-2">
+    <div className="flex items-center justify-between gap-4 overflow-x-auto border-t border-[#232323] bg-[#151515] p-4 scrollbar-none">
+      <div className="flex flex-shrink-0 items-center gap-2">
         <Button
           variant="outline"
           className="gap-2 border-[#232323] bg-[#090909] text-white hover:bg-[#232323]"
@@ -239,7 +239,7 @@ export function ActionBar() {
           <Calendar className="h-4 w-4 text-[#8A8A8A]" /> Schedule Reminder
         </Button>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-shrink-0 items-center gap-2">
         {project && (
           <Button
             variant="outline"
