@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, Component, ReactNode } from "react";
 import { toast } from "sonner";
 import { emitCreditExhausted } from "@/lib/client-api";
 import type { Platform, Project, SocialOutput } from "@/lib/types";
@@ -24,6 +24,28 @@ type GeneratorState = {
 
 const GeneratorContext = createContext<GeneratorState | null>(null);
 
+class GeneratorErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    console.error('[ERROR BOUNDARY] Caught render error:', error);
+    console.error('[ERROR BOUNDARY] Stack:', error.stack);
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[ERROR BOUNDARY] componentDidCatch:', error);
+    console.error('[ERROR BOUNDARY] componentStack:', errorInfo.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div className="p-4 text-red-500">Generator Error: {this.state.error?.message}</div>;
+    }
+    return this.props.children;
+  }
+}
+
 export function GeneratorProvider({ 
   children, 
   project 
@@ -37,6 +59,10 @@ export function GeneratorProvider({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState<string>("idle");
+
+  useEffect(() => {
+    console.log('[DEBUG] GeneratorProvider - isAnalyzing changed:', isAnalyzing);
+  }, [isAnalyzing]);
   const [outputs, setOutputs] = useState<SocialOutput[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<Platform>("TWITTER");
 
@@ -155,7 +181,9 @@ export function GeneratorProvider({
       activePreviewTab,
       setActivePreviewTab
     }}>
-      {children}
+      <GeneratorErrorBoundary>
+        {children}
+      </GeneratorErrorBoundary>
     </GeneratorContext.Provider>
   );
 }

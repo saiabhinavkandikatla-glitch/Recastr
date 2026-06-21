@@ -40,17 +40,16 @@ const platformLabels: Record<Platform, string> = {
 };
 
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
-  if (!env.geminiKey) return summaryFromBrief(briefFromTranscript(transcript));
+  const localSummary = summaryFromBrief(briefFromTranscript(transcript));
+  
+  if (!env.geminiKey) return localSummary;
 
   try {
     const brief = await extractBrief(transcript, "Source content");
     return summaryFromBrief(brief);
   } catch (error) {
-    console.error("Gemini API Error (summarizeTranscript):", error);
-    if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
-      throw new Error("Invalid Gemini API Key - Please get a valid key from Google AI Studio.");
-    }
-    throw new Error("Failed to process source. Please check your AI API key.");
+    console.error("Gemini API Error (summarizeTranscript), falling back to local summary:", error);
+    return localSummary;
   }
 }
 

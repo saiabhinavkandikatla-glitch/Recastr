@@ -51,10 +51,12 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
   }
 
   async function handleIngest(e?: React.FormEvent) {
+    console.log('[DEBUG] handleIngest called, mode:', mode, 'url:', url, 'text:', text);
     if (e) e.preventDefault();
     
     if (mode === "url") {
       if (!url.trim()) return;
+      console.log('[DEBUG] Calling setIsIngesting(true)');
       setIsIngesting(true);
       try {
         const response = await fetch("/api/ingest/url", {
@@ -137,7 +139,18 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
               <div className="flex items-center gap-3 mt-2 text-xs text-[#8A8A8A]">
                 {project.duration && <span>{Math.round(project.duration / 60)} min</span>}
                 {project.wordCount && <span>{project.wordCount.toLocaleString()} words</span>}
-                <span className="capitalize text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">{((project?.sourceType || '').toLowerCase())}</span>
+                <span className="capitalize text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                  {(() => {
+                    try {
+                      const val = project?.sourceType;
+                      console.log('[DEBUG] SourceCard line 140 - project.sourceType:', val, 'type:', typeof val);
+                      return (val || '').toLowerCase();
+                    } catch (e) {
+                      console.error('[CRASH] SourceCard line 140:', e);
+                      throw e;
+                    }
+                  })()}
+                </span>
               </div>
             </div>
           </div>
@@ -238,11 +251,22 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
                     <span className="text-xs font-medium text-white truncate w-full group-hover:text-blue-400 transition-colors">
                       {item.title}
                     </span>
-                    <div className="flex items-center gap-2 mt-1 text-[10px] text-[#8A8A8A]">
-                      <span className="capitalize">{((item?.sourceType || '').toLowerCase())}</span>
-                      <span>•</span>
-                      <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-                    </div>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-[#8A8A8A]">
+                        <span className="capitalize">
+                          {(() => {
+                            try {
+                              const val = item?.sourceType;
+                              console.log('[DEBUG] SourceCard line 242 - item.sourceType:', val, 'type:', typeof val);
+                              return (val || '').toLowerCase();
+                            } catch (e) {
+                              console.error('[CRASH] SourceCard line 242:', e);
+                              throw e;
+                            }
+                          })()}
+                        </span>
+                        <span>•</span>
+                        <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                      </div>
                   </button>
                 ))}
               </div>
