@@ -318,8 +318,10 @@ Return JSON in this exact format:
         }
 
         // Check for keyword overlap in titles/text
-        const words1 = new Set(insight1.text.toLowerCase().split(/\s+/));
-        const words2 = new Set(insight2.text.toLowerCase().split(/\s+/));
+        const text1 = insight1.text ?? "";
+        const text2 = insight2.text ?? "";
+        const words1 = new Set(text1.toLowerCase().split(/\s+/));
+        const words2 = new Set(text2.toLowerCase().split(/\s+/));
         const commonWords = [...words1].filter(word => words2.has(word));
 
         if (commonWords.length > 2) {
@@ -383,15 +385,17 @@ Return JSON in this exact format:
           );
 
           if (content) {
+            const safeCategory = (category ?? "").toLowerCase();
+            const safePlatform = (platform ?? "").toLowerCase();
             drafts.push({
-              id: `${category.toLowerCase()}-${platform.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`,
-              platform: platform as any, // Type assertion - in real implementation would validate
+              id: `${safeCategory}-${safePlatform}-${Math.random().toString(36).substr(2, 9)}`,
+              platform: platform as any,
               category,
               contentType: `${platform} post`,
               body: content,
               originalBody: content,
               tone,
-              quality: { originality: 0, clarity: 0, humanLikeness: 0, usefulness: 0, readability: 0, overall: 0, reasons: [] }, // Will be scored later
+              quality: { originality: 0, clarity: 0, humanLikeness: 0, usefulness: 0, readability: 0, overall: 0, reasons: [] },
               sourceInsightIds: categoryInsights.map(i => i.id),
               reviewerNotes: []
             });

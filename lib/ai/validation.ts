@@ -3,13 +3,13 @@ import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import type { Platform } from "@/lib/types";
 
 export function containsBannedPhrase(text: string) {
-  const lower = text.toLowerCase();
+  const lower = (text ?? "").toLowerCase();
   return BANNED_PHRASES.some((phrase) => lower.includes(phrase));
 }
 
 export function validateContentIsReal(content: string, sourceTitle: string) {
-  const contentLower = content.toLowerCase().slice(0, 200);
-  const titleLower = sourceTitle.toLowerCase().slice(0, 100);
+  const contentLower = (content ?? "").toLowerCase().slice(0, 200);
+  const titleLower = (sourceTitle ?? "").toLowerCase().slice(0, 100);
 
   // Check if content is too similar to title (suspicious if most of title appears in first part of content)
   const titleWords = titleLower.split(/\s+/).filter((w) => w.length > 3);
