@@ -80,7 +80,11 @@ export async function POST(request: Request) {
         project = restrictProjectToPlan(project, user.plan);
       } catch (error) {
         // If transcript extraction fails completely, create a minimal project
-        console.warn("[ingest/url] YouTube transcript extraction failed, creating minimal project:", error);
+        console.error("[ingest/url] YouTube transcript extraction failed:", error);
+        if (error instanceof Error) {
+          console.error("[ingest/url] Error message:", error.message);
+          console.error("[ingest/url] Error stack:", error.stack);
+        }
         const metadata = await fetchYoutubeMetadata(payload.url);
         project = await createMinimalYoutubeProject(payload.url, user.id, metadata);
         project = restrictProjectToPlan(project, user.plan);
@@ -148,6 +152,13 @@ export async function POST(request: Request) {
         },
         { status: 422 }
       );
+    }
+
+    // Log full error for debugging
+    console.error("[ingest/url] Full error:", error);
+    if (error instanceof Error) {
+      console.error("[ingest/url] Error message:", error.message);
+      console.error("[ingest/url] Error stack:", error.stack);
     }
 
     return apiError(error, "ingest_failed", 400);
@@ -276,17 +287,27 @@ async function createYoutubeProject(url: string, userId: string, transcript?: st
     orderBy: { createdAt: "desc" },
   });
 
-  const pipelineResult = await runContentPipeline({
-    url,
-    userId,
-    sourceType: "YOUTUBE",
-    title: metadata.title,
-    transcript: metadata.transcript || undefined,
-    description: metadata.description || undefined,
-    tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
-    samplePosts: brandVoice?.samplePosts || [],
-    bannedWords: brandVoice?.bannedWords || [],
-  });
+  let pipelineResult;
+  try {
+    pipelineResult = await runContentPipeline({
+      url,
+      userId,
+      sourceType: "YOUTUBE",
+      title: metadata.title,
+      transcript: metadata.transcript || undefined,
+      description: metadata.description || undefined,
+      tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
+      samplePosts: brandVoice?.samplePosts || [],
+      bannedWords: brandVoice?.bannedWords || [],
+    });
+  } catch (error) {
+    console.error("[ingest/url] runContentPipeline failed:", error);
+    if (error instanceof Error) {
+      console.error("[ingest/url] Pipeline error message:", error.message);
+      console.error("[ingest/url] Pipeline error stack:", error.stack);
+    }
+    throw error;
+  }
 
   const { title, transcript: sourceText, summary, hooks, contents } = pipelineResult;
 
