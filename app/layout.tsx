@@ -47,6 +47,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Temporary global error handler to catch .toLowerCase() crash
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', (event) => {
+      console.error('CAUGHT GLOBAL ERROR:', {
+        message: event.error?.message,
+        stack: event.error?.stack,
+      });
+    });
+    
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('CAUGHT UNHANDLED REJECTION:', {
+        reason: event.reason,
+        stack: event.reason?.stack,
+      });
+    });
+  }
+
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
