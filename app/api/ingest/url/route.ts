@@ -86,7 +86,7 @@ export async function POST(request: Request) {
           console.error("[ingest/url] Error stack:", error.stack);
         }
         const metadata = await fetchYoutubeMetadata(payload.url);
-        project = await createMinimalYoutubeProject(payload.url, user.id, metadata);
+        project = await createMinimalYoutubeProject(payload.url, user, metadata);
         project = restrictProjectToPlan(project, user.plan);
       }
       await assertCanGenerateContent(
@@ -185,7 +185,12 @@ function restrictProjectToPlan(project: Project, plan: Plan): Project {
   };
 }
 
-async function createMinimalYoutubeProject(url: string, userId: string, metadata: any): Promise<Project> {
+async function createMinimalYoutubeProject(
+  url: string,
+  user: { id: string; email: string; plan: string },
+  metadata: YoutubeMetadata,
+): Promise<Project> {
+  const userId = user.id;
   const id = `youtube-${hash(url).slice(0, 10)}-${userId}`;
 
   // Create a minimal project with available metadata but empty transcript
@@ -235,7 +240,14 @@ async function createMinimalYoutubeProject(url: string, userId: string, metadata
   // Empty contents array - will be populated after transcript is added
   const contents = [];
 
-  await ensureUserRecord(userId);
+  await ensureUserRecord({
+    id: user.id,
+    email: user.email,
+    plan:
+      user.plan === "FREE" || user.plan === "PRO" || user.plan === "TEAM" || user.plan === "AGENCY"
+        ? user.plan
+        : "FREE",
+  });
   const project = await prisma.project.create({
     data: {
       userId,
