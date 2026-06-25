@@ -46,16 +46,69 @@ function pickOne<T>(arr: T[]): T | null {
 }
 
 /**
+ * Generic helper that logs/validates LLM prompts and handles calls.
+ */
+async function generatePostWithGemini(
+  platform: string,
+  prompt: string,
+  insights: GenerationInsights,
+  transcriptLength: number
+) {
+  const gemini = getGeminiClient();
+  if (!gemini) {
+    throw new Error("Gemini API client not configured.");
+  }
+
+  // Calculate fact count
+  const factCount = 
+    (insights.main_topics?.length ?? 0) +
+    (insights.interesting_moments?.length ?? 0) +
+    (insights.surprising_facts?.length ?? 0) +
+    (insights.quotes?.length ?? 0) +
+    (insights.stories?.length ?? 0) +
+    (insights.contrarian_opinions?.length ?? 0) +
+    (insights.lessons?.length ?? 0) +
+    (insights.actionable_advice?.length ?? 0) +
+    (insights.statistics?.length ?? 0) +
+    (insights.emotional_moments?.length ?? 0) +
+    (insights.curiosity_hooks?.length ?? 0);
+
+  // Print exact prompt and details
+  console.log(`[GENERATION] Generating post for platform: ${platform}`);
+  console.log("======================================== LLM PROMPT ========================================");
+  console.log(prompt);
+  console.log("============================================================================================");
+  console.log(`Transcript length: ${transcriptLength}`);
+  console.log(`Fact count: ${factCount}`);
+  console.log(`Context length: ${prompt.length}`);
+  console.log(`Prompt size: ${prompt.length}`);
+  console.log(`Provider: Gemini`);
+  console.log(`Model: gemini-2.5-flash`);
+  console.log("============================================================================================");
+
+  // Validation: If no real facts are present, fail loudly
+  if (factCount === 0) {
+    throw new Error("Prompt validation failed: No real transcript facts/insights supplied. Stopping generation.");
+  }
+
+  const response = await gemini.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+  });
+
+  return (response.text || "").trim();
+}
+
+/**
  * Generates a single Twitter/X post.
  */
-export async function generateTwitterPost(insights: GenerationInsights, tone: string) {
+export async function generateTwitterPost(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
   const hook = pickOne(insights.curiosity_hooks) || pickOne(insights.surprising_facts);
 
   if (!hook) {
-    // Fallback if no hooks or surprising facts
-    return "Check out this interesting content!";
+    throw new Error("Cannot generate Twitter post: No curiosity hooks or surprising facts available in extracted insights.");
   }
 
   const prompt = `
@@ -77,23 +130,13 @@ RULES:
 Output ONLY the tweet text. No quotes around it, no label, no preamble.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return hook;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("TWITTER", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates a Twitter/X thread (6-8 tweets).
  */
-export async function generateTwitterThread(insights: GenerationInsights, tone: string) {
+export async function generateTwitterThread(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
@@ -127,23 +170,13 @@ TWEET_2: 1/ [content]
 Output ONLY the tweets in this format.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `TWEET_1: Check out this interesting content!\n---\nTWEET_2: 1/ Learn more\n---\nTWEET_3: 2/ Don't miss out\n---\nTWEET_4: 3/ Share with friends\n---\nTWEET_5: 4/ What do you think?\n---\nTWEET_6: 5/ Follow for more\n---\nTWEET_7: 6/ Thanks for watching`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("TWITTER_THREAD", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates a LinkedIn post.
  */
-export async function generateLinkedInPost(insights: GenerationInsights, tone: string) {
+export async function generateLinkedInPost(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.professional;
 
@@ -168,33 +201,13 @@ RULES:
 Output ONLY the post. No label, no preamble.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `Discover key insights from this video.
-
-Learn the main takeaways and how to apply them.
-
-1. First takeaway
-2. Second takeaway
-3. Third takeaway
-
-What are your thoughts? Share in the comments.
-
-#insights #learning #growth`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("LINKEDIN", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates an Instagram caption.
  */
-export async function generateInstagramCaption(insights: GenerationInsights, tone: string) {
+export async function generateInstagramCaption(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
@@ -220,31 +233,13 @@ RULES:
 OUTPUT ONLY THE CAPTION. NO PREAMBLE.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `🔍 Discover key insights from this video.
-
-→ Learn the main takeaways
-→ See how to apply them
-→ Share with others who need this
-
-💡 Save this post for future reference
-
-#insights #learning #growth #education #tips`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("INSTAGRAM", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates an Instagram carousel (5 slides).
  */
-export async function generateInstagramCarousel(insights: GenerationInsights, tone: string) {
+export async function generateInstagramCarousel(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
@@ -269,45 +264,13 @@ OUTPUT ONLY THE SLIDES. NO PREAMBLE.
 TONE: ${toneInstruction}
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `SLIDE 1: Discover Key Insights
-→ Learn what this video teaches
-→ Understand the main points
----
-SLIDE 2: The Problem
-→ Common challenges people face
-→ Why this topic matters
-→ The gap in current knowledge
----
-SLIDE 3: The Solution
-→ Key insights from the video
-→ Practical steps to apply
-→ Real-world examples
----
-SLIDE 4: How to Apply
-→ Step-by-step implementation
-→ Tips for success
-→ Common mistakes to avoid
----
-SLIDE 5: Take Action
-→ Apply one insight today
-→ Share your results
-→ Continue learning`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("CAROUSEL", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates a Facebook post.
  */
-export async function generateFacebookPost(insights: GenerationInsights, tone: string) {
+export async function generateFacebookPost(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
@@ -325,29 +288,13 @@ RULES:
 OUTPUT ONLY THE POST. NO PREAMBLE.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `I just watched an interesting video and learned some valuable insights.
-
-The main takeaway is that [key insight] which really changed how I think about this topic.
-
-Have you encountered similar ideas in your own experience? What's your perspective on this?
-
-Let me know in the comments below!`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("FACEBOOK", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates a YouTube Community post.
  */
-export async function generateYouTubeCommunityPost(insights: GenerationInsights, tone: string) {
+export async function generateYouTubeCommunityPost(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
@@ -365,28 +312,13 @@ RULES:
 OUTPUT ONLY THE POST. NO PREAMBLE.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `What did you think of this video's main insight?
-
-A) It was eye-opening
-B) I already knew this
-C) It needs more research
-D) I disagree with the point`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("COMMUNITY", prompt, insights, transcriptLength);
 }
 
 /**
  * Generates a Reel/Short video script.
  */
-export async function generateReelScript(insights: GenerationInsights, tone: string) {
+export async function generateReelScript(insights: GenerationInsights, tone: string, transcriptLength = 0) {
   const toneKey = tone.toLowerCase().replace(/ /g, '_');
   const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
@@ -425,33 +357,5 @@ RULES:
 OUTPUT ONLY THE SCRIPT. NO PREAMBLE. NO OTHER LABELS.
 `;
 
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback
-    return `[HOOK — 0 to 3 sec]
-Wow, this insight will change everything!
-
-[CONTEXT — 3 to 8 sec]
-Let me break down what I learned.
-
-[POINT 1 — 8 to 20 sec]
-The key insight is [main point].
-
-[POINT 2 — 20 to 32 sec]
-Here's how you can apply it in your life.
-
-[POINT 3 — 32 to 45 sec]
-This works because [reason or example].
-
-[CTA — 45 to 55 sec]
-Apply this today and see the difference.
-
-Follow for more insights like this!`;
-  }
-
-  const response = await gemini.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  return (response.text || "").trim();
+  return generatePostWithGemini("REEL_SCRIPT", prompt, insights, transcriptLength);
 }

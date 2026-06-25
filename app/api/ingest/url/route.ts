@@ -79,15 +79,14 @@ export async function POST(request: Request) {
         project = await createYoutubeProject(payload.url, user.id, payload.transcript);
         project = restrictProjectToPlan(project, user.plan);
       } catch (error) {
-        // If transcript extraction fails completely, create a minimal project
         console.error("[ingest/url] YouTube transcript extraction failed:", error);
-        if (error instanceof Error) {
-          console.error("[ingest/url] Error message:", error.message);
-          console.error("[ingest/url] Error stack:", error.stack);
-        }
-        const metadata = await fetchYoutubeMetadata(payload.url);
-        project = await createMinimalYoutubeProject(payload.url, user, metadata);
-        project = restrictProjectToPlan(project, user.plan);
+        return NextResponse.json(
+          {
+            error: "Transcript unavailable",
+            code: "NO_TRANSCRIPT",
+          },
+          { status: 422 }
+        );
       }
       await assertCanGenerateContent(
         user,
@@ -185,105 +184,6 @@ function restrictProjectToPlan(project: Project, plan: Plan): Project {
   };
 }
 
-async function createMinimalYoutubeProject(
-  url: string,
-  user: { id: string; email: string; plan: string },
-  metadata: YoutubeMetadata,
-): Promise<Project> {
-  const userId = user.id;
-  const id = `youtube-${hash(url).slice(0, 10)}-${userId}`;
-
-  // Create a minimal project with available metadata but empty transcript
-  const title = metadata.title || `YouTube video ${hash(url).slice(0, 10)}`;
-  const thumbnailUrl = metadata.thumbnailUrl || undefined;
-
-  // Create basic summary from title
-  const summary = {
-    tldr: "This video needs a transcript before Recastr can generate accurate platform-specific posts.",
-    takeaways: [
-      "Transcript not available - please paste it manually to generate accurate content.",
-      "Add a transcript to enable full content intelligence processing.",
-      "Generated posts should be grounded in what the creator actually says."
-    ],
-    hooks: [
-      "Content generation requires a transcript",
-      "Please paste the video transcript to proceed",
-      "Accurate repurposing starts with source details"
-    ],
-    detectedTone: "educational",
-    topics: [title.split(' ').slice(0, 3).join(' ') || "content"],
-    targetAudience: "Creators and Professionals"
-  };
-
-  // Create basic hooks
-  const hooks = [
-    {
-      id: `${id}-hook-1`,
-      text: "Content generation requires a transcript",
-      hookType: "Curiosity gap",
-      reachScore: 86
-    },
-    {
-      id: `${id}-hook-2`,
-      text: "Content generation requires a transcript",
-      hookType: "Story",
-      reachScore: 82
-    },
-    {
-      id: `${id}-hook-3`,
-      text: "Please paste the video transcript to proceed",
-      hookType: "Curiosity gap",
-      reachScore: 78
-    }
-  ];
-
-  // Empty contents array - will be populated after transcript is added
-  const contents = [];
-
-  await ensureUserRecord({
-    id: user.id,
-    email: user.email,
-    plan:
-      user.plan === "FREE" || user.plan === "PRO" || user.plan === "TEAM" || user.plan === "AGENCY"
-        ? user.plan
-        : "FREE",
-  });
-  const project = await prisma.project.create({
-    data: {
-      userId,
-      title,
-      sourceType: "youtube",
-      sourceUrl: url,
-      thumbnailUrl,
-      transcript: "", // Empty transcript - user needs to paste it manually
-      duration: 0,
-      wordCount: 0,
-      summary,
-      hooks: { create: hooks },
-      contents: { create: contents }, // Empty array
-    },
-    include: { contents: true, hooks: true },
-  });
-
-  return {
-    id: project.id,
-    userId: project.userId,
-    title: project.title,
-    sourceType: project.sourceType as "youtube",
-    sourceUrl: project.sourceUrl,
-    thumbnailUrl: project.thumbnailUrl,
-    transcript: project.transcript,
-    duration: project.duration ?? 0,
-    wordCount: project.wordCount ?? 0,
-    summary: project.summary,
-    hooks: project.hooks ?? [],
-    contents: project.contents ?? [],
-    outputs: [], // No outputs yet since no transcript
-    createdAt: project.createdAt.toISOString(),
-    updatedAt: project.updatedAt.toISOString(),
-    status: project.status,
-  };
-}
 
 async function createYoutubeProject(url: string, userId: string, transcript?: string): Promise<Project> {
   const metadata = await fetchYoutubeMetadata(url);

@@ -57,31 +57,26 @@ in the transcript. If you cannot find real content for a category,
 return an empty array for it — do not invent generic filler.
 `;
 
-  try {
-    const response = await gemini.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-    const text = response.text || "";
+  const response = await gemini.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+  });
+  const text = response.text || "";
 
-    // Parse JSON response
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('[extractInsights] Failed to extract insights:', error);
-    // Return an empty insights object to allow the pipeline to continue
-    return {
-      main_topics: [],
-      interesting_moments: [],
-      surprising_facts: [],
-      quotes: [],
-      stories: [],
-      contrarian_opinions: [],
-      lessons: [],
-      actionable_advice: [],
-      statistics: [],
-      emotional_moments: [],
-      curiosity_hooks: [],
-    };
+  // Parse JSON response
+  const cleaned = text.replace(/```json|```/g, '').trim();
+  const result = JSON.parse(cleaned);
+
+  // Validate that we have at least some facts/insights
+  const hasFacts = 
+    (result.main_topics && result.main_topics.length > 0) ||
+    (result.lessons && result.lessons.length > 0) ||
+    (result.actionable_advice && result.actionable_advice.length > 0) ||
+    (result.surprising_facts && result.surprising_facts.length > 0);
+
+  if (!hasFacts) {
+    throw new Error("Fact extraction stage returned zero insights/facts.");
   }
+
+  return result;
 }

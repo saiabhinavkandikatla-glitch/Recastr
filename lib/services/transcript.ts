@@ -1,9 +1,8 @@
 import { extractYouTubeVideoId } from "@/lib/ingest";
 import { YoutubeTranscript } from "youtube-transcript";
 import axios from "axios";
-import { env } from "@/lib/env";
-import { prisma } from "@/lib/prisma/client";
 import ytdl from "yt-dlp-exec";
+import * as cheerio from "cheerio";
 
 /**
  * Extracts the transcript for a YouTube video.
@@ -169,14 +168,12 @@ async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
 
     // Try to get English subtitles first
     let subtitleUrl = null;
-    let subtitleLang = null;
 
     // Check requested subtitles (user-uploaded)
     if (infoJson.requestedSubtitles) {
       const enSubtitle = infoJson.requestedSubtitles.en;
       if (enSubtitle) {
         subtitleUrl = enSubtitle.url;
-        subtitleLang = 'en';
       }
     }
 
@@ -185,7 +182,6 @@ async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
       const enAuto = infoJson.automatic_captions['en'];
       if (enAuto) {
         subtitleUrl = enAuto.url;
-        subtitleLang = 'en-auto';
       }
     }
 
@@ -195,13 +191,11 @@ async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
         const firstLang = Object.keys(infoJson.requestedSubtitles)[0];
         if (firstLang) {
           subtitleUrl = infoJson.requestedSubtitles[firstLang].url;
-          subtitleLang = firstLang;
         }
       } else if (infoJson.automatic_captions) {
         const firstLang = Object.keys(infoJson.automatic_captions)[0];
         if (firstLang) {
           subtitleUrl = infoJson.automatic_captions[firstLang].url;
-          subtitleLang = `${firstLang}-auto`;
         }
       }
     }

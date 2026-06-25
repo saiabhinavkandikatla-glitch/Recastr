@@ -106,11 +106,12 @@ Return ONLY this JSON:
  * If the score is below minScore, it will retry up to a maximum number of attempts.
  */
 export async function generateWithQualityGate(
-  generateFn: (insights: GenerationInsights, tone: string) => Promise<string>,
+  generateFn: (insights: GenerationInsights, tone: string, transcriptLength?: number) => Promise<string>,
   insights: GenerationInsights,
   tone: string,
   minScore = 7,
-  maxAttempts = 2
+  maxAttempts = 2,
+  transcriptLength?: number
 ) {
   let attempt = 0;
   let result = "";
@@ -123,7 +124,7 @@ export async function generateWithQualityGate(
   };
 
   while (attempt < maxAttempts) {
-    result = await generateFn(insights, tone);
+    result = await generateFn(insights, tone, transcriptLength);
     score = await scoreContent(result, insights);
 
     if (score.overall >= minScore) {

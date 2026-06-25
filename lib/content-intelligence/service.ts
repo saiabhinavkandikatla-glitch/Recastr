@@ -456,7 +456,7 @@ Return JSON in this exact format:
     insights: ExtractedInsight[]
   ): Promise<string | null> {
     if (!gemini) {
-      return this.fallbackPlatformContent(platform, category, insights);
+      throw new Error("Gemini API key not configured");
     }
 
     const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -478,22 +478,17 @@ Return JSON in this exact format:
     const promptCreator = platformPrompts[platform] || this.createDefaultPrompt;
     const prompt = promptCreator(context, tone, insights);
 
-    try {
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-        }
-      });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: 1000,
+      }
+    });
 
-      const response = result.response;
-      const text = response.text();
-      return text.trim();
-    } catch (error) {
-      console.error(`Error generating ${platform} content:`, error);
-      return this.fallbackPlatformContent(platform, category, insights);
-    }
+    const response = result.response;
+    const text = response.text();
+    return text.trim();
   }
 
   // Platform-specific prompt creators
@@ -862,17 +857,7 @@ OUTPUT ONLY THE CONTENT.`;
    */
   private async scoreContentQuality(draft: ContentDraft): Promise<QualityScores> {
     if (!gemini) {
-      // Fallback scoring when Gemini not available
-      const baseScore = Math.random() * 3 + 4; // 4-7 range
-      return {
-        originality: Math.min(10, baseScore + (Math.random() * 2)),
-        clarity: Math.min(10, baseScore + (Math.random() * 2)),
-        humanLikeness: Math.min(10, baseScore + (Math.random() * 2)),
-        usefulness: Math.min(10, baseScore + (Math.random() * 2)),
-        readability: Math.min(10, baseScore + (Math.random() * 2)),
-        overall: 0, // Will be calculated below
-        reasons: ["Gemini not available for quality scoring - using fallback"]
-      };
+      throw new Error("Gemini API key not configured");
     }
 
     const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -907,56 +892,41 @@ Return ONLY a JSON object in this exact format:
 }
     `;
 
-    try {
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
 
-      // Parse JSON response
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+    // Parse JSON response
+    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
 
-      // Calculate overall score as average of dimensions
-      const dimensions = ["originality", "clarity", "humanLikeness", "usefulness", "readability"];
-      const overall = dimensions.reduce((sum, dim) =>
-        sum + (parsed[dim] && typeof parsed[dim].score === "number" ? parsed[dim].score : 5), 0) / dimensions.length;
+    // Calculate overall score as average of dimensions
+    const dimensions = ["originality", "clarity", "humanLikeness", "usefulness", "readability"];
+    const overall = dimensions.reduce((sum, dim) =>
+      sum + (parsed[dim] && typeof parsed[dim].score === "number" ? parsed[dim].score : 5), 0) / dimensions.length;
 
-      return {
-        originality: {
-          score: Math.min(10, Math.max(1, parsed.originality?.score || 5)),
-          reason: parsed.originality?.reason || "No reason provided"
-        },
-        clarity: {
-          score: Math.min(10, Math.max(1, parsed.clarity?.score || 5)),
-          reason: parsed.clarity?.reason || "No reason provided"
-        },
-        humanLikeness: {
-          score: Math.min(10, Math.max(1, parsed.humanLikeness?.score || 5)),
-          reason: parsed.humanLikeness?.reason || "No reason provided"
-        },
-        usefulness: {
-          score: Math.min(10, Math.max(1, parsed.usefulness?.score || 5)),
-          reason: parsed.usefulness?.reason || "No reason provided"
-        },
-        readability: {
-          score: Math.min(10, Math.max(1, parsed.readability?.score || 5)),
-          reason: parsed.readability?.reason || "No reason provided"
-        },
-        overall: Math.round(overall * 10) / 10 // Round to 1 decimal
-      };
-    } catch (error) {
-      console.error("Error scoring content quality:", error);
-      // Fallback scoring
-      const baseScore = Math.random() * 3 + 4; // 4-7 range
-      return {
-        originality: { score: Math.min(10, baseScore + (Math.random() * 2)), reason: "Scoring failed - fallback used" },
-        clarity: { score: Math.min(10, baseScore + (Math.random() * 2)), reason: "Scoring failed - fallback used" },
-        humanLikeness: { score: Math.min(10, baseScore + (Math.random() * 2)), reason: "Scoring failed - fallback used" },
-        usefulness: { score: Math.min(10, baseScore + (Math.random() * 2)), reason: "Scoring failed - fallback used" },
-        readability: { score: Math.min(10, baseScore + (Math.random() * 2)), reason: "Scoring failed - fallback used" },
-        overall: Math.round((baseScore + Math.random() * 2) * 10) / 10,
-        reasons: [`Quality scoring failed: ${error instanceof Error ? error.message : String(error)}`]
-      };
-    }
+    return {
+      originality: {
+        score: Math.min(10, Math.max(1, parsed.originality?.score || 5)),
+        reason: parsed.originality?.reason || "No reason provided"
+      },
+      clarity: {
+        score: Math.min(10, Math.max(1, parsed.clarity?.score || 5)),
+        reason: parsed.clarity?.reason || "No reason provided"
+      },
+      humanLikeness: {
+        score: Math.min(10, Math.max(1, parsed.humanLikeness?.score || 5)),
+        reason: parsed.humanLikeness?.reason || "No reason provided"
+      },
+      usefulness: {
+        score: Math.min(10, Math.max(1, parsed.usefulness?.score || 5)),
+        reason: parsed.usefulness?.reason || "No reason provided"
+      },
+      readability: {
+        score: Math.min(10, Math.max(1, parsed.readability?.score || 5)),
+        reason: parsed.readability?.reason || "No reason provided"
+      },
+      overall: Math.round(overall * 10) / 10 // Round to 1 decimal
+    };
   }
 
   /**
@@ -1008,12 +978,7 @@ Return ONLY a JSON object in this exact format:
     attemptNumber: number
   ): Promise<ContentDraft> {
     if (!gemini) {
-      // Return fallback version
-      return {
-        ...draft,
-        body: this.fallbackPlatformContent(draft.platform, draft.category, []),
-        originalBody: this.fallbackPlatformContent(draft.platform, draft.category, [])
-      };
+      throw new Error("Gemini API key not configured");
     }
 
     // For now, return a slightly modified version - in a full implementation

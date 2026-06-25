@@ -208,17 +208,18 @@ export async function POST(request: Request) {
     const insights = await extractInsights(transcript!, videoTitle);
 
     // STEP 3 — Generate each selected platform's post, in parallel
+    const txLen = transcript?.length ?? 0;
     const generationMap: Record<Platform, () => Promise<unknown>> = {
-      TWITTER: () => generateWithQualityGate(generateTwitterPost, insights, tone),
-      LINKEDIN: () => generateWithQualityGate(generateLinkedInPost, insights, tone),
-      INSTAGRAM: () => generateWithQualityGate(generateInstagramCaption, insights, tone),
-      FACEBOOK: () => generateWithQualityGate(generateFacebookPost, insights, tone),
-      THREADS: () => generateWithQualityGate(generateTwitterPost, insights, tone),
-      CAROUSEL: () => generateWithQualityGate(generateInstagramCarousel, insights, tone),
-      COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone),
-      STORY: () => generateWithQualityGate(generateLinkedInPost, insights, tone),
-      HOOKS: () => generateWithQualityGate(generateTwitterPost, insights, tone),
-      CTA: () => generateWithQualityGate(generateTwitterPost, insights, tone),
+      TWITTER: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
+      LINKEDIN: () => generateWithQualityGate(generateLinkedInPost, insights, tone, 7, 2, txLen),
+      INSTAGRAM: () => generateWithQualityGate(generateInstagramCaption, insights, tone, 7, 2, txLen),
+      FACEBOOK: () => generateWithQualityGate(generateFacebookPost, insights, tone, 7, 2, txLen),
+      THREADS: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
+      CAROUSEL: () => generateWithQualityGate(generateInstagramCarousel, insights, tone, 7, 2, txLen),
+      COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone, 7, 2, txLen),
+      STORY: () => generateWithQualityGate(generateLinkedInPost, insights, tone, 7, 2, txLen),
+      HOOKS: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
+      CTA: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
     };
 
     const jobs = selectedPlatforms.map((platform: Platform) => generationMap[platform]());

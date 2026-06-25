@@ -84,11 +84,11 @@ export async function generatePlatformOutputs({
   const source = await loadProjectSource(projectId, providedSummary);
   const title = source.title || "Untitled source";
 
-  const brief = env.geminiKey
-    ? await extractBrief(source.transcript, title).catch(() =>
-        briefFromSummary(source.summary, source.transcript),
-      )
-    : briefFromSummary(source.summary, source.transcript);
+  if (!source.transcript || source.transcript.trim().length === 0 || source.transcript.includes("Content generation requires a transcript")) {
+    throw new Error("Cannot generate posts: Empty or placeholder transcript.");
+  }
+
+  const brief = await extractBrief(source.transcript, title);
   const groundedBrief = groundBriefInSource(brief, title, source.transcript, source.summary);
 
   const posts = await generateAllPosts({
@@ -97,6 +97,7 @@ export async function generatePlatformOutputs({
     platforms,
     tone,
     isRegeneration,
+    transcriptLength: source.transcript.length,
   });
 
   return posts.map((post) => ({
@@ -115,12 +116,25 @@ export async function generatePlatformOutputs({
 /** Step 1 — internal brief extraction. Never shown to user. */
 export async function extractBrief(transcript: string, title: string): Promise<GenerationBrief> {
   const gemini = getGeminiClient();
-  if (!gemini) return briefFromTranscript(transcript);
+  if (!gemini) throw new Error("Gemini API client not configured.");
 
   const source = truncateWords(transcript, 5000);
+  const prompt = extractBriefPrompt(source, title);
+
+  console.log("======================================== LLM PROMPT (extractBrief) ========================================");
+  console.log(prompt);
+  console.log("============================================================================================");
+  console.log(`Transcript length: ${transcript.length}`);
+  console.log(`Fact count: N/A (Brief extraction)`);
+  console.log(`Context length: ${prompt.length}`);
+  console.log(`Prompt size: ${prompt.length}`);
+  console.log(`Provider: Gemini`);
+  console.log(`Model: gemini-2.5-flash`);
+  console.log("============================================================================================");
+
   const response = await gemini.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: extractBriefPrompt(source, title) }] }],
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
       temperature: 0.25,
       responseMimeType: "application/json",
@@ -137,20 +151,20 @@ async function generateAllPosts({
   platforms,
   tone,
   isRegeneration,
+  transcriptLength,
 }: {
   brief: GenerationBrief;
   title: string;
   platforms: Platform[];
   tone: Tone | string;
   isRegeneration?: boolean;
+  transcriptLength: number;
 }) {
-  const results = await Promise.allSettled(
+  const results = await Promise.all(
     platforms.map(async (platform) => {
-      const content = env.geminiKey
-        ? await generateWithRetry(platform, title, () =>
-            writePlatformPost({ brief, title, platform, tone, isRegeneration }),
-          ).catch(() => fallbackPostForPlatform(platform, brief, tone))
-        : fallbackPostForPlatform(platform, brief, tone);
+      const content = await generateWithRetry(platform, title, () =>
+        writePlatformPost({ brief, title, platform, tone, isRegeneration, transcriptLength }),
+      );
 
       const normalized =
         platform === "TWITTER"
@@ -161,9 +175,7 @@ async function generateAllPosts({
     }),
   );
 
-  return results
-    .filter((r): r is PromiseFulfilledResult<{ platform: Platform; content: string }> => r.status === "fulfilled")
-    .map((r) => r.value);
+  return results;
 }
 
 async function writePlatformPost({
@@ -172,15 +184,17 @@ async function writePlatformPost({
   platform,
   tone,
   isRegeneration,
+  transcriptLength,
 }: {
   brief: GenerationBrief;
   title: string;
   platform: Platform;
   tone: Tone | string;
   isRegeneration?: boolean;
+  transcriptLength: number;
 }) {
   const gemini = getGeminiClient();
-  if (!gemini) return fallbackPostForPlatform(platform, brief, tone);
+  if (!gemini) throw new Error("Gemini API client not configured.");
 
   let prompt = platformWriterPrompt(platform, brief, title);
 
@@ -192,6 +206,29 @@ async function writePlatformPost({
   if (isRegeneration) {
     prompt +=
       "\n\nCRITICAL: Regeneration — use a completely different hook, structure, and angle.";
+  }
+
+  const factCount = 
+    (brief.core_promise ? 1 : 0) +
+    (brief.pain_point ? 1 : 0) +
+    (brief.key_steps?.length ?? 0) +
+    (brief.hook_angle ? 1 : 0) +
+    (brief.specific_detail ? 1 : 0);
+
+  console.log(`======================================== LLM PROMPT (writePlatformPost for ${platform}) ========================================`);
+  console.log(prompt);
+  console.log("============================================================================================");
+  console.log(`Transcript length: ${transcriptLength}`);
+  console.log(`Fact count: ${factCount}`);
+  console.log(`Context length: ${prompt.length}`);
+  console.log(`Prompt size: ${prompt.length}`);
+  console.log(`Provider: Gemini`);
+  console.log(`Model: gemini-2.5-flash`);
+  console.log("============================================================================================");
+
+  // Validation: If no real facts are present, fail loudly
+  if (factCount === 0) {
+    throw new Error("Prompt validation failed: No real transcript facts/insights supplied. Stopping generation.");
   }
 
   const response = await gemini.models.generateContent({
@@ -227,7 +264,10 @@ async function generateWithRetry(platform: Platform, title: string, generateFn: 
 
   console.log(`[Retry] First attempt failed for ${platform}, retrying...`);
   const second = await run();
-  return second.isValid ? second.content : second.content || first.content;
+  if (!second.isValid) {
+    throw new Error(`Generated content validation failed for platform ${platform}.`);
+  }
+  return second.content;
 }
 
 function validateGenerated(platform: Platform, raw: string) {
@@ -278,162 +318,6 @@ async function loadProjectSource(projectId: string, providedSummary?: SourceSumm
     title,
     summary: summary ?? summaryFromBrief(briefFromTranscript(transcript || title || projectId)),
   };
-}
-
-function fallbackPostForPlatform(platform: Platform, brief: GenerationBrief, tone?: Tone | string) {
-  const normalizedTone = normalizeToneName(tone);
-  const toneLine = fallbackToneLine(tone, brief);
-  switch (platform) {
-    case "TWITTER":
-      if (normalizedTone === "casual") {
-        return [
-          toneLine,
-          "",
-          "What I would pull from it:",
-          `- ${brief.core_promise}`,
-          `- ${brief.key_steps[0]}`,
-          `- ${brief.key_steps[1] ?? brief.key_steps[0]}`,
-          "",
-          `No need to overthink the format. ${brief.cta}`,
-        ].join("\n");
-      }
-      return [
-        toneLine,
-        "",
-        `1/ ${brief.core_promise}`,
-        "",
-        `2/ ${brief.key_steps[0]}`,
-        "",
-        `3/ ${brief.key_steps[1] ?? brief.key_steps[0]}`,
-        "",
-        `4/ ${brief.key_steps[2] ?? "Start with one clear action."}`,
-        "",
-        brief.cta,
-      ].join("\n");
-    case "LINKEDIN":
-      if (normalizedTone === "casual") {
-        return [
-          toneLine,
-          "",
-          "The move is pretty straightforward:",
-          "",
-          `• ${brief.core_promise}`,
-          `• ${brief.key_steps[0]}`,
-          `• ${brief.key_steps[1] ?? brief.key_steps[0]}`,
-          "",
-          brief.cta,
-        ].join("\n");
-      }
-      return [
-        toneLine,
-        "",
-        brief.pain_point,
-        "",
-        brief.core_promise,
-        "",
-        ...brief.key_steps.slice(0, 4).map((point, index) => `${index + 1}. ${point}`),
-        "",
-        brief.cta,
-        "",
-        "#ContentCreation #Creators #BuildInPublic",
-      ].join("\n");
-    case "INSTAGRAM":
-      if (normalizedTone === "casual") {
-        return [
-          toneLine.slice(0, 125),
-          "",
-          `quick note: ${brief.core_promise}`,
-          `save this: ${brief.key_steps[0]}`,
-          `try this next: ${brief.key_steps[1] ?? brief.key_steps[0]}`,
-          "",
-          brief.cta,
-          "",
-          "#content #creator #repurpose #socialmedia",
-        ].join("\n");
-      }
-      return [
-        toneLine.slice(0, 125),
-        "",
-        `→ ${brief.core_promise}`,
-        `→ ${brief.key_steps[0]}`,
-        `→ ${brief.key_steps[1] ?? brief.key_steps[0]}`,
-        "",
-        brief.cta,
-        "",
-        "#content #creator #socialmedia #repurpose #ai #marketing",
-      ].join("\n");
-    case "FACEBOOK":
-      return [
-        toneLine,
-        "",
-        brief.core_promise,
-        "",
-        brief.key_steps.slice(0, 3).join("\n"),
-        "",
-        brief.cta,
-      ].join("\n");
-    case "THREADS":
-      return [
-        toneLine,
-        "---",
-        brief.core_promise,
-        "---",
-        brief.key_steps[0],
-        "---",
-        brief.cta,
-      ].join("\n");
-    case "CAROUSEL":
-      return [
-        `SLIDE 1: ${toneLine}\n- ${brief.core_promise}`,
-        `SLIDE 2: The problem\n- ${brief.pain_point}`,
-        `SLIDE 3: Step 1\n- ${brief.key_steps[0]}`,
-        `SLIDE 4: Step 2\n- ${brief.key_steps[1] ?? brief.key_steps[0]}`,
-        `SLIDE 5: ${brief.cta}\n- Save this for later`,
-      ].join("\n---\n");
-    case "COMMUNITY":
-      return [
-        toneLine,
-        "",
-        "What would help you most next?",
-        "",
-        "A) Step-by-step walkthrough",
-        "B) Common mistakes",
-        "C) Full breakdown",
-        "D) Templates and examples",
-      ].join("\n");
-    case "STORY":
-      return [
-        "[HOOK — 0 to 3 sec]",
-        toneLine,
-        "",
-        "[BODY — 3 to 40 sec]",
-        brief.core_promise,
-        brief.key_steps[0],
-        "",
-        "[CTA — 40 to 60 sec]",
-        brief.cta,
-      ].join("\n");
-    case "HOOKS":
-      return [
-        toneLine,
-        "---",
-        brief.pain_point,
-        "---",
-        `Unpopular opinion: ${brief.core_promise}`,
-        "---",
-        brief.key_steps[0],
-      ].join("\n");
-    case "CTA":
-      return [
-        "What do you think? Drop a comment below.",
-        "---",
-        "DM me for the free checklist.",
-        "---",
-        "Link in bio to get started.",
-        "---",
-        "Subscribe for weekly breakdowns like this.",
-      ].join("\n");
-  }
 }
 
 function parseJson(value: string) {

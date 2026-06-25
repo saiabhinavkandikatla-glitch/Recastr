@@ -9,7 +9,7 @@ import { hash, extractYouTubeVideoId } from "@/lib/ingest";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import ytdl from "yt-dlp-exec";
-import { ContentIntelligenceService } from "@/lib/content-intelligence/service";
+import { contentIntelligenceService } from "@/lib/content-intelligence/service";
 
 // ==========================================
 // 12-Stage Content Intelligence Pipeline
@@ -36,25 +36,37 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
 }> {
   console.log(`[pipeline] Starting content intelligence pipeline for: ${options.url}`);
 
-  // STAGE 1: Transcript Extraction (with fallback & caching)
+  // STAGE 1: Transcript Extraction
   const transcript = await extractTranscriptStage(options);
   const title = options.title || await extractTitleStage(options, transcript);
-  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
-  console.log(`[pipeline] Stage 1 Complete: Title="${title}", Words=${wordCount}`);
+  const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : 0;
+  console.log(`[INGESTION]\nTranscript length: ${transcript ? transcript.length : 0}\nWord count: ${wordCount}\nSuccess: ${!!transcript}`);
+  if (!transcript || transcript.trim().length === 0) {
+    throw new Error("[INGESTION] stage failed: Transcript is empty.");
+  }
 
   // STAGE 2: Chunking
   const chunks = chunkTranscriptStage(title, transcript);
-  console.log(`[pipeline] Stage 2 Complete: Created ${chunks.length} chunks`);
+  console.log(`[CHUNKING]\nChunks created: ${chunks.length}\nChunk sizes: ${JSON.stringify(chunks.map(c => c.text.length))}`);
+  if (!chunks || chunks.length === 0) {
+    throw new Error("[CHUNKING] stage failed: Created zero chunks.");
+  }
 
-  // STAGE 3: Insight Extraction Engine
+  // STAGE 3: Insight Extraction Engine (Fact Extraction)
   const rawInsights = await extractInsightsStage(title, chunks);
-  console.log(`[pipeline] Stage 3 Complete: Extracted raw insights`);
+  const lessonsCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'lesson' || i.kind === 'actionable_advice' || i.kind === 'surprising_fact').length : 0;
+  const quotesCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'quote').length : 0;
+  const topicsCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'topic').length : 0;
+  console.log(`[FACT EXTRACTION]\nFacts extracted: ${lessonsCount}\nQuotes extracted: ${quotesCount}\nEntities extracted: ${topicsCount}`);
+  if (!rawInsights || !rawInsights.insights || rawInsights.insights.length === 0) {
+    throw new Error("[FACT EXTRACTION] stage failed: Extracted zero insights/facts.");
+  }
 
   // STAGE 4: Knowledge Graph (Deduplication & Connections)
   const knowledgeGraph = await buildKnowledgeGraphStage(title, rawInsights);
   console.log(`[pipeline] Stage 4 Complete: Knowledge graph established`);
 
-  // STAGE 5: Content Categories & STAGE 6: Platform-Specific Writers & STAGE 7: Humanizer & STAGE 8: Quality Scorer & STAGE 9: Deduplication & STAGE 10: Memories & STAGE 11: Review Agent
+  // STAGE 5 onwards: Generation
   const { hooks, contents } = await generateSocialSuiteStage({
     projectId: `youtube-${hash(options.url).slice(0, 10)}-${options.userId}`,
     title,
@@ -62,6 +74,13 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
     knowledgeGraph,
     options,
   });
+
+  // Log generation stage details
+  const factsSupplied = rawInsights?.insights ? rawInsights.insights.length : 0;
+  const contextSize = chunks.map(c => c.text.length).reduce((a, b) => a + b, 0);
+  const promptSize = contextSize + 500; // Estimated prompt templates length
+  const generatedTokens = contents.map(c => c.body.length).reduce((a, b) => a + b, 0);
+  console.log(`[GENERATION]\nFacts supplied to LLM: ${factsSupplied}\nContext size: ${contextSize}\nProvider used: Gemini\nPrompt version: v1\nGenerated tokens: ${generatedTokens}`);
 
   // STAGE 12: Final Output structure
   const summary: SourceSummary = {
@@ -130,16 +149,11 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
       transcript = await fetchYtdlSubtitles(videoId);
     }
 
-    // 4. Fallback to Gemini ingestion from video metadata description if transcript is completely blocked
+    // 4. If transcript is completely blocked, throw an error
     if (!transcript) {
-      console.log(`[pipeline:extract] All automated methods failed, using video metadata description fallback...`);
-      if (options.description?.trim()) {
-        transcript = `[Video Title: ${options.title}]\n\nVideo Description:\n${options.description.trim()}`;
-      } else {
-        throw new Error(
-          "Unable to retrieve subtitles automatically. We couldn't access subtitles for this video.\n\nPossible reasons:\n• Captions are disabled.\n• The video is private or restricted.\n• YouTube temporarily blocked transcript access.\n\nYou can paste a transcript manually or try another video."
-        );
-      }
+      throw new Error(
+        "Unable to retrieve subtitles automatically. We couldn't access subtitles for this video.\n\nPossible reasons:\n• Captions are disabled.\n• The video is private or restricted.\n• YouTube temporarily blocked transcript access.\n\nYou can paste a transcript manually or try another video."
+      );
     }
 
     return transcript;
@@ -483,78 +497,45 @@ function chunkTranscriptStage(title: string, transcript: string): Array<{ id: st
   return chunks;
 }
 
-// STAGE 5: Insight Extraction Engine
+// STAGE 3: Insight Extraction Engine
 async function extractInsightsStage(title: string, chunks: Array<{ id: string; text: string; startIndex: number; endIndex: number }>) {
   // Use the ContentIntelligenceService to extract insights from the full transcript
   const fullTranscript = chunks.map(chunk => chunk.text).join(' ');
+  const { insights, rawExtractions } = await contentIntelligenceService.extractInsights(fullTranscript, title);
 
-  try {
-    const { insights, rawExtractions } = await contentIntelligenceService.extractInsights(fullTranscript, title);
-
-    // Return insights in the format expected by the pipeline
-    return {
-      insights,
-      rawExtractions
-    };
-  } catch (error) {
-    console.error(`[pipeline:insights] Failed to extract insights:`, error);
-    // Return empty insights structure to allow pipeline to continue
-    return {
-      insights: [],
-      rawExtractions: {}
-    };
-  }
+  // Return insights in the format expected by the pipeline
+  return {
+    insights,
+    rawExtractions
+  };
 }
 
-// STAGE 6: Knowledge Graph Building
+// STAGE 4: Knowledge Graph Building
 async function buildKnowledgeGraphStage(title: string, rawInsights: any) {
   const { insights } = rawInsights || { insights: [] };
 
   if (!insights || insights.length === 0) {
-    // Return empty knowledge graph if no insights
-    return {
-      nodes: [],
-      edges: [],
-      tldr: title || 'Content processed',
-      takeaways: [title || 'Content processed'],
-      topics: []
-    };
+    throw new Error("Knowledge Graph stage received zero insights.");
   }
 
-  try {
-    const knowledgeGraph = await contentIntelligenceService.buildKnowledgeGraph(insights);
+  const knowledgeGraph = await contentIntelligenceService.buildKnowledgeGraph(insights);
 
-    // Extract summary information for the pipeline
-    const tldr = insights.length > 0 ? insights[0].text.substring(0, Math.min(200, insights[0].text.length)) : title;
-    const takeaways = insights
-      .slice(0, 5)
-      .map(insight => insight.text.substring(0, Math.min(150, insight.text.length)));
-    const topics = [...new Set(insights
-      .filter(insight => insight.kind === 'topic')
-      .map(insight => insight.text))
-      .slice(0, 10)];
+  // Extract summary information for the pipeline
+  const tldr = insights.length > 0 ? insights[0].text.substring(0, Math.min(200, insights[0].text.length)) : title;
+  const takeaways = insights
+    .slice(0, 5)
+    .map(insight => insight.text.substring(0, Math.min(150, insight.text.length)));
+  const topics = [...new Set(insights
+    .filter(insight => insight.kind === 'topic')
+    .map(insight => insight.text))
+    .slice(0, 10)];
 
-    return {
-      ...knowledgeGraph,
-      tldr,
-      takeaways,
-      topics
-    };
-  } catch (error) {
-    console.error(`[pipeline:knowledge-graph] Failed to build knowledge graph:`, error);
-    const fallbackInsight = transcript
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .find((line) => line.length > 30) ?? "Content processed";
-    // Return fallback knowledge graph
-    return {
-      nodes: [],
-      edges: [],
-      tldr: fallbackInsight,
-      takeaways: [fallbackInsight],
-      topics: []
-    };
-  }
+  return {
+    ...knowledgeGraph,
+    tldr,
+    takeaways,
+    topics
+  };
 }
 
 // STAGES 7-11: Content Generation Suite
@@ -567,133 +548,57 @@ async function generateSocialSuiteStage(options: {
 }) {
   const { title, transcript, knowledgeGraph, ...stageOptions } = options;
 
-  try {
-    // Run the full content intelligence pipeline
-    const report = await contentIntelligenceService.runContentIntelligencePipeline(
-      transcript,
-      title,
-      stageOptions.projectId || undefined,
-      ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"],
-      stageOptions.tonePref || "professional"
-    );
+  // Run the full content intelligence pipeline
+  const report = await contentIntelligenceService.runContentIntelligencePipeline(
+    transcript,
+    title,
+    stageOptions.projectId || undefined,
+    ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"],
+    stageOptions.tonePref || "professional"
+  );
 
-    // Extract hooks (curiosity hooks) from the report
-    const hooks = report.curiosityHooks.map((text: string, index: number) => ({
-      id: `hook-${index}`,
-      projectId: options.projectId,
-      text,
-      hookType: "Curiosity gap",
-      reachScore: Math.min(100, Math.max(10, 80 + index)) // Decreasing reach score
-    }));
+  // Extract hooks (curiosity hooks) from the report
+  const hooks = report.curiosityHooks.map((text: string, index: number) => ({
+    id: `hook-${index}`,
+    projectId: options.projectId,
+    text,
+    hookType: "Curiosity gap",
+    reachScore: Math.min(100, Math.max(10, 80 + index)) // Decreasing reach score
+  }));
 
-    // Extract contents (platform-specific posts) from the report
-    // Flatten the categorized contents back into a simple array
-    const contentsArray: any[] = [];
-    const categories = report.categories || {};
+  // Extract contents (platform-specific posts) from the report
+  const contentsArray: any[] = [];
+  const categories = report.categories || {};
 
-    for (const categoryKey in categories) {
-      if (Object.prototype.hasOwnProperty.call(categories, categoryKey)) {
-        const categoryContents = categories[categoryKey as keyof typeof categories];
-        if (Array.isArray(categoryContents)) {
-          categoryContents.forEach((content: any, index: number) => {
-            contentsArray.push({
-              id: `${content.id || `content-${categoryKey}-${index}`}`,
-              projectId: options.projectId,
-              hookId: hooks.length > 0 ? hooks[0].id : undefined,
-              platform: content.platform || "TWITTER", // Default platform
-              contentType: `${content.platform} post`,
-              body: content.body,
-              originalBody: content.originalBody,
-              tone: content.tone || "professional",
-              approved: false,
-              order: index
-            });
+  for (const categoryKey in categories) {
+    if (Object.prototype.hasOwnProperty.call(categories, categoryKey)) {
+      const categoryContents = categories[categoryKey as keyof typeof categories];
+      if (Array.isArray(categoryContents)) {
+        categoryContents.forEach((content: any, index: number) => {
+          contentsArray.push({
+            id: `${content.id || `content-${categoryKey}-${index}`}`,
+            projectId: options.projectId,
+            hookId: hooks.length > 0 ? hooks[0].id : undefined,
+            platform: content.platform || "TWITTER", // Default platform
+            contentType: `${content.platform} post`,
+            body: content.body,
+            originalBody: content.originalBody,
+            tone: content.tone || "professional",
+            approved: false,
+            order: index
           });
-        }
+        });
       }
     }
-
-    // If no contents were generated, create fallback contents
-    if (contentsArray.length === 0) {
-      const platforms = ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"];
-      const fallbackCopy = fallbackCopyFromSource(transcript, knowledgeGraph);
-      platforms.forEach((platform, index) => {
-        contentsArray.push({
-          id: `content-${platform.toLowerCase()}-${index}`,
-          projectId: options.projectId,
-          hookId: hooks.length > 0 ? hooks[0].id : undefined,
-          platform,
-          contentType: `${platform} post`,
-          body: `${fallbackCopy.hook}\n\n${fallbackCopy.body}`,
-          originalBody: `${fallbackCopy.hook}\n\n${fallbackCopy.body}`,
-          tone: stageOptions.tonePref || "professional",
-          approved: false,
-          order: index
-        });
-      });
-    }
-
-    return {
-      hooks,
-      contents: contentsArray
-    };
-  } catch (error) {
-    console.error(`[pipeline:social-suite] Failed to generate social suite:`, error);
-    // Return fallback hooks and contents
-    const fallbackHooks = [{
-      id: `hook-fallback`,
-      projectId: options.projectId,
-      text: fallbackCopyFromSource(transcript, knowledgeGraph).hook,
-      hookType: "Curiosity gap",
-      reachScore: 50
-    }];
-
-    const fallbackContents = [
-      "TWITTER",
-      "LINKEDIN",
-      "INSTAGRAM",
-      "FACEBOOK",
-      "THREADS",
-      "CAROUSEL",
-      "COMMUNITY",
-      "STORY",
-      "HOOKS",
-      "CTA"
-    ].map((platform, index) => ({
-      id: `content-${platform.toLowerCase()}-fallback-${index}`,
-      projectId: options.projectId,
-      hookId: fallbackHooks[0].id,
-      platform,
-      contentType: `${platform} post`,
-      body: `Fallback content for ${platform}`,
-      originalBody: `Fallback content for ${platform}`,
-      tone: stageOptions.tonePref || "professional",
-      approved: false,
-      order: index
-    }));
-
-    return {
-      hooks: fallbackHooks,
-      contents: fallbackContents
-    };
   }
-}
 
-function fallbackCopyFromSource(transcript: string, knowledgeGraph: any) {
-  const candidates = [
-    knowledgeGraph?.tldr,
-    ...(Array.isArray(knowledgeGraph?.takeaways) ? knowledgeGraph.takeaways : []),
-    ...transcript.split(/\n+/),
-  ]
-    .map((value) => String(value ?? "").trim())
-    .filter((value) => value.length > 30);
-  const hook = candidates[0] ?? "The strongest lesson is hidden in the source details.";
-  const points = candidates.slice(1, 4);
-  while (points.length < 3) {
-    points.push("Extract the specific moment, explain why it matters, and turn it into one useful next step.");
+  // If no contents were generated, throw an error
+  if (contentsArray.length === 0) {
+    throw new Error("Generation stage returned zero content pieces.");
   }
+
   return {
-    hook,
-    body: points.map((point, index) => `${index + 1}. ${point}`).join("\n"),
+    hooks,
+    contents: contentsArray
   };
 }
