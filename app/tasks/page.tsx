@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { TasksWorkspace } from "@/components/tasks/tasks-workspace";
 import { getCurrentUser } from "@/lib/current-user";
@@ -5,16 +6,34 @@ import { prisma } from "@/lib/prisma/client";
 import { listStoredScheduledPosts } from "@/lib/projects/store";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import type { Platform, PostStatus, Project, ScheduledPost } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
 export default async function TasksPage() {
   const user = await getCurrentUser();
-  const { projects, scheduledPosts } = await loadTasksData(user?.id);
 
   return (
-    <AppShell projects={projects} title="Tasks" user={user}>
-      <TasksWorkspace projects={projects} scheduledPosts={scheduledPosts} />
+    <AppShell title="Tasks" user={user}>
+      <Suspense fallback={<TasksSkeleton />}>
+        <TasksContent userId={user?.id} />
+      </Suspense>
     </AppShell>
   );
+}
+
+function TasksSkeleton() {
+  return (
+    <div className="flex h-[400px] items-center justify-center">
+      <div className="flex flex-col items-center gap-4 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--violet)]" />
+        <p className="text-sm">Loading tasks...</p>
+      </div>
+    </div>
+  );
+}
+
+async function TasksContent({ userId }: { userId?: string }) {
+  const { projects, scheduledPosts } = await loadTasksData(userId);
+  return <TasksWorkspace projects={projects} scheduledPosts={scheduledPosts} />;
 }
 
 async function loadTasksData(userId?: string): Promise<{

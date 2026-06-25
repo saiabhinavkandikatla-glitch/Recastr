@@ -24,7 +24,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              You can upload YouTube video URLs, podcast audio files (MP3/WAV), or paste in a blog post URL or raw text. We support files up to 500MB on Pro and Business plans.
+              You can upload YouTube videos, podcasts, and blog posts. Our AI extracts the core ideas and automatically repurposes them into platform-specific posts.
             </AccordionContent>
           </AccordionItem>
 
@@ -34,7 +34,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              Recastr generates content tailored for LinkedIn, X (Twitter), Instagram, Threads, Facebook, Medium, Reddit, Blogs, Newsletters, and YouTube Community.
+              Recastr generates optimized content for LinkedIn, X (Twitter), Instagram, Facebook, Threads, and YouTube Community.
             </AccordionContent>
           </AccordionItem>
 
@@ -44,7 +44,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              Yes — on Pro and Business plans you can set a publish date and time per post. Recastr sends you an email reminder when it&apos;s time to post. Direct auto-publishing is coming soon.
+              Yes! You can organize your posts in your workspace and set a schedule. Recastr will send you an email reminder when it&apos;s time to publish.
             </AccordionContent>
           </AccordionItem>
 

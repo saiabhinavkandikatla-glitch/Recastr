@@ -1,73 +1,47 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 
-export const metadata: Metadata = {
-  title: "Recastr — Privacy Policy",
-  description: "How Recastr collects, uses, and protects your data.",
-};
-
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#090909] text-white">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
-      <article className="mx-auto max-w-3xl px-6 py-20 prose prose-invert prose-headings:font-semibold prose-p:text-[#a1a1aa] prose-li:text-[#a1a1aa]">
-        <h1>Privacy Policy</h1>
-        <p className="text-sm text-[#71717a]">Last updated: June 18, 2026</p>
+      <main className="flex-1 bg-background pt-32 pb-16">
+        <div className="mx-auto max-w-3xl px-6 text-foreground">
+          <h1 className="text-4xl font-bold tracking-tight">Privacy Policy</h1>
+          <p className="mt-4 text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
+          
+          <div className="mt-10 space-y-8">
+            <section>
+              <h2 className="text-2xl font-semibold">1. Information We Collect</h2>
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                We collect information you provide directly to us, such as when you create or modify your account, request on-demand services, contact customer support, or otherwise communicate with us. This information may include: name, email, phone number, postal address, profile picture, payment method, and other information you choose to provide.
+              </p>
+            </section>
+            
+            <section>
+              <h2 className="text-2xl font-semibold">2. Use of Information</h2>
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                We may use the information we collect about you to provide, maintain, and improve our services, including to facilitate payments, send receipts, provide products and services you request, develop new features, provide customer support to Users and Drivers, develop safety features, authenticate users, and send product updates and administrative messages.
+              </p>
+            </section>
+            
+            <section>
+              <h2 className="text-2xl font-semibold">3. Sharing of Information</h2>
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                We may share the information we collect about you as described in this Statement or as described at the time of collection or sharing, including as follows: with third parties to provide you a service you requested through a partnership or promotional offering made by a third party or us.
+              </p>
+            </section>
 
-        <p>
-          Recastr Labs (&quot;Recastr,&quot; &quot;we,&quot; &quot;us&quot;) provides a content repurposing
-          platform for creators and teams. This policy explains what we collect, how we use it, and your choices.
-        </p>
-
-        <h2>Information we collect</h2>
-        <ul>
-          <li>Account information: name, email, and authentication credentials.</li>
-          <li>Content you upload or link: videos, podcasts, blogs, transcripts, and generated posts.</li>
-          <li>Usage data: feature usage, device/browser type, and log data for security and reliability.</li>
-          <li>Connected services: if you connect Google OAuth or social accounts, we receive tokens required to post on your behalf.</li>
-        </ul>
-
-        <h2>How we use information</h2>
-        <ul>
-          <li>Provide transcription, analysis, and AI-generated drafts.</li>
-          <li>Store your projects, outputs, and scheduling preferences.</li>
-          <li>Send transactional email (verification, password reset, scheduled reminders).</li>
-          <li>Improve product quality, prevent abuse, and comply with law.</li>
-        </ul>
-
-        <h2>AI processing</h2>
-        <p>
-          Source content is processed by third-party AI providers to generate platform posts. We do not sell your
-          source content. Generated outputs are stored in your workspace until you delete them.
-        </p>
-
-        <h2>Third-party services</h2>
-        <p>
-          We use Supabase (auth/database), Vercel (hosting), Google (OAuth and AI where configured), and email
-          delivery providers. Each processes data under their own terms.
-        </p>
-
-        <h2>Data retention</h2>
-        <p>
-          We retain account and project data while your account is active. You may request deletion by emailing{" "}
-          <a href="mailto:recastr.schedule@gmail.com">recastr.schedule@gmail.com</a>.
-        </p>
-
-        <h2>Your rights</h2>
-        <p>
-          Depending on your location, you may have rights to access, correct, export, or delete personal data.
-          Contact us to exercise these rights.
-        </p>
-
-        <h2>Contact</h2>
-        <p>
-          Questions: <a href="mailto:recastr.schedule@gmail.com">recastr.schedule@gmail.com</a> or visit our{" "}
-          <Link href="/contact">contact page</Link>.
-        </p>
-      </article>
+            <section>
+              <h2 className="text-2xl font-semibold">4. Contact Us</h2>
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                If you have any questions about this Privacy Policy, please contact us at support@recastr.app.
+              </p>
+            </section>
+          </div>
+        </div>
+      </main>
       <Footer />
-    </main>
+    </div>
   );
 }

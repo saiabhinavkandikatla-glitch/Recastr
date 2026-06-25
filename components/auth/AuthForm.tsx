@@ -250,25 +250,25 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
         <div className="relative z-10 max-w-lg">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#8A8A8A] mb-5">
-            Content Repurposing Workspace
+            Recastr
           </p>
           <h1
             className="text-4xl font-display font-semibold leading-tight tracking-tight mb-5"
-            aria-label="Turn long-form content into ready-to-use posts."
+            aria-label="Your complete content repurposing engine."
           >
-            Turn long-form content
+            Your complete content
             <br />
-            into ready-to-use posts.
+            repurposing engine.
           </h1>
           <p className="mb-10 text-base leading-relaxed text-muted-foreground">
-            Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.
+            Upload one piece of content. Get a full month's worth of platform-optimized posts for X, LinkedIn, Instagram, and YouTube.
           </p>
 
           <div className="space-y-4">
             {[
-              "Upload — support for videos, podcasts, blogs and documents",
-              "Analyze — automatically identify key ideas and topics",
-              "Review — organize posts and receive email reminders",
+              "Upload videos, podcasts, and blogs",
+              "Extract viral hooks automatically",
+              "Generate platform-native content",
             ].map((feature, index) => (
               <div
                 key={index}

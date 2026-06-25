@@ -59,7 +59,7 @@ export function PlatformPreviewEngine({
   const [device, setDevice] = useState<PreviewDevice>("iphone");
   const [localTheme, setLocalTheme] = useState<"light" | "dark">(theme ?? "dark");
   const platforms = includeFacebook ? fullPreviewPlatforms : previewPlatforms;
-  const activeTheme = theme ?? localTheme;
+  const activeTheme = localTheme;
   const content = useMemo(() => parsePreviewContent(activePlatform, draft), [activePlatform, draft]);
 
   useEffect(() => {
@@ -67,14 +67,19 @@ export function PlatformPreviewEngine({
     if (!stored) return;
     setDevice(stored.device);
     if (!theme) setLocalTheme(stored.theme);
-    if (platforms.includes(stored.platform)) setActivePlatform(stored.platform);
-  }, [platforms, theme]);
+  }, [theme]);
 
   useEffect(() => {
-    if (activePlatform !== platform && !platforms.includes(activePlatform)) {
+    if (platforms.includes(platform)) {
       setActivePlatform(platform);
     }
-  }, [activePlatform, platform, platforms]);
+  }, [platform, platforms]);
+
+  useEffect(() => {
+    if (theme) {
+      setLocalTheme(theme);
+    }
+  }, [theme]);
 
   useEffect(() => {
     writePreferences({ device, platform: activePlatform, theme: activeTheme });
