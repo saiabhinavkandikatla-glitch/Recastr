@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { env } from "@/lib/env";
+import { getGeminiClient } from "@/lib/ai/client";
 import {
   ExtractedInsight,
   InsightKind,
@@ -18,9 +17,6 @@ import {
 import { prisma } from "@/lib/prisma/client";
 import { getCachedProject } from "@/lib/projects/store";
 
-// Initialize Gemini client
-const gemini = env.geminiKey ? new GoogleGenerativeAI(env.geminiKey) : null;
-
 export class ContentIntelligenceService {
   /**
    * Step 1-2: Extract insights from transcript
@@ -30,11 +26,15 @@ export class ContentIntelligenceService {
     insights: ExtractedInsight[];
     rawExtractions: Record<string, any>;
   }> {
+    const gemini = getGeminiClient();
     if (!gemini) {
       throw new Error("Gemini API key not configured");
     }
 
-    const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const transcriptWords = transcript.split(/\s+/).filter(Boolean).length;
+    if (!transcript || transcriptWords === 0) {
+      throw new Error("Fact extraction aborted: transcript length is 0.");
+    }
 
     const prompt = `
 You are an expert content analyst. Extract ALL meaningful insights from the following transcript.
@@ -96,9 +96,24 @@ Return JSON in this exact format:
     `;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+      console.log(
+        [
+          "[LLM Verification: Fact Extraction]",
+          `Transcript characters: ${transcript.length}`,
+          `Transcript words: ${transcriptWords}`,
+          "Chunks: full transcript input",
+          "Facts: 0 before extraction",
+          "Validated facts: 0 before extraction",
+          `Prompt size: ${prompt.length}`,
+          "Model: gemini-2.5-flash",
+          "Provider: Gemini",
+        ].join("\n"),
+      );
+      const result = await gemini.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+      const text = result.text ?? "";
 
       // Parse JSON response
       const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -196,7 +211,7 @@ Return JSON in this exact format:
     });
 
     // If we have Gemini, use it to find relationships between insights
-    if (gemini && insights.length > 1) {
+    if (getGeminiClient() && insights.length > 1) {
       try {
         const relationships = await this.discoverInsightRelationships(insights);
         edges.push(...relationships);
@@ -217,9 +232,8 @@ Return JSON in this exact format:
    * Use Gemini to discover relationships between insights
    */
   private async discoverInsightRelationships(insights: ExtractedInsight[]): Promise<KnowledgeGraphEdge[]> {
+    const gemini = getGeminiClient();
     if (!gemini) return [];
-
-    const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Prepare insights for analysis
     const insightSummaries = insights.map(i => ({
@@ -260,9 +274,11 @@ Return JSON in this exact format:
     `;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+      const result = await gemini.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+      const text = result.text ?? "";
 
       // Parse JSON response
       const relationships = JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -323,7 +339,7 @@ Return JSON in this exact format:
         const text2 = insight2.text ?? "";
         const words1 = new Set(text1.toLowerCase().split(/\s+/));
         const words2 = new Set(text2.toLowerCase().split(/\s+/));
-        const commonWords = [...words1].filter(word => words2.has(word));
+        const commonWords = Array.from(words1).filter(word => words2.has(word));
 
         if (commonWords.length > 2) {
           if (relation === "same_theme") {
@@ -361,7 +377,7 @@ Return JSON in this exact format:
     const drafts: ContentDraft[] = [];
 
     // Group insights by category
-    const insightsByCategory: Record<ContentCategory, ExtractedInsight[]> = {};
+    const insightsByCategory = {} as Record<ContentCategory, ExtractedInsight[]>;
     CONTENT_CATEGORIES.forEach(category => {
       insightsByCategory[category] = insights.filter(i => i.category === category);
     });
@@ -402,8 +418,8 @@ Return JSON in this exact format:
             });
           }
         } catch (error) {
-          console.warn(`Failed to generate ${platform} content for ${category} category:`, error);
-          // Continue with other platforms/categories
+          console.error(`Failed to generate ${platform} content for ${category} category:`, error);
+          throw error;
         }
       }
     }
@@ -428,7 +444,7 @@ Return JSON in this exact format:
     const contextParts = [
       `KEY INSIGHTS FROM SOURCE MATERIAL:`,
       topInsights.map(insight =>
-        `- [${insight.kind.toUpperCase()}] ${insight.title}: ${insight.text}`
+        `- [${insight.kind.toUpperCase()}] ${insight.title}: ${insight.text}\n  Evidence: ${insight.evidence || "missing"}`
       ).join("\n"),
       "",
       `KNOWLEDGE GRAPH CONNECTIONS:`,
@@ -455,11 +471,10 @@ Return JSON in this exact format:
     tone: string,
     insights: ExtractedInsight[]
   ): Promise<string | null> {
+    const gemini = getGeminiClient();
     if (!gemini) {
       throw new Error("Gemini API key not configured");
     }
-
-    const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Platform-specific prompts
     const platformPrompts: Record<string, (ctx: string, tone: string, insights: ExtractedInsight[]) => string> = {
@@ -478,17 +493,33 @@ Return JSON in this exact format:
     const promptCreator = platformPrompts[platform] || this.createDefaultPrompt;
     const prompt = promptCreator(context, tone, insights);
 
-    const result = await model.generateContent({
+    if (!context.trim() || insights.length === 0) {
+      throw new Error(`Generation aborted for ${platform}: no validated transcript insights supplied.`);
+    }
+
+    console.log(
+      [
+        `[LLM Verification: ${platform} Generation]`,
+        "Transcript characters: supplied through validated insight evidence",
+        "Transcript words: supplied through validated insight evidence",
+        `Chunks: ${new Set(insights.flatMap((insight) => insight.sourceChunkIds ?? [])).size}`,
+        `Facts: ${insights.length}`,
+        `Validated facts: ${insights.filter((insight) => Boolean(insight.evidence || insight.text)).length}`,
+        `Prompt size: ${prompt.length}`,
+        "Model: gemini-2.5-flash",
+        "Provider: Gemini",
+      ].join("\n"),
+    );
+
+    const result = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         temperature: 0.7,
         maxOutputTokens: 1000,
       }
     });
-
-    const response = result.response;
-    const text = response.text();
-    return text.trim();
+    return (result.text ?? "").trim();
   }
 
   // Platform-specific prompt creators
@@ -797,7 +828,7 @@ OUTPUT ONLY THE CONTENT.`;
    * (Already done in generateContentByCategory, but this could be used for existing content)
    */
   categorizeOutputs(drafts: ContentDraft[]): Record<ContentCategory, ContentDraft[]> {
-    const categorized: Record<ContentCategory, ContentDraft[]> = {};
+    const categorized = {} as Record<ContentCategory, ContentDraft[]>;
     CONTENT_CATEGORIES.forEach(category => {
       categorized[category] = drafts.filter(draft => draft.category === category);
     });
@@ -838,7 +869,7 @@ OUTPUT ONLY THE CONTENT.`;
     const averageScore = scoredCount > 0 ? totalScore / scoredCount : 0;
 
     // Regenerate rejected content if we have Gemini
-    if (gemini && rejected.length > 0) {
+    if (getGeminiClient() && rejected.length > 0) {
       const regenerated = await this.regeneratePoorContent(rejected, minScore);
       accepted.push(...regenerated.accepted);
       // Update rejected to only include those that failed regeneration
@@ -856,11 +887,10 @@ OUTPUT ONLY THE CONTENT.`;
    * Score content quality on multiple dimensions
    */
   private async scoreContentQuality(draft: ContentDraft): Promise<QualityScores> {
+    const gemini = getGeminiClient();
     if (!gemini) {
       throw new Error("Gemini API key not configured");
     }
-
-    const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
 You are an expert content quality evaluator. Score the following content on a scale of 1-10 for each criterion.
@@ -892,9 +922,11 @@ Return ONLY a JSON object in this exact format:
 }
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const result = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const text = result.text ?? "";
 
     // Parse JSON response
     const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -905,27 +937,19 @@ Return ONLY a JSON object in this exact format:
       sum + (parsed[dim] && typeof parsed[dim].score === "number" ? parsed[dim].score : 5), 0) / dimensions.length;
 
     return {
-      originality: {
-        score: Math.min(10, Math.max(1, parsed.originality?.score || 5)),
-        reason: parsed.originality?.reason || "No reason provided"
-      },
-      clarity: {
-        score: Math.min(10, Math.max(1, parsed.clarity?.score || 5)),
-        reason: parsed.clarity?.reason || "No reason provided"
-      },
-      humanLikeness: {
-        score: Math.min(10, Math.max(1, parsed.humanLikeness?.score || 5)),
-        reason: parsed.humanLikeness?.reason || "No reason provided"
-      },
-      usefulness: {
-        score: Math.min(10, Math.max(1, parsed.usefulness?.score || 5)),
-        reason: parsed.usefulness?.reason || "No reason provided"
-      },
-      readability: {
-        score: Math.min(10, Math.max(1, parsed.readability?.score || 5)),
-        reason: parsed.readability?.reason || "No reason provided"
-      },
-      overall: Math.round(overall * 10) / 10 // Round to 1 decimal
+      originality: Math.min(10, Math.max(1, parsed.originality?.score || 5)),
+      clarity: Math.min(10, Math.max(1, parsed.clarity?.score || 5)),
+      humanLikeness: Math.min(10, Math.max(1, parsed.humanLikeness?.score || 5)),
+      usefulness: Math.min(10, Math.max(1, parsed.usefulness?.score || 5)),
+      readability: Math.min(10, Math.max(1, parsed.readability?.score || 5)),
+      overall: Math.round(overall * 10) / 10,
+      reasons: [
+        parsed.originality?.reason,
+        parsed.clarity?.reason,
+        parsed.humanLikeness?.reason,
+        parsed.usefulness?.reason,
+        parsed.readability?.reason,
+      ].filter(Boolean),
     };
   }
 
@@ -977,17 +1001,7 @@ Return ONLY a JSON object in this exact format:
     draft: ContentDraft,
     attemptNumber: number
   ): Promise<ContentDraft> {
-    if (!gemini) {
-      throw new Error("Gemini API key not configured");
-    }
-
-    // For now, return a slightly modified version - in a full implementation
-    // we would retrieve the original insights and context and regenerate with better prompting
-    return {
-      ...draft,
-      body: `[REGENERATION ATTEMPT ${attemptNumber}] ${draft.body}`,
-      originalBody: `[REGENERATION ATTEMPT ${attemptNumber}] ${draft.originalBody}`
-    };
+    throw new Error(`Regeneration for ${draft.platform} attempt ${attemptNumber} is not implemented without source insights.`);
   }
 
   /**
@@ -1024,8 +1038,8 @@ Return ONLY a JSON object in this exact format:
       // Create project memory (simplified)
       const memory: ProjectMemory = {
         previousOutputs: accepted.map(d => d.body),
-        usedTopics: [...new Set(insights.filter(i => i.kind === "topic").map(i => i.title))],
-        usedHookStyles: [...new Set(insights.filter(i => i.kind === "curiosity_hook").map(i => i.title))],
+        usedTopics: Array.from(new Set(insights.filter(i => i.kind === "topic").map(i => i.title))),
+        usedHookStyles: Array.from(new Set(insights.filter(i => i.kind === "curiosity_hook").map(i => i.title))),
         writingStylePreferences: [tone],
         bannedPhrases: [] // Would be populated from banned phrases list
       };
@@ -1034,7 +1048,7 @@ Return ONLY a JSON object in this exact format:
       return {
         version: "content-intelligence-v1",
         transcript: {
-          method: "api_extraction",
+          method: "youtube_transcript_api",
           cached: false,
           wordCount: transcript.split(/\s+/).length,
           chunkCount: Math.ceil((transcript.split(/\s+/).length) / 500), // Assume 500 words per chunk
@@ -1057,7 +1071,7 @@ Return ONLY a JSON object in this exact format:
         surprisingFacts: rawExtractions.surprisingFacts?.map((f: any) => f.text) || [],
         insights,
         graph: knowledgeGraph,
-        categories: this.categorizeOutputs(accepted), // Use accepted drafts for final categorization
+        categories: this.categorizeOutputs(accepted) as unknown as Record<ContentCategory, string[]>,
         memory,
         quality: {
           averageScore,

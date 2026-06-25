@@ -54,7 +54,7 @@ export function calculateCharacterSimilarity(str1: string, str2: string): number
   const set2 = new Set(str2.split(''));
 
   let intersection = 0;
-  for const char of set1) {
+  for (const char of set1) {
     if (set2.has(char)) intersection++;
   }
 

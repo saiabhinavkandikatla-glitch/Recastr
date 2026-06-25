@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma/client";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
 import type { ContentPiece, Platform, SourceSummary, ViralHook, SourceType, Project } from "@/lib/types";
 import { hash, extractYouTubeVideoId } from "@/lib/ingest";
+import { fetchTranscript } from "@/lib/transcript";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import ytdl from "yt-dlp-exec";
@@ -27,6 +28,42 @@ export interface PipelineOptions {
   bannedWords?: string[];
 }
 
+const MIN_TRANSCRIPT_WORDS = 50;
+
+type PipelineStageStatus = "SUCCESS" | "FAILED" | "SKIPPED";
+
+function logPipelineStage(
+  stage: string,
+  fields: {
+    status: PipelineStageStatus;
+    input?: string;
+    output?: string;
+    length?: number;
+    words?: number;
+    provider?: string;
+    videoId?: string | null;
+    error?: string;
+    startedAt: number;
+  },
+) {
+  console.log(
+    [
+      `[${stage}]`,
+      `Status: ${fields.status}`,
+      fields.videoId ? `Video ID: ${fields.videoId}` : undefined,
+      fields.provider ? `Provider: ${fields.provider}` : undefined,
+      fields.input ? `Input: ${fields.input}` : undefined,
+      fields.output ? `Output: ${fields.output}` : undefined,
+      `Length: ${fields.length ?? 0}`,
+      fields.words === undefined ? undefined : `Words: ${fields.words}`,
+      `Execution time: ${Date.now() - fields.startedAt}ms`,
+      fields.error ? `Errors: ${fields.error}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
 export async function runContentPipeline(options: PipelineOptions): Promise<{
   title: string;
   transcript: string;
@@ -40,24 +77,44 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
   const transcript = await extractTranscriptStage(options);
   const title = options.title || await extractTitleStage(options, transcript);
   const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : 0;
-  console.log(`[INGESTION]\nTranscript length: ${transcript ? transcript.length : 0}\nWord count: ${wordCount}\nSuccess: ${!!transcript}`);
-  if (!transcript || transcript.trim().length === 0) {
-    throw new Error("[INGESTION] stage failed: Transcript is empty.");
+  logPipelineStage("Transcript Storage", {
+    status: "SUCCESS",
+    input: `title=${title}`,
+    output: transcript.slice(0, 500),
+    length: transcript.length,
+    words: wordCount,
+    startedAt: Date.now(),
+  });
+  if (!transcript || wordCount < MIN_TRANSCRIPT_WORDS) {
+    throw new Error(`[INGESTION] stage failed: Transcript has ${wordCount} words; minimum is ${MIN_TRANSCRIPT_WORDS}.`);
   }
 
   // STAGE 2: Chunking
   const chunks = chunkTranscriptStage(title, transcript);
-  console.log(`[CHUNKING]\nChunks created: ${chunks.length}\nChunk sizes: ${JSON.stringify(chunks.map(c => c.text.length))}`);
+  logPipelineStage("Chunk Creation", {
+    status: "SUCCESS",
+    input: `Transcript words=${wordCount}`,
+    output: `Chunks created=${chunks.length}; chunk sizes=${JSON.stringify(chunks.map(c => c.text.length))}`,
+    length: chunks.map((chunk) => chunk.text.length).reduce((sum, size) => sum + size, 0),
+    startedAt: Date.now(),
+  });
   if (!chunks || chunks.length === 0) {
     throw new Error("[CHUNKING] stage failed: Created zero chunks.");
   }
 
   // STAGE 3: Insight Extraction Engine (Fact Extraction)
-  const rawInsights = await extractInsightsStage(title, chunks);
+  const extractedInsights = await extractInsightsStage(title, chunks);
+  const rawInsights = validateEvidenceStage(title, transcript, extractedInsights);
   const lessonsCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'lesson' || i.kind === 'actionable_advice' || i.kind === 'surprising_fact').length : 0;
   const quotesCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'quote').length : 0;
   const topicsCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'topic').length : 0;
-  console.log(`[FACT EXTRACTION]\nFacts extracted: ${lessonsCount}\nQuotes extracted: ${quotesCount}\nEntities extracted: ${topicsCount}`);
+  logPipelineStage("Fact Extraction", {
+    status: "SUCCESS",
+    input: `Chunks=${chunks.length}`,
+    output: `Facts=${lessonsCount}; Quotes=${quotesCount}; Entities=${topicsCount}`,
+    length: rawInsights?.insights?.length ?? 0,
+    startedAt: Date.now(),
+  });
   if (!rawInsights || !rawInsights.insights || rawInsights.insights.length === 0) {
     throw new Error("[FACT EXTRACTION] stage failed: Extracted zero insights/facts.");
   }
@@ -87,7 +144,7 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
     tldr: knowledgeGraph.tldr,
     takeaways: knowledgeGraph.takeaways.slice(0, 5),
     hooks: hooks.map(h => h.text),
-    detectedTone: options.tonePref || "educational",
+    detectedTone: "educational",
     topics: knowledgeGraph.topics.slice(0, 5),
     targetAudience: "Creators and Professionals",
   };
@@ -106,9 +163,50 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
 // ==========================================
 
 async function extractTranscriptStage(options: PipelineOptions): Promise<string> {
-  // Check DB Cache first
-  if (options.url) {
-    const cachedProject = await prisma.project.findFirst({
+  const urlValidationStartedAt = Date.now();
+  if (!options.url || !/^https?:\/\//i.test(options.url)) {
+    logPipelineStage("URL Validation", {
+      status: "FAILED",
+      input: options.url || "",
+      length: options.url?.length ?? 0,
+      error: "URL is missing or invalid.",
+      startedAt: urlValidationStartedAt,
+    });
+    throw new Error("[URL Validation] stage failed: URL is missing or invalid.");
+  }
+
+  logPipelineStage("URL Validation", {
+    status: "SUCCESS",
+    input: options.url,
+    output: options.sourceType,
+    length: options.url.length,
+    startedAt: urlValidationStartedAt,
+  });
+
+  if (options.transcript?.trim()) {
+    const manualStartedAt = Date.now();
+    const transcript = normalizeTranscript(options.transcript);
+    const words = countWords(transcript);
+    logPipelineStage("Transcript Provider", {
+      status: words >= MIN_TRANSCRIPT_WORDS ? "SUCCESS" : "FAILED",
+      provider: "manual",
+      input: "manual transcript payload",
+      output: transcript.slice(0, 500),
+      length: transcript.length,
+      words,
+      error: words >= MIN_TRANSCRIPT_WORDS ? undefined : `Manual transcript has ${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}.`,
+      startedAt: manualStartedAt,
+    });
+    if (words < MIN_TRANSCRIPT_WORDS) {
+      throw new Error(`[Transcript Provider] stage failed: Manual transcript has ${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}.`);
+    }
+    return transcript;
+  }
+
+  const cacheStartedAt = Date.now();
+  let cachedProject: { transcript: string | null } | null = null;
+  try {
+    cachedProject = await prisma.project.findFirst({
       where: {
         sourceUrl: options.url,
         transcript: { not: null },
@@ -116,18 +214,105 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
       select: { transcript: true },
     });
 
-    if (cachedProject?.transcript && cachedProject.transcript.length > 100) {
-      console.log("[pipeline:extract] Cache hit: Reusing cached transcript from DB");
-      return cachedProject.transcript;
+    const cachedTranscript = normalizeTranscript(cachedProject?.transcript ?? "");
+    const cachedWords = countWords(cachedTranscript);
+    if (cachedWords >= MIN_TRANSCRIPT_WORDS && !isPlaceholderTranscript(cachedTranscript)) {
+      logPipelineStage("Transcript Provider", {
+        status: "SUCCESS",
+        provider: "database-cache",
+        input: options.url,
+        output: cachedTranscript.slice(0, 500),
+        length: cachedTranscript.length,
+        words: cachedWords,
+        startedAt: cacheStartedAt,
+      });
+      return cachedTranscript;
     }
-  }
 
-  if (options.transcript?.trim()) {
-    return options.transcript.trim();
+    if (cachedProject?.transcript) {
+      logPipelineStage("Transcript Provider", {
+        status: "SKIPPED",
+        provider: "database-cache",
+        input: options.url,
+        output: "Cached transcript was empty, too short, or placeholder-like.",
+        length: cachedTranscript.length,
+        words: cachedWords,
+        startedAt: cacheStartedAt,
+      });
+    }
+  } catch (error) {
+    logPipelineStage("Transcript Provider", {
+      status: "SKIPPED",
+      provider: "database-cache",
+      input: options.url,
+      output: "Cache lookup failed; continuing to configured transcript provider.",
+      length: 0,
+      error: error instanceof Error ? error.message : String(error),
+      startedAt: cacheStartedAt,
+    });
   }
 
   // Fallback chain for YouTube
   if (options.sourceType === "YOUTUBE") {
+    const videoIdStartedAt = Date.now();
+    const parsedVideoId = extractYouTubeVideoId(options.url);
+    if (!parsedVideoId) {
+      logPipelineStage("Video ID Extraction", {
+        status: "FAILED",
+        input: options.url,
+        length: options.url.length,
+        error: "Unable to extract an 11-character YouTube video ID.",
+        startedAt: videoIdStartedAt,
+      });
+      throw new Error("[Video ID Extraction] stage failed: Unable to extract YouTube video ID.");
+    }
+
+    logPipelineStage("Video ID Extraction", {
+      status: "SUCCESS",
+      input: options.url,
+      output: parsedVideoId,
+      videoId: parsedVideoId,
+      length: parsedVideoId.length,
+      startedAt: videoIdStartedAt,
+    });
+
+    const providerStartedAt = Date.now();
+    const providerTranscript = await fetchTranscript(options.url);
+    if (!providerTranscript) {
+      logPipelineStage("Transcript Provider", {
+        status: "FAILED",
+        provider: "configured transcript provider",
+        input: options.url,
+        videoId: parsedVideoId,
+        length: 0,
+        words: 0,
+        error: "Provider returned no transcript.",
+        startedAt: providerStartedAt,
+      });
+      throw new Error("[Transcript Provider] stage failed: Provider returned no transcript.");
+    }
+
+    const normalized = normalizeTranscript(providerTranscript);
+    const words = countWords(normalized);
+    logPipelineStage("Transcript Parsing", {
+      status: words >= MIN_TRANSCRIPT_WORDS ? "SUCCESS" : "FAILED",
+      input: `Provider transcript chars=${providerTranscript.length}`,
+      output: normalized.slice(0, 500),
+      length: normalized.length,
+      words,
+      error: words >= MIN_TRANSCRIPT_WORDS ? undefined : `Transcript has ${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}.`,
+      startedAt: providerStartedAt,
+    });
+    if (words < MIN_TRANSCRIPT_WORDS) {
+      throw new Error(`[Transcript Parsing] stage failed: Transcript has ${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}.`);
+    }
+
+    return normalized;
+
+    /*
+    // Legacy direct YouTube extraction path intentionally disabled.
+    // Production uses Supadata through fetchTranscript(); local development
+    // uses youtube-transcript only when SUPADATA_API_KEY is absent.
     // 1. Scraping caption watch page
     const videoId = extractYouTubeVideoId(options.url);
     if (!videoId) {
@@ -157,6 +342,7 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
     }
 
     return transcript;
+    */
   }
 
   // Fallback for Blog
@@ -170,15 +356,40 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
   throw new Error(`Unsupported source type for transcript extraction: ${options.sourceType}`);
 }
 
+function normalizeTranscript(value: string) {
+  return (value ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function countWords(value: string) {
+  return value.split(/\s+/).filter(Boolean).length;
+}
+
+function isPlaceholderTranscript(value: string) {
+  const lower = value.toLowerCase();
+  return (
+    lower.includes("content generation requires a transcript") ||
+    lower.includes("transcript unavailable") ||
+    lower.includes("paste transcript manually") ||
+    lower.includes("recastr imported the real youtube source metadata") ||
+    lower.startsWith("source url:")
+  );
+}
+
 async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
   try {
     console.log(`[pipeline:extract] Fetching subtitles via yt-dlp for videoId: ${videoId}`);
 
     // First, list available subtitles
-    const { stdout: info } = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
+    const infoResult = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
       dumpSingleJson: true,
       skipDownload: true,
     });
+    const info = typeof infoResult === "string"
+      ? infoResult
+      : JSON.stringify(infoResult);
 
     const infoJson = JSON.parse(info);
 
@@ -235,7 +446,7 @@ async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
 
     // Fetch the subtitle content
     console.log(`[pipeline:extract] Downloading subtitles (lang: ${subtitleLang}) for videoId: ${videoId}`);
-    const { text } = await ytdl(subtitleUrl);
+    const text = (await ytdl(subtitleUrl)) as unknown as string;
 
     // Clean up the subtitle text (remove timing info, etc.)
     const cleanedText = text
@@ -284,11 +495,13 @@ async function scrapeWatchPageCaptions(videoId: string): Promise<string | null> 
     const playerResponseMatch = res.data.match(/var ytInitialPlayerResponse = ({.+?});/);
     if (playerResponseMatch) {
       try {
-        const playerResponse = JSON.parse(playerResponseMatch[1]);
+        const playerResponse = JSON.parse(playerResponseMatch[1]) as {
+          captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ languageCode?: string; baseUrl?: string }> } };
+        };
         const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
         if (captionTracks && captionTracks.length > 0) {
           // Try to fetch the first English caption track
-          const enTrack = captionTracks.find(track => track.languageCode === 'en');
+          const enTrack = captionTracks.find((track) => track.languageCode === 'en');
           const trackToFetch = enTrack || captionTracks[0];
 
           if (trackToFetch && trackToFetch.baseUrl) {
@@ -510,6 +723,52 @@ async function extractInsightsStage(title: string, chunks: Array<{ id: string; t
   };
 }
 
+function validateEvidenceStage(title: string, transcript: string, rawInsights: any) {
+  const startedAt = Date.now();
+  const titleWords = new Set(title.toLowerCase().split(/\s+/).filter((word) => word.length > 3));
+  const transcriptLower = transcript.toLowerCase();
+  const insights = Array.isArray(rawInsights?.insights) ? rawInsights.insights : [];
+  const validatedInsights = insights.filter((insight: any) => {
+    const evidence = String(insight.evidence ?? "").trim();
+    const text = String(insight.text ?? "").trim();
+    if (evidence.length < 10 && text.length < 10) return false;
+
+    const candidate = (evidence || text).toLowerCase();
+    const candidateWords = candidate.split(/\s+/).filter((word) => word.length > 3);
+    const titleWordHits = candidateWords.filter((word) => titleWords.has(word)).length;
+    const titleDominated = candidateWords.length > 0 && titleWordHits / candidateWords.length > 0.7;
+    if (titleDominated) return false;
+
+    const evidenceNeedle = evidence.toLowerCase().slice(0, 120);
+    return !evidenceNeedle || transcriptLower.includes(evidenceNeedle) || hasTranscriptWordOverlap(candidate, transcriptLower);
+  });
+
+  logPipelineStage("Evidence Validation", {
+    status: validatedInsights.length > 0 ? "SUCCESS" : "FAILED",
+    input: `Extracted insights=${insights.length}`,
+    output: `Validated insights=${validatedInsights.length}`,
+    length: validatedInsights.length,
+    error: validatedInsights.length > 0 ? undefined : "No extracted facts had transcript-backed evidence.",
+    startedAt,
+  });
+
+  if (validatedInsights.length === 0) {
+    throw new Error("[Evidence Validation] stage failed: No extracted facts had transcript-backed evidence.");
+  }
+
+  return {
+    ...rawInsights,
+    insights: validatedInsights,
+  };
+}
+
+function hasTranscriptWordOverlap(candidate: string, transcriptLower: string) {
+  const words = Array.from(new Set(candidate.split(/\s+/).filter((word) => word.length > 5)));
+  if (words.length === 0) return false;
+  const hits = words.filter((word) => transcriptLower.includes(word)).length;
+  return hits / words.length >= 0.5;
+}
+
 // STAGE 4: Knowledge Graph Building
 async function buildKnowledgeGraphStage(title: string, rawInsights: any) {
   const { insights } = rawInsights || { insights: [] };
@@ -524,11 +783,12 @@ async function buildKnowledgeGraphStage(title: string, rawInsights: any) {
   const tldr = insights.length > 0 ? insights[0].text.substring(0, Math.min(200, insights[0].text.length)) : title;
   const takeaways = insights
     .slice(0, 5)
-    .map(insight => insight.text.substring(0, Math.min(150, insight.text.length)));
-  const topics = [...new Set(insights
-    .filter(insight => insight.kind === 'topic')
-    .map(insight => insight.text))
-    .slice(0, 10)];
+    .map((insight: any) => insight.text.substring(0, Math.min(150, insight.text.length)));
+  const topics = Array.from(new Set<string>(
+    insights
+      .filter((insight: any) => insight.kind === 'topic')
+      .map((insight: any) => insight.text),
+  )).slice(0, 10);
 
   return {
     ...knowledgeGraph,

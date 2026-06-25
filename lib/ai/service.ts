@@ -39,6 +39,8 @@ const platformLabels: Record<Platform, string> = {
   CTA: "Call to Action",
 };
 
+const MIN_GENERATION_TRANSCRIPT_WORDS = 50;
+
 // Tone-specific instructions to guide the AI
 const toneInstructions: Record<Tone, string> = {
   Professional: "Polished, confident, formal. No slang.",
@@ -84,8 +86,15 @@ export async function generatePlatformOutputs({
   const source = await loadProjectSource(projectId, providedSummary);
   const title = source.title || "Untitled source";
 
-  if (!source.transcript || source.transcript.trim().length === 0 || source.transcript.includes("Content generation requires a transcript")) {
-    throw new Error("Cannot generate posts: Empty or placeholder transcript.");
+  const transcriptWords = source.transcript.split(/\s+/).filter(Boolean).length;
+  if (
+    !source.transcript ||
+    transcriptWords < MIN_GENERATION_TRANSCRIPT_WORDS ||
+    source.transcript.includes("Content generation requires a transcript")
+  ) {
+    throw new Error(
+      `Cannot generate posts: real transcript is required. Current transcript words=${transcriptWords}.`,
+    );
   }
 
   const brief = await extractBrief(source.transcript, title);
@@ -301,16 +310,6 @@ async function loadProjectSource(projectId: string, providedSummary?: SourceSumm
     transcript = storedProject?.transcript ?? "";
     title = storedProject?.title ?? "";
     summary = summary ?? storedProject?.summary;
-  }
-
-  if (!transcript && summary) {
-    transcript = [
-      summary.tldr,
-      ...summary.takeaways,
-      ...summary.hooks,
-      summary.topics.join(", "),
-      summary.targetAudience,
-    ].join("\n");
   }
 
   return {

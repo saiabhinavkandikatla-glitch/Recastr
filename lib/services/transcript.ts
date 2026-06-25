@@ -98,7 +98,7 @@ async function scrapeWatchPageCaptions(videoId: string): Promise<string | null> 
         const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
         if (captionTracks && captionTracks.length > 0) {
           // Try to fetch the first English caption track
-          const enTrack = captionTracks.find(track => track.languageCode === 'en');
+          const enTrack = captionTracks.find((track: any) => track.languageCode === 'en');
           const trackToFetch = enTrack || captionTracks[0];
 
           if (trackToFetch && trackToFetch.baseUrl) {
@@ -153,10 +153,13 @@ async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string | 
 async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
   try {
     // First, list available subtitles
-    const { stdout: info } = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
+    const infoResult = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
       dumpSingleJson: true,
       skipDownload: true,
     });
+    const info = typeof infoResult === "string"
+      ? infoResult
+      : JSON.stringify(infoResult);
 
     const infoJson = JSON.parse(info);
 
@@ -205,7 +208,7 @@ async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
     }
 
     // Fetch the subtitle content
-    const { text } = await ytdl(subtitleUrl);
+    const text = (await ytdl(subtitleUrl)) as unknown as string;
 
     // Clean up the subtitle text (remove timing info, etc.)
     const cleanedText = text

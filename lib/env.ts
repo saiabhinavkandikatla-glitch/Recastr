@@ -43,6 +43,7 @@ const envSchema = z.object({
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
   REDIS_URL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  SUPADATA_API_KEY: z.string().optional(),
 });
 
 function normalizeSupabaseUrl(value: string | undefined) {
@@ -133,6 +134,7 @@ export const env = envSchema.parse({
   LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID,
   LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  SUPADATA_API_KEY: process.env.SUPADATA_API_KEY,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;
@@ -146,6 +148,7 @@ export const env = envSchema.parse({
   linkedinClientId: string | undefined;
   linkedinClientSecret: string | undefined;
   openaiKey: string | undefined;
+  supadataKey: string | undefined;
 };
 
 env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL);
@@ -162,6 +165,7 @@ env.twitterClientSecret = env.TWITTER_CLIENT_SECRET;
 env.linkedinClientId = env.LINKEDIN_CLIENT_ID;
 env.linkedinClientSecret = env.LINKEDIN_CLIENT_SECRET;
 env.openaiKey = env.OPENAI_API_KEY;
+env.supadataKey = env.SUPADATA_API_KEY;
 
 export function isDemoMode() {
   return env.demoMode;

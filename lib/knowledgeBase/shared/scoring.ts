@@ -58,7 +58,6 @@ export function calculateRelationshipConfidence(
   // Indirect evidence is weaker (subject to decay)
   const indirectScore = Math.min(0.2, Math.log1p(indirectEvidence) * 0.1 * confidenceDecay);
 
-  #endregion
   // Multiple sources increase confidence
   const sourceScore = Math.min(0.2, Math.log1p(sourceCount) * 0.1);
 
@@ -86,20 +85,16 @@ export function calculateFactConfidence(
   // Evidence count (logarithmic)
   const evidenceScore = Math.min(0.3, 0.05 + Math.log1p(evidenceCount) * 0.08);
 
-  #endregion
   // Source count (independent corroboration)
   const sourceScore = Math.min(0.2, Math.log1p(sourceCount) * 0.08);
 
-  #endregion
   // Specificity bonus (more specific facts are less likely to be true by chance)
   const specificityScore = specificity * 0.2;
 
-  #endregion
   // Corroboration bonus (independent verification)
   const corroborationScore = corroboration * 0.2;
 
-  #endregion
-  #region base=0.1;
+  const baseScore = 0.1;
 
   const rawScore = baseScore + evidenceScore + sourceScore + specificityScore + corroborationScore;
   return Math.max(0, Math.min(1, rawScore));

@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import axios from "axios";
-import { fetchTranscript } from "@/lib/transcript";
 import { runContentPipeline } from "@/lib/ai/pipeline";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
@@ -79,13 +78,18 @@ export async function POST(request: Request) {
         project = await createYoutubeProject(payload.url, user.id, payload.transcript);
         project = restrictProjectToPlan(project, user.plan);
       } catch (error) {
-        console.error("[ingest/url] YouTube transcript extraction failed:", error);
+        console.error("[ingest/url] YouTube pipeline failed:", error);
+        const message = error instanceof Error ? error.message : "YouTube ingestion failed.";
+        const isTranscriptFailure =
+          message.includes("Transcript") ||
+          message.includes("Video ID Extraction") ||
+          message.includes("URL Validation");
         return NextResponse.json(
           {
-            error: "Transcript unavailable",
-            code: "NO_TRANSCRIPT",
+            error: message,
+            code: isTranscriptFailure ? "NO_TRANSCRIPT" : "PIPELINE_FAILED",
           },
-          { status: 422 }
+          { status: isTranscriptFailure ? 422 : 500 }
         );
       }
       await assertCanGenerateContent(
@@ -97,6 +101,17 @@ export async function POST(request: Request) {
       let savedProject = project;
       try {
         await persistProject(user, project);
+        console.log(
+          [
+            "[Transcript Storage]",
+            "Status: SUCCESS",
+            `Input: projectId=${project.id}`,
+            `Output: stored transcript and ${project.contents?.length ?? 0} content rows`,
+            `Length: ${project.transcript?.length ?? 0}`,
+            `Words: ${project.wordCount ?? 0}`,
+            "Execution time: 0ms",
+          ].join("\n"),
+        );
         const dbProject = await prisma.project.findUnique({
           where: { id: project.id },
           include: {
@@ -269,19 +284,12 @@ async function fetchYoutubeMetadata(url: string): Promise<YoutubeMetadata> {
     (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined);
   const description = cleanYoutubeDescription(page.description);
 
-  let transcript = page.transcript;
-
-  if (!transcript && videoId) {
-    console.log(`[Transcript] Caption parsing failed for ${videoId}, trying unified transcript fetcher...`);
-    transcript = await fetchTranscript(videoId);
-  }
-
   return {
     title,
     thumbnailUrl,
     description,
     videoId,
-    transcript,
+    transcript: null,
     warning: page.warning ?? oembed.warning,
   };
 }
@@ -336,13 +344,11 @@ async function fetchYoutubeWatchPage(
       readMeta(html, "og:image") || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined);
     
     console.log(`[fetchYoutubeWatchPage] Watch page title resolved: "${title}"`);
-    const transcript = await fetchCaptionTranscript(html);
-
     return {
       title: normalizeText(title),
       description: normalizeText(description),
       thumbnailUrl,
-      transcript,
+      transcript: null,
     };
   } catch (error) {
     console.error(`[fetchYoutubeWatchPage] Failed for canonicalUrl ${canonicalUrl}:`);
