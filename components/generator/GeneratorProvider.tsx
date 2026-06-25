@@ -9,17 +9,23 @@ type GeneratorState = {
   project: Project | null;
   setProject: (p: Project | null) => void;
   selectedPlatforms: Platform[];
+  setSelectedPlatforms: (p: Platform[]) => void;
   togglePlatform: (p: Platform) => void;
   tone: string;
   setTone: (t: string) => void;
   isGenerating: boolean;
+  setIsGenerating: (b: boolean) => void;
   isAnalyzing: boolean;
   setIsAnalyzing: (b: boolean) => void;
   progress: string;
+  setProgress: (p: string) => void;
   generate: () => Promise<void>;
   outputs: SocialOutput[];
+  setOutputs: (o: SocialOutput[]) => void;
   activePreviewTab: Platform;
   setActivePreviewTab: (p: Platform) => void;
+  theme: "light" | "dark";
+  setTheme: (t: "light" | "dark") => void;
 };
 
 const GeneratorContext = createContext<GeneratorState | null>(null);
@@ -165,15 +171,19 @@ export function GeneratorProvider({
       project: currentProject,
       setProject: setCurrentProject,
       selectedPlatforms,
+      setSelectedPlatforms,
       togglePlatform,
       tone,
       setTone,
       isGenerating,
+      setIsGenerating,
       isAnalyzing,
       setIsAnalyzing,
       progress,
+      setProgress,
       generate,
       outputs,
+      setOutputs,
       activePreviewTab,
       setActivePreviewTab,
       theme,
