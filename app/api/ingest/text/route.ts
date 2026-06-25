@@ -35,13 +35,9 @@ const defaultSummary: SourceSummary = {
 
 export async function POST(request: Request) {
   try {
-    console.log('[DEBUG] /api/ingest/text POST - start');
     const user = await getRequestUser(request);
-    console.log('[DEBUG] /api/ingest/text - user:', user?.id);
     await assertIngestRateLimit(user.id);
-    console.log('[DEBUG] /api/ingest/text - rate limit passed');
     await requireCredits(user);
-    console.log('[DEBUG] /api/ingest/text - credits passed');
 
     if (process.env.RECASTR_DEMO_MODE === "true") {
       const project = getStoredProject("demo-founder-podcast")!;
@@ -56,13 +52,10 @@ export async function POST(request: Request) {
     }
 
     await assertCanCreateProject(user, "TEXT");
-    console.log('[DEBUG] /api/ingest/text - can create project passed');
 
     const payload = await parseTextPayload(request);
-    console.log('[DEBUG] /api/ingest/text - payload parsed, text length:', payload.text?.length, 'title:', payload.title);
     
     if (!payload.text || payload.text.trim().length < 20) {
-      console.error('[ERROR] /api/ingest/text - text too short:', payload.text?.length);
       return NextResponse.json({ error: 'Text must be at least 20 characters', code: 'TEXT_TOO_SHORT' }, { status: 400 });
     }
 
@@ -75,10 +68,8 @@ export async function POST(request: Request) {
       .split(/\s+/)
       .slice(0, 16_000)
       .join(" ");
-    console.log('[DEBUG] /api/ingest/text - cleanText length:', cleanText.length);
     
     const summary = cleanText.length > 100 ? await summarizeTranscript(cleanText) : defaultSummary;
-    console.log('[DEBUG] /api/ingest/text - summary generated, hooks:', summary.hooks?.length);
     const title = payload.title ?? `Imported source ${nanoid(5)}`;
     await ensureUserRecord(user);
     const project = await prisma.project.create({
@@ -103,7 +94,6 @@ export async function POST(request: Request) {
         contents: true,
       },
     });
-    console.log('[DEBUG] /api/ingest/text - project created:', project.id);
     await addRecastrJob(jobNames.extractHooks, { projectId: project.id, userId: user.id });
     await consumeCredits(user);
 
@@ -127,7 +117,6 @@ export async function POST(request: Request) {
 
 async function parseTextPayload(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
-  console.log('[DEBUG] parseTextPayload - contentType:', contentType);
   if (contentType.includes("multipart/form-data")) {
     const form = await request.formData();
     const file = form.get("file");
@@ -137,7 +126,6 @@ async function parseTextPayload(request: Request) {
         : file instanceof File
           ? await file.text()
           : "";
-    console.log('[DEBUG] parseTextPayload - form text length:', text?.length);
     return ingestTextSchema.parse({
       title: typeof form.get("title") === "string" ? String(form.get("title")) : undefined,
       text,
@@ -145,6 +133,5 @@ async function parseTextPayload(request: Request) {
   }
 
   const body = await request.json();
-  console.log('[DEBUG] parseTextPayload - json body keys:', Object.keys(body));
   return ingestTextSchema.parse(body) as { title?: string; text: string };
 }

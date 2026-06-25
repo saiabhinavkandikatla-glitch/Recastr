@@ -9,6 +9,7 @@ import {
   Heart,
   Video,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 export default async function AnalyticsPage() {
   const user = await getCurrentUser();
@@ -104,28 +105,28 @@ export default async function AnalyticsPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
-            icon={MessageSquare}
+            icon={<MessageSquare className="h-4 w-4" />}
             label="Twitter / X Posts"
             value={String(twitterCount)}
             change={twitterCount > 0 ? 10 : null}
             hint="Total generated threads & posts"
           />
           <StatsCard
-            icon={Briefcase}
+            icon={<Briefcase className="h-4 w-4" />}
             label="LinkedIn Posts"
             value={String(linkedinCount)}
             change={linkedinCount > 0 ? 15 : null}
             hint="Total generated articles"
           />
           <StatsCard
-            icon={Heart}
+            icon={<Heart className="h-4 w-4" />}
             label="Facebook / Instagram"
             value={String(facebookIgCount)}
             change={facebookIgCount > 0 ? 8 : null}
             hint="Total generated FB, IG & Carousel posts"
           />
           <StatsCard
-            icon={Video}
+            icon={<Video className="h-4 w-4" />}
             label="YouTube Community"
             value={String(youtubeCount)}
             change={youtubeCount > 0 ? 12 : null}
@@ -194,8 +195,7 @@ function StatsCard({
   change,
   hint,
 }: {
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  icon: any;
+  icon: ReactNode;
   label: string;
   value: string;
   change: number | null;

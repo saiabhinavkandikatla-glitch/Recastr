@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { GeneratorWorkspace } from "@/components/generator/GeneratorWorkspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";

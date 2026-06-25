@@ -59,10 +59,6 @@ export function GeneratorProvider({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState<string>("idle");
-
-  useEffect(() => {
-    console.log('[DEBUG] GeneratorProvider - isAnalyzing changed:', isAnalyzing);
-  }, [isAnalyzing]);
   const [outputs, setOutputs] = useState<SocialOutput[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<Platform>("TWITTER");
 

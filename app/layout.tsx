@@ -7,6 +7,8 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { CursorSpotlight } from "@/components/landing/CursorSpotlight";
 
+const shouldRenderSpeedInsights = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
+
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
@@ -60,7 +62,7 @@ export default function RootLayout({
         <Providers>
           <CursorSpotlight />
           {children}
-          <SpeedInsights />
+          {shouldRenderSpeedInsights ? <SpeedInsights /> : null}
         </Providers>
       </body>
     </html>

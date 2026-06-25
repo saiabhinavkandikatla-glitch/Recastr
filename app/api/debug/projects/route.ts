@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma/client';
 import { projectShellSelect, serializeProject, serializeProjectShell } from '@/lib/projects/serialize';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {

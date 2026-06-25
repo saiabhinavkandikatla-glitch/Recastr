@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { getCurrentUser } from "@/lib/current-user";
 import { env } from "@/lib/env";
