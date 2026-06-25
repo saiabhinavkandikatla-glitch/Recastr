@@ -1,3 +1,5 @@
+"use client";
+
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark } from "lucide-react";
 import React, { useState, useRef } from "react";
 

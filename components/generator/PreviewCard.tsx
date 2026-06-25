@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useGenerator } from "./GeneratorProvider";
 import { Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";

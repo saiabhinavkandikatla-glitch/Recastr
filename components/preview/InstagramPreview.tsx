@@ -1,3 +1,5 @@
+"use client";
+
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
 import React, { useState } from "react";
 
