@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 
 export interface GenerationInsights {
   main_topics: string[];
@@ -91,12 +91,12 @@ async function generatePostWithGemini(
     throw new Error("Prompt validation failed: No real transcript facts/insights supplied. Stopping generation.");
   }
 
-  const response = await gemini.models.generateContent({
+  const text = await generateGeminiText({
     model: "gemini-2.5-flash",
-    contents: prompt,
+    prompt,
   });
 
-  return (response.text || "").trim();
+  return text.trim();
 }
 
 /**

@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 import { type GenerationInsights } from "./generatePosts";
 
 export interface QualityScore {
@@ -60,11 +60,11 @@ Return ONLY this JSON:
 `;
 
   try {
-    const response = await gemini.models.generateContent({
+    const text = await generateGeminiText({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      prompt,
+      responseMimeType: "application/json",
     });
-    const text = response.text || "";
 
     // Parse JSON response
     const cleaned = text.replace(/```json|```/g, '').trim();

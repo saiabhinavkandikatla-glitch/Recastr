@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 
 /**
  * Extracts insights from a transcript.
@@ -57,11 +57,11 @@ in the transcript. If you cannot find real content for a category,
 return an empty array for it — do not invent generic filler.
 `;
 
-  const response = await gemini.models.generateContent({
+  const text = await generateGeminiText({
     model: "gemini-2.5-flash",
-    contents: prompt,
+    prompt,
+    responseMimeType: "application/json",
   });
-  const text = response.text || "";
 
   // Parse JSON response
   const cleaned = text.replace(/```json|```/g, '').trim();

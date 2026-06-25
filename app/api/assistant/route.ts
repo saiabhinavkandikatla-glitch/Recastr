@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth";
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -23,23 +23,17 @@ export async function POST(request: Request) {
     const gemini = getGeminiClient();
     if (gemini && env.geminiKey) {
       try {
-        const formattedContents = [];
+        const formattedContents: string[] = [];
         
         // Add conversation history if provided
         if (Array.isArray(history)) {
           for (const turn of history) {
-            formattedContents.push({
-              role: turn.role === "assistant" ? "model" : "user",
-              parts: [{ text: turn.content }],
-            });
+            formattedContents.push(`${turn.role === "assistant" ? "Assistant" : "User"}: ${turn.content}`);
           }
         }
         
         // Append current message
-        formattedContents.push({
-          role: "user",
-          parts: [{ text: message }],
-        });
+        formattedContents.push(`User: ${message}`);
 
         const systemInstruction = 
           "You are a helpful AI content assistant for ReCastr. ReCastr is a premium SaaS platform that helps users ingest YouTube videos, podcasts, blog posts, or text, and repurpose them into social media content.\n\n" +
@@ -54,17 +48,14 @@ export async function POST(request: Request) {
           "- Settings (/settings): Subscriptions, profile, connected platform credentials.\n\n" +
           "Answer user questions about content strategy, writing hooks, or how to use ReCastr. Keep your responses natural, conversational, actionable, and formatted in clean markdown. Always write in a helpful, human-like voice.";
 
-        const response = await gemini.models.generateContent({
+        const replyText = await generateGeminiText({
           model: "gemini-2.5-flash",
-          contents: formattedContents,
-          config: {
-            temperature: 0.7,
-            systemInstruction: systemInstruction,
-          },
+          prompt: formattedContents.join("\n\n"),
+          temperature: 0.7,
+          systemInstruction,
         });
 
-        const replyText = response.text || "I'm sorry, I couldn't generate a response.";
-        return NextResponse.json({ response: replyText });
+        return NextResponse.json({ response: replyText || "I'm sorry, I couldn't generate a response." });
       } catch (geminiError: any) {
         console.error("Gemini Assistant Error:", geminiError);
         // Fall back to rule-based mock if API fails

@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 import { nanoid } from "nanoid";
 import { buildGenerationPrompt, chunkTranscript, SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { generatedArraySchema } from "@/lib/ai/schemas";
@@ -41,16 +41,14 @@ export async function generateContentSuite(
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          const response = await gemini.models.generateContent({
+          const text = await generateGeminiText({
             model: "gemini-2.5-flash",
-            contents: [{ role: "user", parts: [{ text: fullPrompt + retryConstraint(attempt, platform) }] }],
-            config: {
-              temperature: 0.7,
-              responseMimeType: "application/json",
-            },
+            prompt: fullPrompt + retryConstraint(attempt, platform),
+            temperature: 0.7,
+            responseMimeType: "application/json",
           });
 
-          const parsed = generatedArraySchema.parse(JSON.parse(response.text ?? "[]"));
+          const parsed = generatedArraySchema.parse(JSON.parse(text || "[]"));
           const outputs = parsed.map((item, index) =>
             toOutput(
               request.projectId ?? "generated",

@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 import { env } from "@/lib/env";
 
 export type RewriteMode =
@@ -183,14 +183,12 @@ Rewrite this content now in ${mode} tone for ${platform}. Output only the rewrit
   if (gemini && !env.demoMode) {
     try {
       const fullPrompt = `${systemPrompt}\n\n${userMessage}`;
-      const response = await gemini.models.generateContent({
+      const text = await generateGeminiText({
         model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-        config: {
-          temperature: 0.6,
-        },
+        prompt: fullPrompt,
+        temperature: 0.6,
       });
-      return runHumanizerFilter((response.text ?? "").trim());
+      return runHumanizerFilter(text.trim());
     } catch (err) {
       console.error("Gemini rewrite API failed, falling back to local:", err);
     }
