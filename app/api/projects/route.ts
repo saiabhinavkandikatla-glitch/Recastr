@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
-import { projectShellSelect, serializeProject, serializeProjectShell } from "@/lib/projects/serialize";
+import {
+  projectShellSelect,
+  projectWorkspaceSelect,
+  serializeProject,
+  serializeProjectShell,
+} from "@/lib/projects/serialize";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
 import { assertCanCreateProject, planLimitErrorResponse } from "@/lib/plan-limits";
@@ -18,35 +23,18 @@ const createProjectSchema = z.object({
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
+    const projects = await prisma.project.findMany({
+      where: { userId: user.id },
+      select: projectWorkspaceSelect,
+      orderBy: { createdAt: "desc" },
+      take: 10, // limit to 10 most recent
+    });
 
-
-    try {
-      const projects = await prisma.project.findMany({
-        where: { userId: user.id },
-        include: { contents: true, hooks: true },
-        orderBy: { createdAt: "desc" },
-      });
-
-      return NextResponse.json(projects.map(serializeProject));
-    } catch (error) {
-      console.error("Failed to load full projects:", error);
-      try {
-        const projects = await prisma.project.findMany({
-          where: { userId: user.id },
-          select: projectShellSelect,
-          orderBy: { createdAt: "desc" },
-        });
-
-        return NextResponse.json(projects.map(serializeProjectShell));
-      } catch (fallbackError) {
-        console.error("Failed to load project shells:", fallbackError);
-        return NextResponse.json([]);
-      }
-    }
+    return NextResponse.json(projects.map(serializeProject));
   } catch (error) {
     if (error instanceof Response) return error;
-    console.error("Unexpected error in GET /api/projects:", error);
-    return NextResponse.json([]); // Return empty array for unexpected errors to avoid breaking UI
+    console.error("Error in GET /api/projects:", error);
+    return NextResponse.json([]);
   }
 }
 
@@ -56,7 +44,6 @@ export async function POST(request: Request) {
     const body = createProjectSchema.parse(await request.json());
 
     await assertCanCreateProject(user, body.sourceType);
-
     await ensureUserRecord(user);
     const project = await prisma.project.create({
       data: {

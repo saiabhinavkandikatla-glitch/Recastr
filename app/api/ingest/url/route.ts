@@ -199,16 +199,16 @@ async function createMinimalYoutubeProject(
 
   // Create basic summary from title
   const summary = {
-    tldr: `${title} is ready for content generation. Add a transcript to generate platform-specific posts.`,
+    tldr: "This video needs a transcript before Recastr can generate accurate platform-specific posts.",
     takeaways: [
-      `Title: ${title}`,
       "Transcript not available - please paste it manually to generate accurate content.",
-      "Add a transcript to enable full content intelligence processing."
+      "Add a transcript to enable full content intelligence processing.",
+      "Generated posts should be grounded in what the creator actually says."
     ],
     hooks: [
-      `"${title}" - Add transcript to generate content`,
       "Content generation requires a transcript",
-      "Please paste the video transcript to proceed"
+      "Please paste the video transcript to proceed",
+      "Accurate repurposing starts with source details"
     ],
     detectedTone: "educational",
     topics: [title.split(' ').slice(0, 3).join(' ') || "content"],
@@ -219,7 +219,7 @@ async function createMinimalYoutubeProject(
   const hooks = [
     {
       id: `${id}-hook-1`,
-      text: `"${title}" - Add transcript to generate content`,
+      text: "Content generation requires a transcript",
       hookType: "Curiosity gap",
       reachScore: 86
     },

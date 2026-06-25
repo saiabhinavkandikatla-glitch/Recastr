@@ -49,7 +49,8 @@ function pickOne<T>(arr: T[]): T | null {
  * Generates a single Twitter/X post.
  */
 export async function generateTwitterPost(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
   const hook = pickOne(insights.curiosity_hooks) || pickOne(insights.surprising_facts);
 
   if (!hook) {
@@ -93,7 +94,8 @@ Output ONLY the tweet text. No quotes around it, no label, no preamble.
  * Generates a Twitter/X thread (6-8 tweets).
  */
 export async function generateTwitterThread(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
   const prompt = `
 Write a Twitter/X thread (6-8 tweets) based on real insights from a video.
@@ -142,7 +144,8 @@ Output ONLY the tweets in this format.
  * Generates a LinkedIn post.
  */
 export async function generateLinkedInPost(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.professional;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.professional;
 
   const prompt = `
 Write a LinkedIn post based on real insights from a video.
@@ -192,7 +195,8 @@ What are your thoughts? Share in the comments.
  * Generates an Instagram caption.
  */
 export async function generateInstagramCaption(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
   const prompt = `
 Write an Instagram caption based on real insights from a video.
@@ -241,7 +245,8 @@ OUTPUT ONLY THE CAPTION. NO PREAMBLE.
  * Generates an Instagram carousel (5 slides).
  */
 export async function generateInstagramCarousel(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
   const prompt = `
 Write an Instagram carousel (5 slides) based on real insights from a video.
@@ -303,7 +308,8 @@ SLIDE 5: Take Action
  * Generates a Facebook post.
  */
 export async function generateFacebookPost(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
   const prompt = `
 Write a Facebook post based on real insights from a video.
@@ -342,7 +348,8 @@ Let me know in the comments below!`;
  * Generates a YouTube Community post.
  */
 export async function generateYouTubeCommunityPost(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
   const prompt = `
 Write a YouTube Community post based on real insights from a video.
@@ -380,7 +387,8 @@ D) I disagree with the point`;
  * Generates a Reel/Short video script.
  */
 export async function generateReelScript(insights: GenerationInsights, tone: string) {
-  const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.casual;
+  const toneKey = tone.toLowerCase().replace(/ /g, '_');
+  const toneInstruction = TONE_INSTRUCTIONS[toneKey] || TONE_INSTRUCTIONS.casual;
 
   const prompt = `
 Write a Reel / Short video script (spoken word) based on real insights from a video.

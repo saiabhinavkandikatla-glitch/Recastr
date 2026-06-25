@@ -92,10 +92,7 @@ export function TasksWorkspace({
   useEffect(() => {
     if (tab !== "scheduled") return;
     let cancelled = false;
-    const slowTimer = window.setTimeout(() => {
-      if (!cancelled) setScheduledLoading(false);
-    }, 2_500);
-    setScheduledLoading(true);
+    setScheduledLoading(false);
 
     fetch("/api/scheduled?filter=all")
       .then(async (response) => {
@@ -111,23 +108,18 @@ export function TasksWorkspace({
         if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load scheduled posts");
       })
       .finally(() => {
-        window.clearTimeout(slowTimer);
         if (!cancelled) setScheduledLoading(false);
       });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(slowTimer);
     };
   }, [tab]);
 
   useEffect(() => {
     if (tab !== "history") return;
     let cancelled = false;
-    const slowTimer = window.setTimeout(() => {
-      if (!cancelled) setHistoryLoading(false);
-    }, 2_500);
-    setHistoryLoading(true);
+    setHistoryLoading(false);
 
     fetch("/api/history?page=1")
       .then(async (response) => {
@@ -143,13 +135,11 @@ export function TasksWorkspace({
         if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load history");
       })
       .finally(() => {
-        window.clearTimeout(slowTimer);
         if (!cancelled) setHistoryLoading(false);
       });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(slowTimer);
     };
   }, [tab]);
 

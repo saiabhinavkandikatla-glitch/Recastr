@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { TasksWorkspace } from "@/components/tasks/tasks-workspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
@@ -13,6 +14,7 @@ export default async function TasksPage() {
 
   return (
     <AppShell title="Tasks" user={user}>
+      <PageHeader title="Tasks" backHref="/dashboard" />
       <Suspense fallback={<TasksSkeleton />}>
         <TasksContent userId={user?.id} />
       </Suspense>
@@ -42,22 +44,25 @@ async function loadTasksData(userId?: string): Promise<{
 }> {
 
   if (!userId) return { projects: [], scheduledPosts: [] };
+  const localScheduledPosts = shouldUseLocalSchedules() ? listStoredScheduledPosts() : [];
 
-  const [projects, scheduledPosts] = await Promise.all([
-    prisma.project.findMany({
-      where: { userId },
-      select: projectShellSelect,
-      orderBy: { createdAt: "desc" },
-      take: 8,
-    }),
-    prisma.scheduledPost.findMany({
-      where: { userId },
-      include: { content: true },
-      orderBy: { scheduledAt: "asc" },
-    }),
-  ]);
-
-  const localScheduledPosts = process.env.NODE_ENV !== "production" ? listStoredScheduledPosts() : [];
+  const [projects, scheduledPosts] = await withTimeout(
+    Promise.all([
+      prisma.project.findMany({
+        where: { userId },
+        select: projectShellSelect,
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      }),
+      prisma.scheduledPost.findMany({
+        where: { userId },
+        include: { content: true },
+        orderBy: { scheduledAt: "asc" },
+      }),
+    ]),
+    900,
+    [[], []],
+  );
 
   return {
     projects: projects.map(serializeProjectShell),
@@ -81,4 +86,17 @@ async function loadTasksData(userId?: string): Promise<{
       ...localScheduledPosts,
     ],
   };
+}
+
+function shouldUseLocalSchedules() {
+  return process.env.NODE_ENV !== "production" || process.env.RECASTR_DEMO_MODE === "true";
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T) {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      setTimeout(() => resolve(fallback), timeoutMs);
+    }),
+  ]);
 }

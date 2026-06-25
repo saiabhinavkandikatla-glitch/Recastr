@@ -14,8 +14,7 @@ import { ThreadsPreview as OldThreadsPreview } from "../preview/platforms/Thread
 import { YouTubeCommunityPreview } from "../preview/platforms/YouTubeCommunityPreview";
 import { parsePreviewContent } from "@/lib/preview-content";
 import { ContentEmptyState } from "../dashboard/ContentEmptyState";
-import { useState } from "react";
-import type { PreviewDevice } from "@/lib/preview-content";
+import type { PreviewDevice, PreviewPlatform } from "@/lib/preview-content";
 
 const platformNames: Record<Platform, string> = {
   TWITTER: "Twitter/X",
@@ -31,9 +30,9 @@ const platformNames: Record<Platform, string> = {
 };
 
 export function PreviewCard() {
-  const { outputs, isGenerating, progress, activePreviewTab, setActivePreviewTab, selectedPlatforms } = useGenerator();
+  const { outputs, isGenerating, progress, activePreviewTab, setActivePreviewTab, selectedPlatforms, theme, setTheme } = useGenerator();
   const [device, setDevice] = useState<PreviewDevice>("iphone");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const activePreviewPlatform = toPreviewPlatform(activePreviewTab);
 
   if (progress === "idle") {
     return (
@@ -53,13 +52,14 @@ export function PreviewCard() {
       <div className="flex items-center justify-between border-b border-[#232323] pb-4 mb-6">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {selectedPlatforms.map((platform) => {
-            const hasOutput = outputs.some((o) => o.platform === platform);
-            const isActive = activePreviewTab === platform;
+            const tabPlatform = toPreviewPlatform(platform);
+            const hasOutput = outputs.some((o) => toPreviewPlatform(o.platform) === tabPlatform);
+            const isActive = activePreviewPlatform === tabPlatform;
             
             return (
               <button
                 key={platform}
-                onClick={() => hasOutput && setActivePreviewTab(platform)}
+                onClick={() => hasOutput && setActivePreviewTab(tabPlatform)}
                 disabled={!hasOutput}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
                   isActive 
@@ -106,7 +106,7 @@ export function PreviewCard() {
       </div>
 
       <div className="flex-1 overflow-y-auto pr-4 scrollbar-thin">
-        {isGenerating && !outputs.some((o) => o.platform === activePreviewTab) ? (
+        {isGenerating && !outputs.some((o) => toPreviewPlatform(o.platform) === activePreviewPlatform) ? (
           <div className="space-y-4 animate-pulse">
             <div className="h-4 w-3/4 rounded bg-[#232323]"></div>
             <div className="h-4 w-full rounded bg-[#232323]"></div>
@@ -116,10 +116,11 @@ export function PreviewCard() {
           </div>
         ) : (
           outputs
-            .filter((o) => o.platform === activePreviewTab)
+            .filter((o) => toPreviewPlatform(o.platform) === activePreviewPlatform)
             .map((output) => {
+              const previewPlatform = toPreviewPlatform(output.platform);
               let PreviewComponent;
-              switch (activePreviewTab) {
+              switch (previewPlatform) {
                 case "TWITTER":
                   PreviewComponent = <XPreview content={parsePreviewContent("TWITTER", output.content as string)} dark={theme === "dark"} device={device} />;
                   break;
@@ -142,7 +143,7 @@ export function PreviewCard() {
                   // Fallback for types that don't have a specific device preview
                   PreviewComponent = (
                     <div className={`p-4 rounded-xl border border-[#232323] ${theme === "dark" ? "bg-[#090909] text-white" : "bg-white text-black"}`}>
-                      <h3 className="font-semibold mb-2">{platformNames[activePreviewTab]}</h3>
+                      <h3 className="font-semibold mb-2">{platformNames[previewPlatform]}</h3>
                       <p className="whitespace-pre-wrap text-sm">{output.content as string}</p>
                     </div>
                   );
@@ -163,7 +164,7 @@ export function PreviewCard() {
                   </div>
                   
                   <div className="flex justify-center w-full pb-8">
-                    <DevicePreviewShell device={device}>
+                    <DevicePreviewShell device={device} theme={theme}>
                       {PreviewComponent}
                     </DevicePreviewShell>
                   </div>
@@ -174,4 +175,10 @@ export function PreviewCard() {
       </div>
     </div>
   );
+}
+
+function toPreviewPlatform(platform: Platform): PreviewPlatform {
+  if (platform === "CAROUSEL" || platform === "STORY") return "INSTAGRAM";
+  if (platform === "HOOKS" || platform === "CTA") return "TWITTER";
+  return platform;
 }

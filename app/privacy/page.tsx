@@ -1,43 +1,53 @@
-import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
+import { Navbar } from "@/components/landing/Navbar";
+
+const sections = [
+  {
+    title: "Information we collect",
+    body: "We collect account details such as name, email address, authentication data, workspace settings, uploaded source content, generated drafts, scheduling preferences, and support messages. If you connect third-party services or payment providers, those providers may send us limited information needed to operate your account.",
+  },
+  {
+    title: "How we use information",
+    body: "We use your information to provide Recastr, process uploads, generate content, save projects, send reminders, secure accounts, provide support, improve product reliability, and communicate important service updates.",
+  },
+  {
+    title: "AI processing",
+    body: "Source content and transcripts may be processed by AI providers to extract insights and create draft posts. We do not sell uploaded source content. You are responsible for reviewing generated drafts before publishing them.",
+  },
+  {
+    title: "Sharing and service providers",
+    body: "We share information only with service providers that help us run Recastr, such as hosting, authentication, analytics, email, payment, database, and AI infrastructure providers. We may also disclose information if required by law or to protect users and the service.",
+  },
+  {
+    title: "Data retention and choices",
+    body: "We retain account and project data while your account is active or as needed for legal, security, and operational purposes. You may request deletion or correction of your data by contacting support@recastr.app.",
+  },
+  {
+    title: "Contact",
+    body: "Questions about this Privacy Policy can be sent to support@recastr.app.",
+  },
+];
 
 export default function PrivacyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
-      <main className="flex-1 bg-background pt-32 pb-16">
+      <main className="flex-1 bg-background pb-16 pt-32">
         <div className="mx-auto max-w-3xl px-6 text-foreground">
-          <h1 className="text-4xl font-bold tracking-tight">Privacy Policy</h1>
-          <p className="mt-4 text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
-          
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Recastr Labs
+          </p>
+          <h1 className="mt-4 text-4xl font-bold tracking-tight">Privacy Policy</h1>
+          <p className="mt-4 text-muted-foreground">Last updated: June 25, 2026</p>
           <div className="mt-10 space-y-8">
-            <section>
-              <h2 className="text-2xl font-semibold">1. Information We Collect</h2>
-              <p className="mt-3 leading-relaxed text-muted-foreground">
-                We collect information you provide directly to us, such as when you create or modify your account, request on-demand services, contact customer support, or otherwise communicate with us. This information may include: name, email, phone number, postal address, profile picture, payment method, and other information you choose to provide.
-              </p>
-            </section>
-            
-            <section>
-              <h2 className="text-2xl font-semibold">2. Use of Information</h2>
-              <p className="mt-3 leading-relaxed text-muted-foreground">
-                We may use the information we collect about you to provide, maintain, and improve our services, including to facilitate payments, send receipts, provide products and services you request, develop new features, provide customer support to Users and Drivers, develop safety features, authenticate users, and send product updates and administrative messages.
-              </p>
-            </section>
-            
-            <section>
-              <h2 className="text-2xl font-semibold">3. Sharing of Information</h2>
-              <p className="mt-3 leading-relaxed text-muted-foreground">
-                We may share the information we collect about you as described in this Statement or as described at the time of collection or sharing, including as follows: with third parties to provide you a service you requested through a partnership or promotional offering made by a third party or us.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-2xl font-semibold">4. Contact Us</h2>
-              <p className="mt-3 leading-relaxed text-muted-foreground">
-                If you have any questions about this Privacy Policy, please contact us at support@recastr.app.
-              </p>
-            </section>
+            {sections.map((section, index) => (
+              <section key={section.title}>
+                <h2 className="text-2xl font-semibold">
+                  {index + 1}. {section.title}
+                </h2>
+                <p className="mt-3 leading-relaxed text-muted-foreground">{section.body}</p>
+              </section>
+            ))}
           </div>
         </div>
       </main>

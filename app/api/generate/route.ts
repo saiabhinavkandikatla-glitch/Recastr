@@ -12,7 +12,7 @@ import {
 import { PLAN_RULES } from "@/lib/plans";
 import { prisma } from "@/lib/prisma/client";
 import { recordUsageEvent } from "@/lib/usage";
-import type { Platform, Tone } from "@/lib/types";
+import type { Platform, SocialOutput, Tone } from "@/lib/types";
 import { getTranscript } from "@/lib/services/transcript";
 import { extractInsights } from "@/lib/services/extractInsights";
 import { generatePlatformOutputs } from "@/lib/ai/service";
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
     const isRegeneration = url.searchParams.get("isRegeneration") === "true";
     await assertCanGenerateContent(user, platforms);
     const outputs = await generatePlatformOutputs({ projectId, platforms, tone, isRegeneration });
+    await persistGeneratedOutputs({ userId: user.id, projectId, outputs, tone });
     await recordGeneratedContentUsage({
       userId: user.id,
       count: outputs.length,
@@ -310,4 +311,72 @@ async function notifyContentReady(userId: string, projectId: string) {
     console.error("notifyContentReady error:", error);
     return;
   }
+}
+
+async function persistGeneratedOutputs({
+  userId,
+  projectId,
+  outputs,
+  tone,
+}: {
+  userId: string;
+  projectId: string;
+  outputs: SocialOutput[];
+  tone: Tone | string;
+}) {
+  if (outputs.length === 0) return;
+
+  try {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId },
+      select: {
+        id: true,
+        contents: {
+          select: { order: true },
+          orderBy: { order: "desc" },
+          take: 1,
+        },
+      },
+    });
+    if (!project) return;
+
+    const startOrder = (project.contents[0]?.order ?? -1) + 1;
+    await prisma.$transaction(
+      outputs.map((output, index) => {
+        const body = stringifyGeneratedContent(output.content);
+        const originalBody = stringifyGeneratedContent(output.originalContent ?? output.content);
+        return prisma.content.upsert({
+          where: { id: output.id },
+          update: {
+            platform: output.platform,
+            contentType: output.outputType,
+            body,
+            originalBody,
+            tone: String(output.tone ?? tone),
+            approved: output.approved,
+            order: startOrder + index,
+          },
+          create: {
+            id: output.id,
+            projectId,
+            platform: output.platform,
+            contentType: output.outputType,
+            body,
+            originalBody,
+            tone: String(output.tone ?? tone),
+            approved: output.approved,
+            order: startOrder + index,
+          },
+        });
+      }),
+    );
+  } catch (error) {
+    console.error("persistGeneratedOutputs error:", error);
+  }
+}
+
+function stringifyGeneratedContent(value: unknown) {
+  if (typeof value === "string") return value;
+  if (!value) return "";
+  return JSON.stringify(value, null, 2);
 }

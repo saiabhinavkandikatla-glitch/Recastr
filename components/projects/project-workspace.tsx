@@ -53,6 +53,12 @@ export function ProjectWorkspace({
     initialContent.map((item) => item.id),
   );
 
+  useEffect(() => {
+    setContents(initialContent);
+    setSelectedContentId(initialContent[0]?.id ?? null);
+    setSelectedExportIds(initialContent.map((item) => item.id));
+  }, [initialContent]);
+
   const updateContentMutation = useMutation({
     mutationFn: patchContent,
     onSuccess: () => {
@@ -153,22 +159,33 @@ export function ProjectWorkspace({
     [contents, readOnly, requireAccount, updateContentMutation],
   );
 
-  // Fetch full project if contents are missing (e.g., from recent analysis shortcut)
+  // Always refresh full project contents on mount so shell/recent-analysis data cannot show stale zero counts.
   useEffect(() => {
-    if (project && project.id && (!project.contents || project.contents.length === 0)) {
-      async function fetchFullProject() {
-        try {
-          const res = await fetch(`/api/projects/${project.id}`);
-          if (res.ok) {
-            const fullProject = await res.json();
-            setContents(normalizeContents(fullProject));
-          }
-        } catch (error) {
-          console.error("Failed to fetch full project:", error);
-        }
+    let cancelled = false;
+
+    async function fetchFullProject() {
+      try {
+        const res = await fetch(`/api/projects/${project.id}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const fullProject = (await res.json()) as Project;
+        const nextContents = normalizeContents(fullProject);
+        if (cancelled || nextContents.length === 0) return;
+        setContents(nextContents);
+        setSelectedContentId((current) =>
+          current && nextContents.some((item) => item.id === current)
+            ? current
+            : nextContents[0]?.id ?? null,
+        );
+        setSelectedExportIds(nextContents.map((item) => item.id));
+      } catch (error) {
+        console.error("Failed to fetch full project:", error);
       }
-      fetchFullProject();
     }
+
+    void fetchFullProject();
+    return () => {
+      cancelled = true;
+    };
   }, [project.id]);
 
   const handleBodyChange = useCallback(

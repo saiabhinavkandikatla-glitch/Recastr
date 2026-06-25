@@ -213,7 +213,7 @@ function createGeneratedCards(
       const platformValue = fromCardPlatform(platform);
       const body = normalizePlatformCopy(
         platformValue,
-        buildGeneratedBody(project.title, hookText, platformName, maxWords),
+        buildGeneratedBody(project, hookText, platformName, maxWords, tone),
       );
       const hookId = selectedHook?.id ?? (project.hooks && project.hooks.length > 0 ? project.hooks[typeIndex % project.hooks.length]?.id : undefined);
       cards.push({
@@ -236,51 +236,100 @@ function createGeneratedCards(
 }
 
 function buildGeneratedBody(
-  title: string,
+  project: Project,
   hook: string,
   platform: string,
   wordCount: number,
+  tone: string,
 ) {
+  const facts = sourceFacts(project);
+  const lead = toneLead(tone, hook || facts.hook);
   if (platform === "Twitter/X") {
     return normalizePlatformCopy(
       "TWITTER",
-      `${hook}\n\nThe useful part is not more content. It is one clear idea, explained simply, with a next step creators can use today.`,
+      `${lead}\n\n1/ ${facts.promise}\n\n2/ ${facts.points[0]}\n\n3/ ${facts.points[1]}\n\n4/ ${facts.cta}`,
     );
   }
   if (platform === "YouTube Shorts") {
-    return `[HOOK - 0 to 3 seconds]\n${hook}\n\n[BODY - 3 to 35 seconds]\nWe often skip the simple mental model.\nStart with the problem.\nName the shift.\nGive one action they can try today.\nKeep it short enough to remember.\n\n[CTA - 35 to 60 seconds]\nSave this before your next build.`;
+    return `[HOOK - 0 to 3 seconds]\n${lead}\n\n[BODY - 3 to 35 seconds]\n${facts.promise}\n${facts.points.slice(0, 3).join("\n")}\n\n[CTA - 35 to 60 seconds]\n${facts.cta}`;
   }
   if (platform === "Facebook") {
-    return `${hook}\n\nWe rarely need another complex explanation. A simple mental model is much easier to remember when we sit down to build.\n\nThat is the value inside "${title}".\n\nWhat would help you most next: a checklist, a walkthrough, or common mistakes?`;
+    return `${lead}\n\n${facts.promise}\n\n${facts.points.slice(0, 3).join("\n")}\n\nWhat would help you most next: a checklist, a walkthrough, or common mistakes?`;
   }
   if (platform === "LinkedIn") {
     return [
-      hook,
+      lead,
       "",
-      `It is easy to overcomplicate ideas like "${title}".`,
+      facts.promise,
       "",
-      "A great explanation usually has three parts:",
+      "The useful details:",
       "",
-      "1. Name the problem",
-      "2. Give a simple mental model",
-      "3. End with one action they can take",
+      ...facts.points.slice(0, 3).map((point, index) => `${index + 1}. ${point}`),
       "",
-      "That is what makes content useful.",
+      facts.detail,
       "",
-      "Save this if you are building and learning at the same time.",
+      facts.cta,
       "",
       "#BuildInPublic #AI #CreatorWorkflow",
     ].join("\n");
   }
   return [
-    hook,
+    lead,
     "",
-    "-> Name the problem",
-    "-> Give the simple mental model",
-    "-> Show the next step",
+    `-> ${facts.points[0]}`,
+    `-> ${facts.points[1]}`,
+    `-> ${facts.points[2]}`,
     "",
-    `Pulled from "${title}" so the lesson stays specific.`,
+    facts.detail,
     "",
-    "Save this before your next project.",
+    facts.cta,
   ].join("\n").split(/\s+/).slice(0, wordCount).join(" ");
+}
+
+function sourceFacts(project: Project) {
+  const candidates = [
+    project.summary.tldr,
+    ...(project.summary.takeaways ?? []),
+    ...(project.summary.hooks ?? []),
+    ...project.transcript.split(/\n+/),
+  ]
+    .map((item) => item.trim())
+    .filter((item) => item.length > 20 && !echoesTitle(item, project.title));
+
+  const fallback = "Extract one concrete point, explain why it matters, and give the reader one next step.";
+  const points = padFacts(candidates.slice(1), fallback);
+  return {
+    hook: candidates[0] ?? project.summary.hooks.find((item) => !echoesTitle(item, project.title)) ?? fallback,
+    promise: candidates[0] ?? fallback,
+    points,
+    detail: points[2] ?? points[0],
+    cta: "Save this and use it before your next content sprint.",
+  };
+}
+
+function padFacts(values: string[], fallback: string) {
+  const output = values.filter(Boolean);
+  while (output.length < 3) output.push(fallback);
+  return output.slice(0, 5);
+}
+
+function toneLead(tone: string, hook: string) {
+  if (tone === "casual") return `Here's the part worth remembering: ${hook}`;
+  if (tone === "educational") return `The useful framework starts here: ${hook}`;
+  if (tone === "entertaining") return `This is the scroll-stopper: ${hook}`;
+  return hook;
+}
+
+function echoesTitle(value: string, title: string) {
+  const normalizedValue = normalizeComparable(value);
+  const normalizedTitle = normalizeComparable(title);
+  if (!normalizedTitle) return false;
+  if (normalizedValue.includes(normalizedTitle)) return true;
+  const words = normalizedTitle.split(/\s+/).filter((word) => word.length > 3);
+  if (words.length < 3) return false;
+  return words.filter((word) => normalizedValue.includes(word)).length / words.length > 0.7;
+}
+
+function normalizeComparable(value: string) {
+  return value.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }

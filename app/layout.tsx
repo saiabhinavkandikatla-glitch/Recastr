@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from "@/app/providers";
@@ -29,16 +29,16 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
-  title: { default: "Recastr — Turn Long-Form Content Into Ready-to-Use Posts", template: "%s | Recastr" },
+  title: { default: "Recastr — Content Repurposing Workspace", template: "%s | Recastr" },
   description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
   openGraph: {
-    title: "Recastr — Turn Long-Form Content Into Ready-to-Use Posts",
+    title: "Recastr — Content Repurposing Workspace",
     description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Recastr — Turn Long-Form Content Into Ready-to-Use Posts",
+    title: "Recastr — Content Repurposing Workspace",
     description: "Upload videos, podcasts, blogs and documents. Generate LinkedIn posts, X threads, Instagram captions, Facebook updates, Threads and YouTube Community posts without starting from scratch.",
     images: ["/og-image.png"],
   },

@@ -194,7 +194,7 @@ function createFallbackProject(projectId: string): Project {
         ? "PODCAST"
         : "TEXT";
   const summary = {
-    tldr: `${title} is ready for a platform-native content pack. Recastr recovered this local project without contacting the database.`,
+    tldr: "The source is ready for a platform-native content pack. Recastr recovered this local project without contacting the database.",
     takeaways: [
       "Local demo mode should never require Supabase to load a project.",
       "Start from the strongest promise in the source, then translate it by platform.",
@@ -202,7 +202,7 @@ function createFallbackProject(projectId: string): Project {
       "Generated content can move directly into schedule and export flows.",
     ],
     hooks: [
-      `${title} should not disappear after one upload.`,
+      "A finished recording should not disappear after one upload.",
       "One long-form source can become a complete creator content sprint.",
       "The best post is usually hiding in the highest-tension moment.",
       "Repurposing works when the idea is translated, not copied.",
@@ -223,12 +223,12 @@ function createFallbackProject(projectId: string): Project {
     [
       "TWITTER",
       "Tweet",
-      `${title} should not be a one-time upload.\n\nPull the strongest hook, turn it into a sharp post, then adapt it for every platform your audience already checks.`,
+      "A finished recording should not be a one-time upload.\n\nPull the strongest hook, turn it into a sharp post, then adapt it for every platform your audience already checks.",
     ],
     [
       "LINKEDIN",
       "Post",
-      `Most creators do not need more content ideas.\n\nThey need a better extraction system.\n\nStart with ${title}. Find the point where the source creates tension, gives proof, or changes the viewer's mind. Then turn that moment into platform-native posts instead of copy-pasted summaries.`,
+      "Most creators do not need more content ideas.\n\nThey need a better extraction system.\n\nFind the point where the source creates tension, gives proof, or changes the viewer's mind. Then turn that moment into platform-native posts instead of copy-pasted summaries.",
     ],
     [
       "INSTAGRAM",
@@ -238,7 +238,7 @@ function createFallbackProject(projectId: string): Project {
     [
       "COMMUNITY",
       "Community post",
-      `What should we turn "${title}" into next?\n\nA) Beginner checklist\nB) Step-by-step thread\nC) Reel script\nD) Deep-dive post`,
+      "What should we turn the strongest source moment into next?\n\nA) Beginner checklist\nB) Step-by-step thread\nC) Reel script\nD) Deep-dive post",
     ],
   ].map(([platform, contentType, body], index) => ({
     id: `${projectId}-content-${index + 1}`,
@@ -261,7 +261,7 @@ function createFallbackProject(projectId: string): Project {
     sourceType,
     sourceUrl: projectId.startsWith("youtube-") ? "https://youtube.com" : undefined,
     thumbnailUrl: "/og-image.png",
-    transcript: `Recovered local source for ${title}. This fallback exists so demo and locally generated projects do not break when the database is unavailable.`,
+    transcript: "Recovered local source. This fallback exists so demo and locally generated projects do not break when the database is unavailable.",
     duration: sourceType === "YOUTUBE" || sourceType === "PODCAST" ? 0 : undefined,
     wordCount: 32,
     summary,

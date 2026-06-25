@@ -542,12 +542,16 @@ async function buildKnowledgeGraphStage(title: string, rawInsights: any) {
     };
   } catch (error) {
     console.error(`[pipeline:knowledge-graph] Failed to build knowledge graph:`, error);
+    const fallbackInsight = transcript
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 30) ?? "Content processed";
     // Return fallback knowledge graph
     return {
       nodes: [],
       edges: [],
-      tldr: title || 'Content processed',
-      takeaways: [title || 'Content processed'],
+      tldr: fallbackInsight,
+      takeaways: [fallbackInsight],
       topics: []
     };
   }
@@ -612,6 +616,7 @@ async function generateSocialSuiteStage(options: {
     // If no contents were generated, create fallback contents
     if (contentsArray.length === 0) {
       const platforms = ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"];
+      const fallbackCopy = fallbackCopyFromSource(transcript, knowledgeGraph);
       platforms.forEach((platform, index) => {
         contentsArray.push({
           id: `content-${platform.toLowerCase()}-${index}`,
@@ -619,8 +624,8 @@ async function generateSocialSuiteStage(options: {
           hookId: hooks.length > 0 ? hooks[0].id : undefined,
           platform,
           contentType: `${platform} post`,
-          body: `Fallback content for ${platform} based on: ${title}`,
-          originalBody: `Fallback content for ${platform} based on: ${title}`,
+          body: `${fallbackCopy.hook}\n\n${fallbackCopy.body}`,
+          originalBody: `${fallbackCopy.hook}\n\n${fallbackCopy.body}`,
           tone: stageOptions.tonePref || "professional",
           approved: false,
           order: index
@@ -638,7 +643,7 @@ async function generateSocialSuiteStage(options: {
     const fallbackHooks = [{
       id: `hook-fallback`,
       projectId: options.projectId,
-      text: `Discover key insights from "${title}"`,
+      text: fallbackCopyFromSource(transcript, knowledgeGraph).hook,
       hookType: "Curiosity gap",
       reachScore: 50
     }];
@@ -672,4 +677,23 @@ async function generateSocialSuiteStage(options: {
       contents: fallbackContents
     };
   }
+}
+
+function fallbackCopyFromSource(transcript: string, knowledgeGraph: any) {
+  const candidates = [
+    knowledgeGraph?.tldr,
+    ...(Array.isArray(knowledgeGraph?.takeaways) ? knowledgeGraph.takeaways : []),
+    ...transcript.split(/\n+/),
+  ]
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => value.length > 30);
+  const hook = candidates[0] ?? "The strongest lesson is hidden in the source details.";
+  const points = candidates.slice(1, 4);
+  while (points.length < 3) {
+    points.push("Extract the specific moment, explain why it matters, and turn it into one useful next step.");
+  }
+  return {
+    hook,
+    body: points.map((point, index) => `${index + 1}. ${point}`).join("\n"),
+  };
 }

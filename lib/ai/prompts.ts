@@ -71,13 +71,17 @@ CTA: ${brief.cta}`;
 }
 
 function factsContext(brief: GenerationBrief) {
-  return `CORE PROMISE: ${brief.core_promise}
+  const specificDetail = brief.specific_detail ?? brief.key_steps[0] ?? brief.core_promise;
+  return `REAL EXTRACTED FACTS FROM THE TRANSCRIPT:
+CORE PROMISE: ${brief.core_promise}
 PAIN POINT: ${brief.pain_point}
 HOOK ANGLE: ${brief.hook_angle}
 KEY POINTS: ${brief.key_steps.join(" | ")}
 AUDIENCE: ${brief.target_audience}
 CTA: ${brief.cta}
-SPECIFIC DETAIL: ${brief.specific_detail}`;
+SPECIFIC DETAIL: ${specificDetail}
+
+VIDEO TITLE IS CONTEXT ONLY. Do not quote it, paraphrase it, or use it as the post subject.`;
 }
 
 export function writeTwitterThreadPrompt(brief: GenerationBrief, title: string) {

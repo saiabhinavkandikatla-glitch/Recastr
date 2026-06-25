@@ -61,6 +61,7 @@ export function GeneratorProvider({
   const [progress, setProgress] = useState<string>("idle");
   const [outputs, setOutputs] = useState<SocialOutput[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<Platform>("TWITTER");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   // Sync state with prop if it changes
   useEffect(() => {
@@ -175,7 +176,9 @@ export function GeneratorProvider({
       generate,
       outputs,
       activePreviewTab,
-      setActivePreviewTab
+      setActivePreviewTab,
+      theme,
+      setTheme
     }}>
       <GeneratorErrorBoundary>
         {children}

@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
@@ -12,6 +13,7 @@ export default async function SchedulePage() {
 
   return (
     <AppShell projects={projects} title="Schedule" user={user}>
+      <PageHeader title="Calendar" backHref="/dashboard" />
       <ScheduleCalendar scheduledPosts={scheduledPosts} />
     </AppShell>
   );

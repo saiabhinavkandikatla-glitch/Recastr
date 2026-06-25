@@ -44,6 +44,7 @@ TRANSCRIPT:
 ${transcript}
 
 TITLE: ${title}
+DO NOT use the title as an insight. The title is provided only for context.
 
 Extract insights in these categories:
 1. topics - Main subjects discussed

@@ -47,11 +47,15 @@ export function DeviceSwitcher({
 
 export function DevicePreviewShell({
   device,
+  theme = "light",
   children,
 }: {
   device: PreviewDevice;
+  theme?: "light" | "dark";
   children: ReactNode;
 }) {
+  const screenClass = theme === "dark" ? "bg-black" : "bg-white";
+
   if (device === "desktop") {
     return (
       <motion.div
@@ -66,7 +70,7 @@ export function DevicePreviewShell({
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
           <span className="ml-4 h-5 flex-1 rounded-full bg-background" />
         </div>
-        <div className="h-[560px] overflow-hidden bg-white">{children}</div>
+        <div className={cn("h-[560px] overflow-hidden", screenClass)}>{children}</div>
       </motion.div>
     );
   }
@@ -99,7 +103,8 @@ export function DevicePreviewShell({
           )}
           <div
             className={cn(
-              "relative z-0 overflow-hidden bg-white transform-gpu",
+              "relative z-0 overflow-hidden transform-gpu",
+              screenClass,
               device === "iphone" ? "h-[680px] rounded-[31px]" : "h-[660px] rounded-[22px]",
             )}
             style={{ WebkitTransform: "translateZ(0)" }}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
-import { serializeProject } from "@/lib/projects/serialize";
+import { projectWorkspaceSelect, serializeProject } from "@/lib/projects/serialize";
 import { getCachedProject } from "@/lib/projects/store";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
@@ -24,7 +24,7 @@ export async function GET(
         id: params.id,
         userId: user.id,
       },
-      include: { contents: true, hooks: true },
+      select: projectWorkspaceSelect,
     });
 
     if (!project) {
