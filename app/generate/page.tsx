@@ -13,6 +13,7 @@ export default async function GeneratePage() {
   return (
     <AppShell projects={projects} title="Generator Workspace" sourceBadge="New Content" user={user}>
       <div className="p-6">
+        <PageHeader title="Generator Workspace" backHref="/dashboard" />
         <GeneratorWorkspace project={null} initialHistory={projects} />
       </div>
     </AppShell>

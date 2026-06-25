@@ -12,6 +12,7 @@ export default async function SettingsRoute() {
 
   return (
     <AppShell projects={projects} title="Settings" user={user}>
+      <PageHeader title="Settings" backHref="/dashboard" />
       <SettingsPage currentUser={user} />
     </AppShell>
   );

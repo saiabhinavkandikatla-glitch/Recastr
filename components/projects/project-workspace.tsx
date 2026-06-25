@@ -153,6 +153,24 @@ export function ProjectWorkspace({
     [contents, readOnly, requireAccount, updateContentMutation],
   );
 
+  // Fetch full project if contents are missing (e.g., from recent analysis shortcut)
+  useEffect(() => {
+    if (project && project.id && (!project.contents || project.contents.length === 0)) {
+      async function fetchFullProject() {
+        try {
+          const res = await fetch(`/api/projects/${project.id}`);
+          if (res.ok) {
+            const fullProject = await res.json();
+            setContents(normalizeContents(fullProject));
+          }
+        } catch (error) {
+          console.error("Failed to fetch full project:", error);
+        }
+      }
+      fetchFullProject();
+    }
+  }, [project.id]);
+
   const handleBodyChange = useCallback(
     (id: string, body: string) => {
       if (readOnly) {

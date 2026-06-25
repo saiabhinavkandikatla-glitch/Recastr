@@ -2,13 +2,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   MessageSquare,
   Briefcase,
   Heart,
   Video,
-  ArrowUpRight,
-  ArrowDownRight,
 } from "lucide-react";
 
 export default async function AnalyticsPage() {
@@ -17,12 +16,20 @@ export default async function AnalyticsPage() {
     redirect("/login");
   }
 
-  // Fetch platform-specific metrics from Database
-  const contentItems = await prisma.content.findMany({
-    where: { project: { userId: user.id } },
-    select: { platform: true, createdAt: true },
-  });
+  // Fetch data
+  const [contentItems, scheduledPosts] = await Promise.all([
+    prisma.content.findMany({
+      where: { project: { userId: user.id } },
+      select: { platform: true, createdAt: true },
+    }),
+    prisma.scheduledPost.findMany({
+      where: { userId: user.id },
+      orderBy: { scheduledAt: "desc" },
+      include: { content: true },
+    }),
+  ]);
 
+  // Count content by platform
   const platformCounts: Record<string, number> = {
     TWITTER: 0,
     LINKEDIN: 0,
@@ -35,23 +42,17 @@ export default async function AnalyticsPage() {
 
   contentItems.forEach((item) => {
     const p = item.platform.toUpperCase();
-    platformCounts[p] = (platformCounts[p] || 0) + 1;
+    if (p in platformCounts) {
+      platformCounts[p] = (platformCounts[p] || 0) + 1;
+    }
   });
 
-  const twitterCount = platformCounts.TWITTER + platformCounts.THREADS;
-  const linkedinCount = platformCounts.LINKEDIN;
-  const facebookIgCount = platformCounts.FACEBOOK + platformCounts.INSTAGRAM + platformCounts.CAROUSEL;
-  const youtubeCount = platformCounts.COMMUNITY;
+  const twitterCount = (platformCounts.TWITTER || 0) + (platformCounts.THREADS || 0);
+  const linkedinCount = (platformCounts.LINKEDIN || 0);
+  const facebookIgCount = (platformCounts.FACEBOOK || 0) + (platformCounts.INSTAGRAM || 0) + (platformCounts.CAROUSEL || 0);
+  const youtubeCount = (platformCounts.COMMUNITY || 0);
 
-  const scheduledPosts = await prisma.scheduledPost.findMany({
-    where: { userId: user.id },
-    orderBy: { scheduledAt: "desc" },
-    include: {
-      content: true,
-    },
-  });
-
-  // Calculate actual daily content created for the last 14 days
+  // Calculate daily content for the last 14 days
   const last14Days = Array.from({ length: 14 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -68,37 +69,29 @@ export default async function AnalyticsPage() {
     return count;
   });
 
-  const maxDailyCount = Math.max(...dailyCounts, 1);
+  const maxDailyCount = Math.max(...(dailyCounts.filter((c) => c !== 0)), 1);
   const chartBars = last14Days.map((date, idx) => {
-    const totalCreated = dailyCounts[idx];
+    const totalCreated = (dailyCounts[idx] || 0);
     const totalScheduled = scheduledPosts.filter((post) => {
       const postDate = new Date(post.scheduledAt);
       postDate.setHours(0, 0, 0, 0);
       return postDate.getTime() === date.getTime();
     }).length;
 
-    const h1 = (totalCreated / maxDailyCount) * 80; // scale to max 80%
-    const h2 = (totalScheduled / maxDailyCount) * 80;
+    const h1 = ((totalCreated || 0) / (maxDailyCount || 1)) * 80;
+    const h2 = ((totalScheduled || 0) / (maxDailyCount || 1)) * 80;
 
     return {
-      h1: Math.max(h1, totalCreated > 0 ? 5 : 0),
-      h2: Math.max(h2, totalScheduled > 0 ? 5 : 0),
-      created: totalCreated,
-      scheduled: totalScheduled,
+      h1: Math.max(h1, (totalCreated || 0) > 0 ? 5 : 0),
+      h2: Math.max(h2, (totalScheduled || 0) > 0 ? 5 : 0),
+      created: (totalCreated || 0),
+      scheduled: (totalScheduled || 0),
     };
   });
 
-  const platformNames: Record<string, string> = {
-    TWITTER: "Twitter/X",
-    LINKEDIN: "LinkedIn",
-    INSTAGRAM: "Instagram",
-    FACEBOOK: "Facebook",
-    THREADS: "Threads",
-    COMMUNITY: "YouTube Community",
-  };
-
   return (
-    <AppShell projects={[]} title="Analytics" user={user}>
+    <AppShell title="Analytics" user={user}>
+      <PageHeader title="Analytics" backHref="/dashboard" />
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -113,28 +106,28 @@ export default async function AnalyticsPage() {
           <StatsCard
             icon={MessageSquare}
             label="Twitter / X Posts"
-            value={twitterCount.toString()}
+            value={String(twitterCount)}
             change={twitterCount > 0 ? 10 : null}
             hint="Total generated threads & posts"
           />
           <StatsCard
             icon={Briefcase}
             label="LinkedIn Posts"
-            value={linkedinCount.toString()}
+            value={String(linkedinCount)}
             change={linkedinCount > 0 ? 15 : null}
             hint="Total generated articles"
           />
           <StatsCard
             icon={Heart}
             label="Facebook / Instagram"
-            value={facebookIgCount.toString()}
+            value={String(facebookIgCount)}
             change={facebookIgCount > 0 ? 8 : null}
             hint="Total generated FB, IG & Carousel posts"
           />
           <StatsCard
             icon={Video}
             label="YouTube Community"
-            value={youtubeCount.toString()}
+            value={String(youtubeCount)}
             change={youtubeCount > 0 ? 12 : null}
             hint="Total generated community assets"
           />
@@ -148,16 +141,16 @@ export default async function AnalyticsPage() {
                 Repurposing Activity
               </h2>
               <p className="mt-0.5 text-xs text-[#8A8A8A]">
-                Content pieces generated &amp; scheduled over the last 14 days
+                Content pieces generated & scheduled over the last 14 days
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs text-[#8A8A8A]">
+            <div className="flex items-center gap-4 text-xs text-[#8A8a8a]">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 rounded-full bg-white" />
                 Generated
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-[#8A8A8A]" />
+                <span className="inline-block h-2 w-2 rounded-full bg-[#8A8a8a]" />
                 Scheduled
               </span>
             </div>
@@ -168,16 +161,16 @@ export default async function AnalyticsPage() {
             {chartBars.map((bar, i) => (
               <div
                 key={i}
-                className="flex h-full flex-1 flex-col justify-end"
+                className={`flex h-full flex-1 flex-col justify-end`}
               >
                 <div className="flex flex-1 items-end gap-1">
                   <div
-                    className="w-full rounded-t bg-white transition-all duration-500 hover:bg-white/90"
+                    className={`w-full rounded-t bg-[hsl(var(--accent))]`}
                     style={{ height: `${bar.h1}%` }}
                     title={`${bar.created} posts generated`}
                   />
                   <div
-                    className="w-full rounded-t bg-[#8A8A8A] transition-all duration-500 hover:bg-[#8A8A8A]/90"
+                    className={`w-full rounded-t bg-[hsl(var(--accent-2))]`}
                     style={{ height: `${bar.h2}%` }}
                     title={`${bar.scheduled} posts scheduled`}
                   />
@@ -188,131 +181,46 @@ export default async function AnalyticsPage() {
               </div>
             ))}
           </div>
-
-          <div className="mt-4 flex items-center justify-center">
-            <p className="text-xs text-[#555]">
-              {contentItems.length > 0
-                ? "Repurposing activity automatically updates based on your generated content history."
-                : "Your repurposing activity metrics will appear here once you generate content."}
-            </p>
-          </div>
-        </div>
-
-        {/* Recent Performance Table */}
-        <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6">
-          <h2 className="mb-4 text-base font-semibold text-white">
-            Recent Pipeline
-          </h2>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[#232323] text-[#8A8A8A]">
-                  <th className="pb-3 pr-4 font-medium">Content Preview</th>
-                  <th className="pb-3 pr-4 font-medium">Platform</th>
-                  <th className="pb-3 pr-4 font-medium">Posting Method</th>
-                  <th className="pb-3 pr-4 font-medium">Scheduled Date</th>
-                  <th className="pb-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scheduledPosts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="py-12 text-center text-[#555]"
-                    >
-                      No content scheduled yet. Schedule your generated posts to populate this pipeline.
-                    </td>
-                  </tr>
-                ) : (
-                  scheduledPosts.slice(0, 5).map((post) => {
-                    const bodyPreview = post.content?.body || "Generated content output";
-                    const formattedMethod = post.postingMethod === "email_reminder" ? "Email Reminder" : "Auto-post";
-                    const formattedDate = new Date(post.scheduledAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    });
-
-                    return (
-                      <tr key={post.id} className="border-b border-[#151515] text-white">
-                        <td className="py-4 pr-4 font-medium max-w-xs truncate">
-                          {bodyPreview}
-                        </td>
-                        <td className="py-4 pr-4 text-[#8A8A8A]">
-                          {platformNames[post.platform.toUpperCase()] || post.platform}
-                        </td>
-                        <td className="py-4 pr-4 text-zinc-300">
-                          {formattedMethod}
-                        </td>
-                        <td className="py-4 pr-4 text-zinc-300">
-                          {formattedDate}
-                        </td>
-                        <td className="py-4">
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              post.status.toUpperCase() === "PUBLISHED" || post.status.toUpperCase() === "COMPLETE"
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-                            }`}
-                          >
-                            {post.status.toLowerCase()}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </AppShell>
   );
 }
 
-/* ── Stats Card ───────────────────────────────────────────────── */
-
 function StatsCard({
-  icon: Icon,
+  icon,
   label,
   value,
   change,
   hint,
 }: {
-  icon: React.ElementType;
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  icon: any;
   label: string;
   value: string;
   change: number | null;
   hint: string;
 }) {
+  const absoluteChange = change ? `${change > 0 ? "+" : ""}${change}%` : null;
+  const bgColor = change ? (change > 0 ? "bg-green-500/20" : "bg-red-500/20") : "bg-[var(--app-line)]/20";
+
   return (
-    <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-5 transition-colors hover:border-[#333]">
-      <div className="flex items-center justify-between">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1A1A]">
-          <Icon className="h-4 w-4 text-[#8A8A8A]" />
-        </span>
-        {change !== null && (
-          <span
-            className={`flex items-center gap-0.5 text-xs font-medium ${
-              change >= 0 ? "text-emerald-400" : "text-red-400"
-            }`}
-          >
-            {change >= 0 ? (
-              <ArrowUpRight className="h-3 w-3" />
-            ) : (
-              <ArrowDownRight className="h-3 w-3" />
-            )}
-            {Math.abs(change)}%
+    <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="text-sm font-medium text-white">{label}</h3>
+        </div>
+        {absoluteChange && (
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${bgColor} text-[${change > 0 ? "green" : "red"}]`}>
+            {absoluteChange}
           </span>
         )}
       </div>
-      <p className="mt-4 text-2xl font-bold text-white">{value}</p>
-      <p className="mt-0.5 text-xs text-[#8A8A8A]">{label}</p>
-      <p className="mt-1 text-[10px] text-[#555]">{hint}</p>
+      <p className="text-2xl font-bold text-white">{value}</p>
+      {hint && (
+        <p className="mt-1 text-xs text-[#8A8A8A]">{hint}</p>
+      )}
     </div>
   );
 }

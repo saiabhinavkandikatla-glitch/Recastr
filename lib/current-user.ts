@@ -84,8 +84,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 
   try {
-    const createdUser = await prisma.user.create({
-      data: {
+    const createdUser = await prisma.user.upsert({
+      where: { supabaseId: authUser.id },
+      create: {
         supabaseId: authUser.id,
         email: authUser.email,
         name: authUser.user_metadata?.name,
@@ -94,6 +95,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         role: "member",
         platforms: [],
       },
+      update: {},
       select: {
         id: true,
         email: true,

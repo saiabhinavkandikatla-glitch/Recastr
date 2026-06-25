@@ -115,8 +115,9 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
       });
     }
 
-    return prisma.user.create({
-      data: {
+    return prisma.user.upsert({
+      where: { supabaseId: user.id },
+      create: {
         id: user.id,
         supabaseId: user.id,
         email: user.email,
@@ -124,6 +125,7 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
         platforms: [],
         role: "member",
       },
+      update: {},
       select: { id: true },
     });
   } catch (error) {
@@ -159,8 +161,9 @@ async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<Authentica
             role: true,
           },
         })
-      : await prisma.user.create({
-          data: {
+      : await prisma.user.upsert({
+          where: { supabaseId: user.id },
+          create: {
             supabaseId: user.id,
             email,
             name: user.user_metadata?.name,
@@ -168,6 +171,7 @@ async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<Authentica
             plan: "free",
             platforms: [],
           },
+          update: {},
           select: {
             id: true,
             email: true,
@@ -192,6 +196,7 @@ async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<Authentica
     };
   }
 }
+
 
 
 function normalizePlan(value: unknown): Plan {

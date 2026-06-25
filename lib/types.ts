@@ -27,12 +27,15 @@ export type PostStatus =
 export type Tone =
   | "Professional"
   | "Casual"
+  | "Storytelling"
+  | "Viral"
+  | "Educational"
+  | "Founder"
+  | "Personal Brand"
   | "Witty"
   | "Bold"
   | "Empathetic"
-  | "Educational"
-  | "Controversial"
-  | "Storytelling";
+  | "Controversial";
 
 export type SourceSummary = {
   tldr: string;

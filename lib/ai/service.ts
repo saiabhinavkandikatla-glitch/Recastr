@@ -39,6 +39,21 @@ const platformLabels: Record<Platform, string> = {
   CTA: "Call to Action",
 };
 
+// Tone-specific instructions to guide the AI
+const toneInstructions: Record<Tone, string> = {
+  Professional: "Polished, confident, formal. No slang.",
+  Casual: "Relaxed, conversational, like texting a friend.",
+  Storytelling: "Narrative arc. Setup, tension, payoff.",
+  Viral: "Bold claims. Built to stop a scroll. Pattern interrupts.",
+  Educational: "Clear structure. Teach one concept at a time.",
+  Founder: "Direct, opinionated, from lived experience.",
+  "Personal Brand": "Personal, first-person, connects to a bigger life lesson.",
+  Witty: "Witty and clever. Use wordplay and humor.",
+  Bold: "Bold and direct. Take a strong stance.",
+  Empathetic: "Empathetic and understanding. Show compassion.",
+  Controversial: "Controversial and provocative. Challenge common beliefs.",
+};
+
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
   const localSummary = summaryFromBrief(briefFromTranscript(transcript));
   
@@ -171,9 +186,12 @@ async function writePlatformPost({
   if (!gemini) return fallbackPostForPlatform(platform, brief);
 
   let prompt = platformWriterPrompt(platform, brief, title);
-  if (tone) {
-    prompt += `\n\nTONE/REWRITE MODE: ${tone}`;
+
+  // Add tone-specific instructions if available
+  if (tone && typeof tone === "string" && toneInstructions[tone as Tone]) {
+    prompt += `\n\nTONE/REWRITE MODE: ${toneInstructions[tone as Tone]}`;
   }
+
   if (isRegeneration) {
     prompt +=
       "\n\nCRITICAL: Regeneration — use a completely different hook, structure, and angle.";
