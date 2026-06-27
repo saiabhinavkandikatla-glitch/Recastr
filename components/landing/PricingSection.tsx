@@ -53,6 +53,9 @@ export function PricingSection() {
           <h2 className="mt-6 text-5xl font-bold">
             Simple Pricing
           </h2>
+          <p className="mt-4 text-sm text-[#8A8A8A]">
+            1 credit = 1 full content generation across all selected platforms.
+          </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">

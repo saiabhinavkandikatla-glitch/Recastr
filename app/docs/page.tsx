@@ -1,67 +1,46 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 
-export const metadata: Metadata = {
-  title: "Recastr — Documentation",
-  description: "Getting started with Recastr: sources, outputs, and scheduling.",
-};
+export const metadata = {
+  title: 'Documentation — Recastr',
+  description: 'Learn how to use Recastr.',
+}
 
 export default function DocsPage() {
   return (
     <main className="min-h-screen bg-[#090909] text-white">
       <Navbar />
 
-      <article className="mx-auto max-w-3xl px-6 py-20">
-        <h1 className="text-4xl font-bold tracking-tight">Getting started</h1>
-        <p className="mt-4 text-lg text-[#8A8A8A]">
-          Turn one source into platform-ready posts in four steps.
-        </p>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '8rem 1.5rem 4rem' }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '2rem' }}>Getting Started</h1>
 
-        <section className="mt-12 space-y-4">
-          <h2 className="text-2xl font-semibold">1. Connect a source</h2>
-          <p className="leading-relaxed text-[#a1a1aa]">
-            Paste a YouTube URL, upload podcast audio, import a blog link, or paste raw text. Recastr transcribes and
-            analyzes the source automatically — no manual copy-paste required.
-          </p>
-        </section>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'semibold', marginTop: '2rem', marginBottom: '0.5rem' }}>1. Upload a source</h2>
+        <p style={{ color: '#a1a1aa', lineHeight: '1.6', marginBottom: '1.5rem' }}>Paste a YouTube URL or click the Text tab to paste a transcript,
+        article, or notes. Supported: YouTube videos, podcasts (transcript),
+        blog posts, documents.</p>
 
-        <section className="mt-10 space-y-4">
-          <h2 className="text-2xl font-semibold">2. Review hooks</h2>
-          <p className="leading-relaxed text-[#a1a1aa]">
-            Recastr extracts the strongest angles and surfaces hook options per platform. Pick the angle that fits your
-            voice before generating drafts.
-          </p>
-        </section>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'semibold', marginTop: '2rem', marginBottom: '0.5rem' }}>2. Analyze</h2>
+        <p style={{ color: '#a1a1aa', lineHeight: '1.6', marginBottom: '1.5rem' }}>Click Analyze Source. Recastr fetches the transcript and extracts
+        the key ideas, quotes, and stories from your content.</p>
 
-        <section className="mt-10 space-y-4">
-          <h2 className="text-2xl font-semibold">3. Generate outputs</h2>
-          <p className="leading-relaxed text-[#a1a1aa]">
-            One source produces up to seven formats: Twitter/X thread, LinkedIn, Instagram caption, Instagram carousel,
-            Facebook, YouTube Community, and Reel script. Each draft follows platform-native structure — character
-            limits, hook format, and hashtag rhythm included.
-          </p>
-        </section>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'semibold', marginTop: '2rem', marginBottom: '0.5rem' }}>3. Select platforms and tone</h2>
+        <p style={{ color: '#a1a1aa', lineHeight: '1.6', marginBottom: '1.5rem' }}>Choose which platforms you want posts for: LinkedIn, X, Instagram,
+        Facebook, Threads, YouTube Community. Then pick a tone: Professional,
+        Casual, Storytelling, Viral, Educational, Founder, or Personal Brand.</p>
 
-        <section className="mt-10 space-y-4">
-          <h2 className="text-2xl font-semibold">4. Review and schedule</h2>
-          <p className="leading-relaxed text-[#a1a1aa]">
-            Edit every draft in the workspace. On paid plans, schedule email reminders or post directly to connected
-            accounts. On Spark, copy and export manually.
-          </p>
-        </section>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'semibold', marginTop: '2rem', marginBottom: '0.5rem' }}>4. Generate</h2>
+        <p style={{ color: '#a1a1aa', lineHeight: '1.6', marginBottom: '1.5rem' }}>Click Generate Content. Posts are created for each selected platform
+        in the tone you chose.</p>
 
-        <section className="mt-12 rounded-2xl border border-[#232323] bg-[#111] p-6">
-          <h2 className="text-lg font-semibold">Need help?</h2>
-          <p className="mt-2 text-sm text-[#8A8A8A]">
-            Email <a href="mailto:recastr.schedule@gmail.com" className="text-white hover:underline">recastr.schedule@gmail.com</a> or
-            read the <Link href="/#faq" className="text-white hover:underline">FAQ on the homepage</Link>.
-          </p>
-        </section>
-      </article>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'semibold', marginTop: '2rem', marginBottom: '0.5rem' }}>5. Review and copy</h2>
+        <p style={{ color: '#a1a1aa', lineHeight: '1.6', marginBottom: '1.5rem' }}>Review each post. Edit if needed. Copy and publish on your platform,
+        or use the Schedule Reminder feature to get an email reminder.</p>
+
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'semibold', marginTop: '2.5rem', marginBottom: '0.5rem' }}>Need help?</h2>
+        <p style={{ color: '#a1a1aa', lineHeight: '1.6' }}>Email <a href="mailto:hello@recastr.app" style={{ color: '#fff', textDecoration: 'underline' }}>hello@recastr.app</a></p>
+      </div>
 
       <Footer />
     </main>
-  );
+  )
 }

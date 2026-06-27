@@ -38,51 +38,11 @@ export class TranscriptError extends Error {
  * and constructing the canonical URL. This strips all tracking parameters
  * such as si, feature, list, index, t, pp, ab_channel, utm_*, etc.
  */
-export function extractVideoId(value: string): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  
-  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
-    return trimmed;
-  }
-  
-  try {
-    const parsed = new URL(trimmed);
-    const host = parsed.hostname.replace(/^www\./, "");
-    
-    if (host === "youtu.be") {
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      const id = parts[0] ?? "";
-      if (id.length === 11) return id;
-    }
-    
-    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
-      const directId = parsed.searchParams.get("v");
-      if (directId && directId.length === 11) return directId;
-      
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      if (["embed", "shorts", "live", "v"].includes(parts[0])) {
-        const id = parts[1] ?? "";
-        if (id.length === 11) return id;
-      }
-    }
-  } catch (e) {
-    // Ignore URL parsing errors and fall back to regex matching
-  }
-  
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/(?:embed|shorts|live|v)\/)([a-zA-Z0-9_-]{11})/i,
-    /([a-zA-Z0-9_-]{11})/
-  ];
-  
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (match && match[1] && match[1].length === 11) {
-      return match[1];
-    }
-  }
-  
-  return null;
+export function extractVideoId(url: string): string | null {
+  const match = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&?/\s]+)/
+  )
+  return match ? match[1] : null
 }
 
 export function normalizeYoutubeUrl(url: string): string {
@@ -91,111 +51,58 @@ export function normalizeYoutubeUrl(url: string): string {
   return `https://www.youtube.com/watch?v=${videoId}`;
 }
 
-/**
- * Fetches a real YouTube transcript using a robust retry and fallback mechanism.
- * Uses Promise.any for lightweight fallbacks to prevent Vercel 10-second timeouts.
- */
-export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
-  const normalizedUrl = normalizeYoutubeUrl(videoIdOrUrl);
-  const videoId = extractVideoId(videoIdOrUrl);
-  
-  if (!videoId) {
-    console.error(`[Transcript Pipeline] FAILED: Video ID Extraction returned null for input: ${videoIdOrUrl}`);
-    throw new TranscriptError("Unsupported video URL format or invalid video ID.", "UNSUPPORTED_VIDEO");
-  }
+export async function getYouTubeTranscript(videoUrl: string): Promise<{
+  success: boolean
+  transcript?: string
+  error?: string
+}> {
+  const videoId = extractVideoId(videoUrl)
+  if (!videoId) return { success: false, error: 'INVALID_URL' }
 
-  console.log(`[Transcript Pipeline] START\n- Input URL: ${videoIdOrUrl}\n- Normalized URL: ${normalizedUrl}\n- Video ID: ${videoId}`);
-
-  const errors: Array<{ provider: string; error: string; code: string }> = [];
-
-  // Provider 1: Supadata (canonical, if key exists)
-  if (env.supadataKey) {
-    try {
-      return await fetchSupadataTranscriptWithRetry(normalizedUrl, videoId);
-    } catch (e: any) {
-      const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
-      errors.push({ provider: "supadata", error: e.message || String(e), code });
-      console.warn(`[Transcript Pipeline] Supadata failed. Code: ${code}. Trying fallbacks...`);
+  // PRIMARY: Supadata (not IP blocked on Vercel)
+  try {
+    const res = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+      { headers: { 'x-api-key': process.env.SUPADATA_API_KEY || '' } }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      const transcript = data?.content || data?.transcript || ''
+      if (transcript && transcript.length > 50) {
+        console.log('[TRANSCRIPT] Supadata success:', transcript.length, 'chars')
+        return { success: true, transcript }
+      }
+    } else {
+      console.error('[TRANSCRIPT] Supadata status:', res.status, await res.text())
     }
-  } else {
-    console.log(`[Transcript Pipeline] Supadata API key is not configured, skipping.`);
-    errors.push({ provider: "supadata", error: "SUPADATA_API_KEY is not configured", code: "INVALID_API_KEY" });
+  } catch (err: any) {
+    console.error('[TRANSCRIPT] Supadata error:', err.message)
   }
 
-  let transcript: string | null = null;
-
-  // Provider 2 & 3: Run lightweight providers in parallel to avoid Vercel 10s timeout
-  console.log(`[Transcript Pipeline] Running lightweight fallbacks (youtube-transcript & scrape-watch-page) concurrently...`);
-  const lightweightPromises = [
-    fetchWithYoutubeTranscriptLib(videoId, normalizedUrl).catch(e => {
-      const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
-      const errObj = { provider: "youtube-transcript", error: e.message || String(e), code };
-      errors.push(errObj);
-      throw errObj;
-    }),
-    scrapeWatchPageCaptions(videoId, normalizedUrl).catch(e => {
-      const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
-      const errObj = { provider: "scrape-watch-page", error: e.message || String(e), code };
-      errors.push(errObj);
-      throw errObj;
-    })
-  ];
-
+  // FALLBACK: youtube-transcript package
   try {
-    transcript = await Promise.any(lightweightPromises);
-  } catch (aggregateError) {
-    console.warn(`[Transcript Pipeline] All lightweight fallbacks failed. Checking yt-dlp...`);
+    const { YoutubeTranscript } = await import('youtube-transcript')
+    const items = await YoutubeTranscript.fetchTranscript(videoId)
+    if (items?.length > 0) {
+      const text = items.map((i: any) => i.text).join(' ').replace(/\s+/g, ' ').trim()
+      if (text.length > 50) {
+        console.log('[TRANSCRIPT] Package success:', text.length, 'chars')
+        return { success: true, transcript: text }
+      }
+    }
+  } catch (err: any) {
+    console.error('[TRANSCRIPT] Package error:', err.message)
   }
 
-  if (transcript) {
-    return transcript;
+  return { success: false, error: 'NO_TRANSCRIPT_AVAILABLE' }
+}
+
+export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
+  const res = await getYouTubeTranscript(videoIdOrUrl);
+  if (res.success && res.transcript) {
+    return res.transcript;
   }
-
-  // Provider 4: yt-dlp (heavy fallback)
-  try {
-    return await fetchYtdlSubtitles(videoId, normalizedUrl);
-  } catch (e: any) {
-    const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
-    errors.push({ provider: "yt-dlp", error: e.message || String(e), code });
-  }
-
-  // All providers failed. Resolve the most specific error code.
-  console.error(`[Transcript Pipeline] FAILED: All transcript extraction providers failed for Video ID ${videoId}`);
-  for (const err of errors) {
-    console.error(`  - Provider: ${err.provider}, Code: ${err.code}, Error: ${err.error}`);
-  }
-
-  const noCaptions = errors.find(e => e.code === "NO_CAPTIONS");
-  const regionBlocked = errors.find(e => e.code === "REGION_BLOCKED");
-  const quotaExceeded = errors.find(e => e.code === "TRANSCRIPT_QUOTA_EXCEEDED");
-  const invalidKey = errors.find(e => e.code === "INVALID_API_KEY");
-  const providerTimeout = errors.find(e => e.code === "PROVIDER_TIMEOUT");
-  const unsupported = errors.find(e => e.code === "UNSUPPORTED_VIDEO");
-
-  let finalCode = "TRANSCRIPT_UNAVAILABLE";
-  let finalMessage = "Transcript unavailable for this video. Captions are disabled, private, or blocked.";
-
-  if (noCaptions) {
-    finalCode = "NO_CAPTIONS";
-    finalMessage = "Video has no captions.";
-  } else if (regionBlocked) {
-    finalCode = "REGION_BLOCKED";
-    finalMessage = "This video is region blocked.";
-  } else if (quotaExceeded) {
-    finalCode = "TRANSCRIPT_QUOTA_EXCEEDED";
-    finalMessage = "Transcript provider quota exceeded.";
-  } else if (providerTimeout) {
-    finalCode = "PROVIDER_TIMEOUT";
-    finalMessage = "Transcript provider request timed out.";
-  } else if (invalidKey && !env.supadataKey) {
-    finalCode = "INVALID_API_KEY";
-    finalMessage = "AI provider authentication failed / Invalid API key.";
-  } else if (unsupported) {
-    finalCode = "UNSUPPORTED_VIDEO";
-    finalMessage = "Unsupported video type.";
-  }
-
-  throw new TranscriptError(finalMessage, finalCode);
+  throw new TranscriptError(res.error || "NO_TRANSCRIPT_AVAILABLE", "TRANSCRIPT_UNAVAILABLE");
 }
 
 async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: string): Promise<string> {

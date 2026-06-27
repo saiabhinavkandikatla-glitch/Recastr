@@ -20,31 +20,31 @@ export function FAQSection() {
 
           <AccordionItem value="1">
             <AccordionTrigger>
-              What content can I upload?
+              How does Recastr repurpose content?
             </AccordionTrigger>
 
             <AccordionContent>
-              You can upload YouTube videos, podcasts, and blog posts. Our AI extracts the core ideas and automatically repurposes them into platform-specific posts.
+              Recastr uses advanced AI to extract insights and generate platform-optimized posts from YouTube URLs or text.
             </AccordionContent>
           </AccordionItem>
 
           <AccordionItem value="2">
             <AccordionTrigger>
-              Which platforms are supported?
+              What platforms are supported?
             </AccordionTrigger>
 
             <AccordionContent>
-              Recastr generates optimized content for LinkedIn, X (Twitter), Instagram, Facebook, Threads, and YouTube Community.
+              LinkedIn, Twitter/X, Instagram, Facebook, Threads, and YouTube Community.
             </AccordionContent>
           </AccordionItem>
 
           <AccordionItem value="3">
             <AccordionTrigger>
-              Can I schedule posts?
+              Can I customize the brand voice?
             </AccordionTrigger>
 
             <AccordionContent>
-              Yes! You can organize your posts in your workspace and set a schedule. Recastr will send you an email reminder when it&apos;s time to publish.
+              Yes, you can upload reference copy to define custom tones and brand voices.
             </AccordionContent>
           </AccordionItem>
 

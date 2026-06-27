@@ -11,7 +11,9 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
-    await processDueScheduledNotifications({ userId: user.id });
+    void processDueScheduledNotifications({ userId: user.id }).catch((error) => {
+      console.error("Failed to process due scheduled notifications in background:", error);
+    });
 
     const url = new URL(request.url);
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));

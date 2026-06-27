@@ -203,40 +203,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use project title for insights extraction
-    const videoTitle = project.title;
-
-    // STEP 2 — Extract insights (internal data, never shown raw to user)
-    const insights = await extractInsights(transcript!, videoTitle);
-
-    // STEP 3 — Generate each selected platform's post, in parallel
-    const txLen = transcript?.length ?? 0;
-    const generationMap: Record<Platform, () => Promise<unknown>> = {
-      TWITTER: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
-      LINKEDIN: () => generateWithQualityGate(generateLinkedInPost, insights, tone, 7, 2, txLen),
-      INSTAGRAM: () => generateWithQualityGate(generateInstagramCaption, insights, tone, 7, 2, txLen),
-      FACEBOOK: () => generateWithQualityGate(generateFacebookPost, insights, tone, 7, 2, txLen),
-      THREADS: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
-      CAROUSEL: () => generateWithQualityGate(generateInstagramCarousel, insights, tone, 7, 2, txLen),
-      COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone, 7, 2, txLen),
-      STORY: () => generateWithQualityGate(generateLinkedInPost, insights, tone, 7, 2, txLen),
-      HOOKS: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
-      CTA: () => generateWithQualityGate(generateTwitterPost, insights, tone, 7, 2, txLen),
-    };
-
-    const jobs = selectedPlatforms.map((platform: Platform) => generationMap[platform]());
-    const results = await Promise.all(jobs);
+    const outputs = await generatePlatformOutputs({
+      projectId,
+      platforms: selectedPlatforms,
+      tone,
+      isRegeneration: payload.isRegeneration ?? false,
+    });
+    await persistGeneratedOutputs({ userId: user.id, projectId, outputs, tone });
 
     const posts: Record<string, unknown> = {};
-    selectedPlatforms.forEach((platform: string, index: number) => {
-      posts[platform] = results[index];
+    outputs.forEach((output) => {
+      posts[output.platform] = output.content;
     });
 
     // Record usage and send notifications
     await recordGeneratedContentUsage({
       userId: user.id,
       count: selectedPlatforms.length,
-      metadata: { videoUrl, platforms: selectedPlatforms, tone },
+      metadata: { projectId, platforms: selectedPlatforms, tone },
     });
     await recordUsageEvent({
       userId: user.id,
@@ -329,6 +313,13 @@ async function persistGeneratedOutputs({
   tone: Tone | string;
 }) {
   if (outputs.length === 0) return;
+
+  try {
+    const { appendStoredOutputs } = await import("@/lib/projects/store");
+    appendStoredOutputs(projectId, outputs);
+  } catch (err) {
+    console.error("Local cache save failed:", err);
+  }
 
   try {
     const project = await prisma.project.findFirst({

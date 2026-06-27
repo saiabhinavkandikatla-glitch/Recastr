@@ -119,12 +119,20 @@ export async function POST(request: Request) {
           "TRANSCRIPT_UNAVAILABLE"
         ].includes(code);
 
+        if (isTranscriptFailure) {
+          return Response.json({
+            error: 'Could not fetch transcript for this video.',
+            hint: 'Try a video with captions enabled, or use the Text tab to paste a transcript.',
+            code: 'transcript_unavailable'
+          }, { status: 422 });
+        }
+
         return NextResponse.json(
           {
             error: message,
             code,
           },
-          { status: isTranscriptFailure ? 422 : 500 }
+          { status: 500 }
         );
       }
       await assertCanGenerateContent(

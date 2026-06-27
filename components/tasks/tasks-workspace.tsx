@@ -92,7 +92,7 @@ export function TasksWorkspace({
   useEffect(() => {
     if (tab !== "scheduled") return;
     let cancelled = false;
-    setScheduledLoading(false);
+    setScheduledLoading(true);
 
     fetch("/api/scheduled?filter=all")
       .then(async (response) => {
@@ -119,7 +119,7 @@ export function TasksWorkspace({
   useEffect(() => {
     if (tab !== "history") return;
     let cancelled = false;
-    setHistoryLoading(false);
+    setHistoryLoading(true);
 
     fetch("/api/history?page=1")
       .then(async (response) => {

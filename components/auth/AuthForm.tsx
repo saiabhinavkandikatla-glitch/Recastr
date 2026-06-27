@@ -266,9 +266,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
           <div className="space-y-4">
             {[
-              "Upload videos, podcasts, blogs, and text",
-              "Analyze hooks, insights, and takeaways",
-              "Review platform-native content before posting",
+              "Upload — videos, podcasts, blogs and documents",
+              "Analyze — automatically identify key ideas and topics",
+              "Review — organize posts and receive email reminders",
             ].map((feature, index) => (
               <div
                 key={index}

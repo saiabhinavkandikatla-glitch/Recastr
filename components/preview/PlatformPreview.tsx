@@ -55,10 +55,13 @@ export function PlatformPreviewEngine({
   includeFacebook?: boolean;
   compact?: boolean;
 }) {
-  const [activePlatform, setActivePlatform] = useState<PreviewPlatform>(platform);
+  const platforms = includeFacebook ? fullPreviewPlatforms : previewPlatforms;
+  const [activePlatform, setActivePlatform] = useState<PreviewPlatform>(() => {
+    const upper = platform.toUpperCase() as PreviewPlatform;
+    return (includeFacebook ? fullPreviewPlatforms : previewPlatforms).includes(upper) ? upper : "LINKEDIN";
+  });
   const [device, setDevice] = useState<PreviewDevice>("iphone");
   const [localTheme, setLocalTheme] = useState<"light" | "dark">(theme ?? "dark");
-  const platforms = includeFacebook ? fullPreviewPlatforms : previewPlatforms;
   const activeTheme = localTheme;
   const content = useMemo(() => parsePreviewContent(activePlatform, draft), [activePlatform, draft]);
 
@@ -70,8 +73,9 @@ export function PlatformPreviewEngine({
   }, [theme]);
 
   useEffect(() => {
-    if (platforms.includes(platform)) {
-      setActivePlatform(platform);
+    const upper = platform.toUpperCase() as PreviewPlatform;
+    if (platforms.includes(upper)) {
+      setActivePlatform(upper);
     }
   }, [platform, platforms]);
 
