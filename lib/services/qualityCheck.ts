@@ -1,4 +1,4 @@
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import { type GenerationInsights } from "./generatePosts";
 
 export interface QualityScore {
@@ -14,9 +14,9 @@ export interface QualityScore {
  * Returns a promise that resolves to the scores object.
  */
 export async function scoreContent(generatedText: string, sourceInsights: GenerationInsights): Promise<QualityScore> {
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    // Fallback scoring when Gemini is not available
+  const aiClient = getAIClient();
+  if (!aiClient) {
+    // Fallback scoring when OpenAI is not available
     const baseScore = Math.random() * 3 + 4; // 4-7 range
     const originality = Math.min(10, baseScore + (Math.random() * 2));
     const clarity = Math.min(10, baseScore + (Math.random() * 2));
@@ -60,8 +60,8 @@ Return ONLY this JSON:
 `;
 
   try {
-    const text = await generateGeminiText({
-      model: "gemini-2.5-flash",
+    const text = await generateAIText({
+      model: "gpt-5.4-mini",
       prompt,
       responseMimeType: "application/json",
     });

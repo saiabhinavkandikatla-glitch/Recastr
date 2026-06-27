@@ -35,6 +35,40 @@ export const BANNED_PHRASES = [
   "think of it like ordering at a restaurant",
 ];
 
+export const SYSTEM_PROMPT = `${CONTENT_WRITER_SYSTEM_PROMPT}
+
+Tone: [TONE]
+Audience: [AUDIENCE]
+Use only facts explicitly present in the transcript. Never invent names, numbers, examples, or outcomes.`;
+
+export function chunkTranscript(transcript: string, maxWords = 1200) {
+  const words = transcript.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [""];
+
+  const chunks: string[] = [];
+  for (let index = 0; index < words.length; index += maxWords) {
+    chunks.push(words.slice(index, index + maxWords).join(" "));
+  }
+  return chunks;
+}
+
+export function buildGenerationPrompt({
+  transcript,
+  platform,
+  contentType,
+}: {
+  transcript: string;
+  platform: Platform;
+  contentType?: string;
+}) {
+  return `Create ${contentType ?? "social content"} for ${platform}.
+
+TRANSCRIPT:
+${transcript}
+
+Return platform-ready copy based only on the transcript. Include concrete details and preserve factual accuracy.`;
+}
+
 export function extractBriefPrompt(transcript: string, title: string) {
   return `You are a content strategist. Extract key elements from the SOURCE CONTENT transcript ONLY. Never fabricate or use the title as a substitute for content.
 

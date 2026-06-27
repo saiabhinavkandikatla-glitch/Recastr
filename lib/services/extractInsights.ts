@@ -1,13 +1,13 @@
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 
 /**
  * Extracts insights from a transcript.
  * Returns a promise that resolves to the insights object.
  */
 export async function extractInsights(transcript: string, videoTitle: string) {
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    throw new Error('Gemini API key not configured');
+  const aiClient = getAIClient();
+  if (!aiClient) {
+    throw new Error('OpenAI API key not configured');
   }
 
   const prompt = `
@@ -57,8 +57,8 @@ in the transcript. If you cannot find real content for a category,
 return an empty array for it — do not invent generic filler.
 `;
 
-  const text = await generateGeminiText({
-    model: "gemini-2.5-flash",
+  const text = await generateAIText({
+    model: "gpt-5.4-mini",
     prompt,
     responseMimeType: "application/json",
   });

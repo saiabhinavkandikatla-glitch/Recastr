@@ -1,8 +1,7 @@
 // lib/chunking/strategies/fixedSizeStrategy.ts
 
-import { BaseChunkingStrategy } from '../shared/types';
-import { ChunkingResult, ChunkingConfig, ChunkingError } from '../shared/types';
-import { ValidationError } from '../shared/errors';
+import type { BaseChunkingStrategy, Chunk, ChunkingConfig, ChunkingResult } from "../shared/types";
+import { ChunkingError } from "../shared/errors";
 
 export class FixedSizeChunker implements BaseChunkingStrategy {
   /**
@@ -17,22 +16,13 @@ export class FixedSizeChunker implements BaseChunkingStrategy {
 
   async split(text: string, config: ChunkingConfig): Promise<ChunkingResult> {
     try {
-      // Implementation would:
-      // 1. Tokenize the text (using a tokenizer appropriate for the language)
-      // 2. Split the tokens into chunks of size config.targetTokenCount
-      // 3. With overlap of config.overlapTokenCount
-      // 4. Convert tokens back to text
-      // 5. Create Chunk objects with metadata
-
-      // Placeholder implementation
-      const chunks: chunks
-      // This is a skeleton. In a real implementation, we would have actual chunking logic.
+      const chunks = splitByWords(text, config);
       return {
-        chunks: [],
+        chunks,
         metadata: {
-          strategy: 'fixedSize',
+          strategy: "fixedSize",
           config,
-          totalChunks: 0,
+          totalChunks: chunks.length,
           processingTimeMs: 0,
           sourceTextLength: text.length,
         },
@@ -44,8 +34,8 @@ export class FixedSizeChunker implements BaseChunkingStrategy {
       }
       throw new ChunkingError(
         `Fixed size chunking failed: ${error instanceof Error ? error.message : String(error)}`,
-        'CHUNKING_ERROR',
-        false
+        "CHUNKING_ERROR",
+        false,
       );
     }
   }
@@ -56,4 +46,40 @@ export class FixedSizeChunker implements BaseChunkingStrategy {
     const wordCount = text.trim().split(/\s+/).length;
     return Math.round(wordCount * 1.3);
   }
+}
+
+function splitByWords(text: string, config: ChunkingConfig): Chunk[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+
+  const targetWords = Math.max(config.minChunkSize || 50, Math.floor(config.targetTokenCount / 1.3));
+  const overlapWords = Math.max(0, Math.floor(config.overlapTokenCount / 1.3));
+  const step = Math.max(1, targetWords - overlapWords);
+  const chunks: Chunk[] = [];
+  let charCursor = 0;
+
+  for (let startWord = 0; startWord < words.length; startWord += step) {
+    const chunkWords = words.slice(startWord, startWord + targetWords);
+    if (chunkWords.length === 0) break;
+    const chunkText = chunkWords.join(" ");
+    const startOffset = text.indexOf(chunkWords[0], charCursor);
+    const endOffset = startOffset + chunkText.length;
+    charCursor = Math.max(endOffset, charCursor);
+    chunks.push({
+      id: `chunk-${chunks.length + 1}`,
+      text: chunkText,
+      index: chunks.length,
+      tokenCount: Math.round(chunkWords.length * 1.3),
+      wordCount: chunkWords.length,
+      charCount: chunkText.length,
+      startOffset: Math.max(0, startOffset),
+      endOffset: Math.max(0, endOffset),
+      headingPath: [],
+      contentHash: `${startWord}-${chunkText.length}`,
+      metadata: {},
+    });
+    if (startWord + targetWords >= words.length) break;
+  }
+
+  return chunks;
 }

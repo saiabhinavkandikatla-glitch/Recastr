@@ -1,8 +1,7 @@
 // lib/chunking/strategies/paragraphStrategy.ts
 
-import { BaseChunkingStrategy } from '../shared/types';
-import { ChunkingResult, ChunkingConfig, ChunkingError } from '../shared/types';
-import { ValidationError } from '../shared/errors';
+import type { BaseChunkingStrategy, Chunk, ChunkingConfig, ChunkingResult } from "../shared/types";
+import { ChunkingError } from "../shared/errors";
 
 export class ParagraphChunker implements BaseChunkingStrategy {
   /**
@@ -16,20 +15,29 @@ export class ParagraphChunker implements BaseChunkingStrategy {
 
   async split(text: string, config: ChunkingConfig): Promise<ChunkingResult> {
     try {
-      // Implementation would:
-      // 1. Split text into paragraphs (by double newline or similar)
-      // 2. For each paragraph, if it's too large, split it further (e.g., by sentences or fixed size)
-      // 3. Group paragraphs into chunks until reaching the target token count
-      // 4. Apply overlap between chunks if configured
-      // 5. Create Chunk objects with appropriate headingPath (if available)
-
-      // Placeholder
-      const chunks: any[] = [];
+      const paragraphs = text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
+      const chunks: Chunk[] = paragraphs.map((paragraph, index) => {
+        const startOffset = text.indexOf(paragraph);
+        const words = paragraph.split(/\s+/).filter(Boolean);
+        return {
+          id: `paragraph-${index + 1}`,
+          text: paragraph,
+          index,
+          tokenCount: Math.round(words.length * 1.3),
+          wordCount: words.length,
+          charCount: paragraph.length,
+          startOffset,
+          endOffset: startOffset + paragraph.length,
+          headingPath: [],
+          contentHash: `${index}-${paragraph.length}`,
+          metadata: {},
+        };
+      });
 
       return {
         chunks,
         metadata: {
-          strategy: 'paragraph',
+          strategy: "paragraph",
           config,
           totalChunks: chunks.length,
           processingTimeMs: 0,
@@ -43,8 +51,8 @@ export class ParagraphChunker implements BaseChunkingStrategy {
       }
       throw new ChunkingError(
         `Paragraph chunking failed: ${error instanceof Error ? error.message : String(error)}`,
-        'CHUNKING_ERROR',
-        false
+        "CHUNKING_ERROR",
+        false,
       );
     }
   }

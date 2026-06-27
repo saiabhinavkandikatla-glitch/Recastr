@@ -79,19 +79,21 @@ export abstract class BaseFactExtractor {
   }
 
   // This would be implemented in concrete classes
-  abstract extract(chunk: string, config: ExtractionConfig): Promise<ExtractionResult>;
+  abstract extract(chunk: string, config?: Partial<ExtractionConfig>): Promise<ExtractionResult>;
 }
 
 /**
  * Main FactExtractor class that orchestrates the extraction process
  */
 export class FactExtractor extends BaseFactExtractor {
+  protected provider: FactExtractorProvider;
+
   constructor(provider: FactExtractorProvider) {
     super();
     this.provider = provider;
   }
 
-  async extract(chunk: string, config: ExtractionConfig = {}): Promise<ExtractionResult> {
+  async extract(chunk: string, config: Partial<ExtractionConfig> = {}): Promise<ExtractionResult> {
     try {
       // Step 1: Validate input
       validateChunk(chunk);
@@ -111,21 +113,23 @@ export class FactExtractor extends BaseFactExtractor {
       const normalizedChunk = this.normalizeChunk(chunk);
 
       // Step 4: Extract using the provider with retry logic
-      let result: ExtractionResult;
-      let lastError: any;
+      let result: ExtractionResult | null = null;
 
       for (let attempt = 0; attempt <= validatedConfig.maxRetries; attempt++) {
         try {
           result = await this.provider.extract(normalizedChunk, validatedConfig);
           break; // Success, exit retry loop
         } catch (error) {
-          lastError = error;
           if (attempt === validatedConfig.maxRetries) {
             throw error; // Last attempt failed, propagate error
           }
           // Wait before retry (exponential backoff with jitter)
           await this.delay(Math.pow(2, attempt) * 100 + Math.random() * 100);
         }
+      }
+
+      if (!result) {
+        throw new Error("Fact extraction returned no result.");
       }
 
       // Step 5: Validate the provider's result structure

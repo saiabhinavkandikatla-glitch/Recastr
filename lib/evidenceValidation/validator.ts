@@ -1,6 +1,6 @@
 // lib/evidenceValidation/validator.ts
-import { EvidenceValidatorProvider } from './providers';
-import { ValidationResult, ValidationConfig } from './shared/types';
+import type { EvidenceValidatorProvider } from './providers';
+import type { ValidationResult, ValidationConfig } from './shared/types';
 import { validateChunk, validateConfig } from './shared/validators';
 import { normalizeWhitespace, normalizeQuotes, removeBoilerplate, normalizeUnicode } from './shared/normalizers';
 
@@ -21,7 +21,7 @@ export class EvidenceValidator {
    * @param config - Validation configuration
    * @returns Validation result
    */
-  async validate(fact: any, chunk: string, config: ValidationConfig = {}): Promise<ValidationResult> {
+  async validate(fact: any, chunk: string, config: Partial<ValidationConfig> = {}): Promise<ValidationResult> {
     try {
       // Step 1: Validate input
       this.validateInput(fact, chunk);
@@ -43,21 +43,23 @@ export class EvidenceValidator {
       const normalizedChunk = this.normalizeChunk(chunk);
 
       // Step 4: Validate using the provider with retry logic
-      let result: ValidationResult;
-      let lastError: any;
+      let result: ValidationResult | null = null;
 
       for (let attempt = 0; attempt <= validatedConfig.maxRetries; attempt++) {
         try {
           result = await this.provider.validate(fact, normalizedChunk, validatedConfig);
           break; // Success, exit retry loop
         } catch (error) {
-          lastError = error;
           if (attempt === validatedConfig.maxRetries) {
             throw error; // Last attempt failed, propagate error
           }
           // Wait before retry (exponential backoff with jitter)
           await this.delay(Math.pow(2, attempt) * 100 + Math.random() * 100);
         }
+      }
+
+      if (!result) {
+        throw new Error("Evidence validation returned no result.");
       }
 
       // Step 5: Validate the provider's result structure
@@ -307,9 +309,9 @@ export class EvidenceValidator {
   /**
    * Get provider name for error reporting
    */
-  private getProviderName(): string {
+  private getProviderName(): "gemini" | "openai" | "anthropic" {
     // This would ideally come from the provider instance
     // For now, we'll return a generic name
-    return 'unknown';
+    return 'gemini';
   }
 }

@@ -20,30 +20,30 @@ export async function GET() {
     
     // Test getting user if session exists
     let user = null;
-    let userError = null;
+    let userErrorMessage: string | null = null;
     
     if (session) {
       const { data: { user: currentUser }, error: errorUser } = await supabase.auth.getUser();
       user = currentUser;
-      userError = errorUser;
+      userErrorMessage = errorUser?.message ?? null;
     }
     
     return NextResponse.json({
       supabaseCreated: !!supabase,
       session: session ? { ...session, user: undefined } : null, // Don't return user object for security
-      sessionError: sessionError ? sessionError.message : null,
+      sessionError: null,
       user: user ? { email: user.email } : null, // Only return email for security
-      userError: userError ? userError.message : null,
+      userError: userErrorMessage,
       env: {
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? '[PRESENT]' : '[MISSING]',
         NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '[PRESENT]' : '[MISSING]',
       }
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ 
       error: 'Supabase client creation failed', 
-      message: error.message,
-      stack: error.stack
+      message,
     }, { status: 500 });
   }
 }

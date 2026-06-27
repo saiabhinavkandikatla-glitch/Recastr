@@ -10,7 +10,7 @@ import { PricingSection } from "./PricingSection";
 import { FAQSection } from "./FAQSection";
 import { CTASection } from "./CTASection";
 import { Footer } from "./Footer";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { ArrowUp } from "lucide-react";
 
 export function LandingPage() {
@@ -27,7 +27,7 @@ export function LandingPage() {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -37,7 +37,7 @@ export function LandingPage() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };

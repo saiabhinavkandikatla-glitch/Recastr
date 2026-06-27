@@ -1,4 +1,4 @@
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 
 export interface GenerationInsights {
   main_topics: string[];
@@ -48,15 +48,15 @@ function pickOne<T>(arr: T[]): T | null {
 /**
  * Generic helper that logs/validates LLM prompts and handles calls.
  */
-async function generatePostWithGemini(
+async function generatePostWithAI(
   platform: string,
   prompt: string,
   insights: GenerationInsights,
   transcriptLength: number
 ) {
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    throw new Error("Gemini API client not configured.");
+  const aiClient = getAIClient();
+  if (!aiClient) {
+    throw new Error("OpenAI API client not configured.");
   }
 
   // Calculate fact count
@@ -82,8 +82,8 @@ async function generatePostWithGemini(
   console.log(`Fact count: ${factCount}`);
   console.log(`Context length: ${prompt.length}`);
   console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: Gemini`);
-  console.log(`Model: gemini-2.5-flash`);
+  console.log(`Provider: OpenAI`);
+  console.log(`Model: OpenAI configured model`);
   console.log("============================================================================================");
 
   // Validation: If no real facts are present, fail loudly
@@ -91,8 +91,8 @@ async function generatePostWithGemini(
     throw new Error("Prompt validation failed: No real transcript facts/insights supplied. Stopping generation.");
   }
 
-  const text = await generateGeminiText({
-    model: "gemini-2.5-flash",
+  const text = await generateAIText({
+    model: "gpt-5.4-mini",
     prompt,
   });
 
@@ -130,7 +130,7 @@ RULES:
 Output ONLY the tweet text. No quotes around it, no label, no preamble.
 `;
 
-  return generatePostWithGemini("TWITTER", prompt, insights, transcriptLength);
+  return generatePostWithAI("TWITTER", prompt, insights, transcriptLength);
 }
 
 /**
@@ -170,7 +170,7 @@ TWEET_2: 1/ [content]
 Output ONLY the tweets in this format.
 `;
 
-  return generatePostWithGemini("TWITTER_THREAD", prompt, insights, transcriptLength);
+  return generatePostWithAI("TWITTER_THREAD", prompt, insights, transcriptLength);
 }
 
 /**
@@ -201,7 +201,7 @@ RULES:
 Output ONLY the post. No label, no preamble.
 `;
 
-  return generatePostWithGemini("LINKEDIN", prompt, insights, transcriptLength);
+  return generatePostWithAI("LINKEDIN", prompt, insights, transcriptLength);
 }
 
 /**
@@ -233,7 +233,7 @@ RULES:
 OUTPUT ONLY THE CAPTION. NO PREAMBLE.
 `;
 
-  return generatePostWithGemini("INSTAGRAM", prompt, insights, transcriptLength);
+  return generatePostWithAI("INSTAGRAM", prompt, insights, transcriptLength);
 }
 
 /**
@@ -264,7 +264,7 @@ OUTPUT ONLY THE SLIDES. NO PREAMBLE.
 TONE: ${toneInstruction}
 `;
 
-  return generatePostWithGemini("CAROUSEL", prompt, insights, transcriptLength);
+  return generatePostWithAI("CAROUSEL", prompt, insights, transcriptLength);
 }
 
 /**
@@ -288,7 +288,7 @@ RULES:
 OUTPUT ONLY THE POST. NO PREAMBLE.
 `;
 
-  return generatePostWithGemini("FACEBOOK", prompt, insights, transcriptLength);
+  return generatePostWithAI("FACEBOOK", prompt, insights, transcriptLength);
 }
 
 /**
@@ -312,7 +312,7 @@ RULES:
 OUTPUT ONLY THE POST. NO PREAMBLE.
 `;
 
-  return generatePostWithGemini("COMMUNITY", prompt, insights, transcriptLength);
+  return generatePostWithAI("COMMUNITY", prompt, insights, transcriptLength);
 }
 
 /**
@@ -357,5 +357,5 @@ RULES:
 OUTPUT ONLY THE SCRIPT. NO PREAMBLE. NO OTHER LABELS.
 `;
 
-  return generatePostWithGemini("REEL_SCRIPT", prompt, insights, transcriptLength);
+  return generatePostWithAI("REEL_SCRIPT", prompt, insights, transcriptLength);
 }

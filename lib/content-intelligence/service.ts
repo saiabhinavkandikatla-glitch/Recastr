@@ -1,4 +1,4 @@
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import {
   ExtractedInsight,
   InsightKind,
@@ -26,9 +26,9 @@ export class ContentIntelligenceService {
     insights: ExtractedInsight[];
     rawExtractions: Record<string, any>;
   }> {
-    const gemini = getGeminiClient();
-    if (!gemini) {
-      throw new Error("Gemini API key not configured");
+    const aiClient = getAIClient();
+    if (!aiClient) {
+      throw new Error("OpenAI API key not configured");
     }
 
     const transcriptWords = transcript.split(/\s+/).filter(Boolean).length;
@@ -105,12 +105,12 @@ Return JSON in this exact format:
           "Facts: 0 before extraction",
           "Validated facts: 0 before extraction",
           `Prompt size: ${prompt.length}`,
-          "Model: gemini-2.5-flash",
-          "Provider: Gemini",
+          "Model: OpenAI configured model",
+          "Provider: OpenAI",
         ].join("\n"),
       );
-      const text = await generateGeminiText({
-        model: "gemini-2.5-flash",
+      const text = await generateAIText({
+        model: "gpt-5.4-mini",
         prompt,
         responseMimeType: "application/json",
       });
@@ -210,8 +210,8 @@ Return JSON in this exact format:
       });
     });
 
-    // If we have Gemini, use it to find relationships between insights
-    if (getGeminiClient() && insights.length > 1) {
+    // If we have OpenAI, use it to find relationships between insights
+    if (getAIClient() && insights.length > 1) {
       try {
         const relationships = await this.discoverInsightRelationships(insights);
         edges.push(...relationships);
@@ -229,11 +229,11 @@ Return JSON in this exact format:
   }
 
   /**
-   * Use Gemini to discover relationships between insights
+   * Use OpenAI to discover relationships between insights
    */
   private async discoverInsightRelationships(insights: ExtractedInsight[]): Promise<KnowledgeGraphEdge[]> {
-    const gemini = getGeminiClient();
-    if (!gemini) return [];
+    const aiClient = getAIClient();
+    if (!aiClient) return [];
 
     // Prepare insights for analysis
     const insightSummaries = insights.map(i => ({
@@ -274,8 +274,8 @@ Return JSON in this exact format:
     `;
 
     try {
-      const text = await generateGeminiText({
-        model: "gemini-2.5-flash",
+      const text = await generateAIText({
+        model: "gpt-5.4-mini",
         prompt,
         responseMimeType: "application/json",
       });
@@ -434,31 +434,89 @@ Return JSON in this exact format:
     insights: ExtractedInsight[],
     knowledgeGraph: KnowledgeGraph
   ): string {
-    // Sort insights by score (weight) descending
-    const sortedInsights = [...insights].sort((a, b) => b.score - a.score);
-
-    // Take top insights for context
-    const topInsights = sortedInsights.slice(0, Math.min(10, sortedInsights.length));
-
-    // Build context string
-    const contextParts = [
-      `KEY INSIGHTS FROM SOURCE MATERIAL:`,
-      topInsights.map(insight =>
-        `- [${insight.kind.toUpperCase()}] ${insight.title}: ${insight.text}\n  Evidence: ${insight.evidence || "missing"}`
-      ).join("\n"),
-      "",
-      `KNOWLEDGE GRAPH CONNECTIONS:`,
-      knowledgeGraph.edges.slice(0, 20).map(edge => {
-        const fromNode = knowledgeGraph.nodes.find(n => n.id === edge.from);
-        const toNode = knowledgeGraph.nodes.find(n => n.id === edge.to);
-        if (fromNode && toNode) {
-          return `- ${fromNode.label} ${edge.relation} ${toNode.label} (weight: ${edge.weight})`;
+    // Select diverse set of insights for context
+    // Sort by score descending
+    const scored = [...insights].sort((a, b) => b.score - a.score);
+    const selectedIds = new Set<string>();
+    const selected: ExtractedInsight[] = [];
+    // First, pick up to 2 per category for diversity
+    const perCategory = new Map();
+    for (const cat of CONTENT_CATEGORIES) {
+        perCategory.set(cat, 0);
+    }
+    for (const ins of scored) {
+        const cat = ins.category;
+        const cnt = (perCategory.get(cat) ?? 0);
+        if (cnt < 2) {
+            selected.push(ins);
+            selectedIds.add(ins.id);
+            perCategory.set(cat, cnt + 1);
         }
-        return "";
-      }).filter(Boolean).join("\n")
-    ];
-
-    return contextParts.join("\n");
+    }
+    // Then fill with highest-scoring remaining up to limit
+    const maxTotal = 20;
+    for (const ins of scored) {
+        if (selected.length >= maxTotal) break;
+        if (!selectedIds.has(ins.id)) {
+            selected.push(ins);
+            selectedIds.add(ins.id);
+        }
+    }
+    // Expand to include immediate neighbors in knowledge graph (1 hop) to preserve connections
+    const neighborIds = new Set<string>();
+    for (const edge of knowledgeGraph.edges) {
+        if (selectedIds.has(edge.from)) neighborIds.add(edge.to);
+        if (selectedIds.has(edge.to)) neighborIds.add(edge.from);
+    }
+    for (const id of neighborIds) {
+        if (!selectedIds.has(id)) {
+            const neighbor = insights.find(i => i.id === id);
+            if (neighbor) {
+                selected.push(neighbor);
+                selectedIds.add(id);
+                if (selected.length >= maxTotal) break;
+            }
+        }
+    }
+    // Build context lines
+    const lines: string[] = [];
+    lines.push(`KEY INSIGHTS FROM SOURCE MATERIAL:`);
+    for (const ins of selected) {
+        const text = ins.text.length > 200 ? ins.text.substring(0, 200) + "..." : ins.text;
+        const evidence = (ins.evidence ?? "").length > 150 ? (ins.evidence!.substring(0, 150) + "...") : (ins.evidence ?? "(no evidence)");
+        lines.push(`- [${ins.kind.toUpperCase()}] ${ins.title}: ${text}`);
+        lines.push(`  Evidence: ${evidence}`);
+    }
+    if (selected.length > 0) {
+        lines.push("");
+        lines.push(`KNOWLEDGE GRAPH CONNECTIONS:`);
+        const edgeLines: string[] = [];
+        for (const edge of knowledgeGraph.edges) {
+            if (selectedIds.has(edge.from) && selectedIds.has(edge.to)) {
+                const fromNode = knowledgeGraph.nodes.find(n => n.id === edge.from);
+                const toNode = knowledgeGraph.nodes.find(n => n.id === edge.to);
+                if (fromNode && toNode) {
+                    edgeLines.push(`- ${fromNode.label} ${edge.relation} ${toNode.label} (weight: ${edge.weight})`);
+                }
+            }
+        }
+        const maxEdges = 15;
+        for (let i = 0; i < Math.min(edgeLines.length, maxEdges); i++) {
+            lines.push(edgeLines[i]);
+        }
+    }
+    // Join and enforce length limit to keep prompt size reasonable
+    let context = lines.join("\\n");
+    const maxChars = 1800; // approx ~450 tokens
+    if (context.length > maxChars) {
+        context = context.substring(0, maxChars);
+        const lastNewline = context.lastIndexOf("\\n");
+        if (lastNewline > 0) {
+            context = context.substring(0, lastNewline);
+        }
+    }
+    console.log(`[Context] Selected insights: ${selected.length}, approx. chars: ${context.length}`);
+    return context;
   }
 
   /**
@@ -471,9 +529,9 @@ Return JSON in this exact format:
     tone: string,
     insights: ExtractedInsight[]
   ): Promise<string | null> {
-    const gemini = getGeminiClient();
-    if (!gemini) {
-      throw new Error("Gemini API key not configured");
+    const aiClient = getAIClient();
+    if (!aiClient) {
+      throw new Error("OpenAI API key not configured");
     }
 
     // Platform-specific prompts
@@ -506,13 +564,13 @@ Return JSON in this exact format:
         `Facts: ${insights.length}`,
         `Validated facts: ${insights.filter((insight) => Boolean(insight.evidence || insight.text)).length}`,
         `Prompt size: ${prompt.length}`,
-        "Model: gemini-2.5-flash",
-        "Provider: Gemini",
+        "Model: OpenAI configured model",
+        "Provider: OpenAI",
       ].join("\n"),
     );
 
-    return generateGeminiText({
-      model: "gemini-2.5-flash",
+    return generateAIText({
+      model: "gpt-5.4-mini",
       prompt,
       temperature: 0.7,
       maxOutputTokens: 1000,
@@ -774,7 +832,7 @@ OUTPUT ONLY THE CONTENT.`;
   }
 
   /**
-   * Fallback content generation when Gemini is not available
+   * Fallback content generation when OpenAI is not available
    */
   private fallbackPlatformContent(platform: string, category: ContentCategory, insights: ExtractedInsight[]): string {
     if (insights.length === 0) return "No insights available for content generation.";
@@ -865,8 +923,8 @@ OUTPUT ONLY THE CONTENT.`;
 
     const averageScore = scoredCount > 0 ? totalScore / scoredCount : 0;
 
-    // Regenerate rejected content if we have Gemini
-    if (getGeminiClient() && rejected.length > 0) {
+    // Regenerate rejected content if we have OpenAI
+    if (getAIClient() && rejected.length > 0) {
       const regenerated = await this.regeneratePoorContent(rejected, minScore);
       accepted.push(...regenerated.accepted);
       // Update rejected to only include those that failed regeneration
@@ -884,9 +942,9 @@ OUTPUT ONLY THE CONTENT.`;
    * Score content quality on multiple dimensions
    */
   private async scoreContentQuality(draft: ContentDraft): Promise<QualityScores> {
-    const gemini = getGeminiClient();
-    if (!gemini) {
-      throw new Error("Gemini API key not configured");
+    const aiClient = getAIClient();
+    if (!aiClient) {
+      throw new Error("OpenAI API key not configured");
     }
 
     const prompt = `
@@ -919,8 +977,8 @@ Return ONLY a JSON object in this exact format:
 }
     `;
 
-    const text = await generateGeminiText({
-      model: "gemini-2.5-flash",
+    const text = await generateAIText({
+      model: "gpt-5.4-mini",
       prompt,
       responseMimeType: "application/json",
     });

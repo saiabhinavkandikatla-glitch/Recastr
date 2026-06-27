@@ -31,7 +31,7 @@ type GeneratorState = {
 const GeneratorContext = createContext<GeneratorState | null>(null);
 
 class GeneratorErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
-  state = { hasError: false, error: null };
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error) {
     console.error('[ERROR BOUNDARY] Caught render error:', error);

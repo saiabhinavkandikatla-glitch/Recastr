@@ -1,5 +1,7 @@
 // lib/factExtraction/shared/types.ts
 
+import type { ExtractionError } from "./errors";
+
 // Base fact interface
 export interface Fact {
   id: string;
@@ -16,6 +18,8 @@ export interface Fact {
   promptVersion: string;
   createdAt: string; // ISO timestamp
 }
+
+export type ExtractedFact = Fact;
 
 // Quote extends Fact
 export interface Quote extends Fact {

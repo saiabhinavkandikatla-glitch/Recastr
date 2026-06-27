@@ -1,8 +1,7 @@
 // lib/chunking/strategies/semanticStrategy.ts
 
-import { BaseChunkingStrategy } from '../shared/types';
-import { ChunkingResult, ChunkingConfig, ChunkingError } from '../shared/types';
-import { ValidationError } from '../shared/errors';
+import type { BaseChunkingStrategy, Chunk, ChunkingConfig, ChunkingResult } from "../shared/types";
+import { ChunkingError } from "../shared/errors";
 
 export class SemanticChunker implements BaseChunkingStrategy {
   /**
@@ -17,24 +16,26 @@ export class SemanticChunker implements BaseChunkingStrategy {
 
   async split(text: string, config: ChunkingConfig): Promise<ChunkingResult> {
     try {
-      // Implementation would:
-      // 1. Split text into sentences (using a sentence tokenizer)
-      // 2. Optionally, split into paragraphs first if preserveParagraphs is true
-      // 3. Compute semantic embeddings for each sentence (using a model like sentence-transformers)
-      // 4. Use a clustering algorithm (e.g., agglomerative clustering) to group sentences into chunks
-      //    such that each chunk has a target size in tokens and high internal coherence.
-      // 5. Ensure that chunks do not violate hard constraints (e.g., if a paragraph is a hard boundary,
-      //    do not split it; if a heading boundary is a hard boundary, do not cross it).
-      // 6. Apply overlap between chunks if configured (e.g., include the last sentence of the previous chunk)
-      // 7. For each chunk, compute the heading path by looking at the nearest heading above the chunk.
+      const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+      const maxWords = Math.max(config.minChunkSize || 80, Math.floor(config.targetTokenCount / 1.3));
+      const chunks: Chunk[] = [];
+      let current: string[] = [];
 
-      // Placeholder
-      const chunks: any[] = [];
+      for (const sentence of sentences) {
+        const currentWords = current.join(" ").split(/\s+/).filter(Boolean).length;
+        const sentenceWords = sentence.split(/\s+/).filter(Boolean).length;
+        if (current.length && currentWords + sentenceWords > maxWords) {
+          chunks.push(createSemanticChunk(text, current.join(" "), chunks.length));
+          current = [];
+        }
+        current.push(sentence);
+      }
+      if (current.length) chunks.push(createSemanticChunk(text, current.join(" "), chunks.length));
 
       return {
         chunks,
         metadata: {
-          strategy: 'semantic',
+          strategy: "semantic",
           config,
           totalChunks: chunks.length,
           processingTimeMs: 0,
@@ -48,8 +49,8 @@ export class SemanticChunker implements BaseChunkingStrategy {
       }
       throw new ChunkingError(
         `Semantic chunking failed: ${error instanceof Error ? error.message : String(error)}`,
-        'CHUNKING_ERROR',
-        false
+        "CHUNKING_ERROR",
+        false,
       );
     }
   }
@@ -59,4 +60,22 @@ export class SemanticChunker implements BaseChunkingStrategy {
     const wordCount = text.trim().split(/\s+/).length;
     return Math.round(wordCount * 1.3);
   }
+}
+
+function createSemanticChunk(source: string, chunkText: string, index: number): Chunk {
+  const startOffset = source.indexOf(chunkText);
+  const words = chunkText.split(/\s+/).filter(Boolean);
+  return {
+    id: `semantic-${index + 1}`,
+    text: chunkText,
+    index,
+    tokenCount: Math.round(words.length * 1.3),
+    wordCount: words.length,
+    charCount: chunkText.length,
+    startOffset,
+    endOffset: startOffset + chunkText.length,
+    headingPath: [],
+    contentHash: `${index}-${chunkText.length}`,
+    metadata: {},
+  };
 }

@@ -19,9 +19,11 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const type = error instanceof Error ? error.constructor.name : typeof error;
     return NextResponse.json({ 
-      error: error.message || 'Unknown error',
-      type: error.constructor.name
+      error: message,
+      type
     }, { status: 500 });
   }
 }

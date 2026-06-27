@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import {
   briefFromSummary,
   briefFromTranscript,
@@ -59,13 +59,13 @@ const toneInstructions: Record<Tone, string> = {
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
   const localSummary = summaryFromBrief(briefFromTranscript(transcript));
   
-  if (!env.geminiKey) return localSummary;
+  if (!env.openaiKey) return localSummary;
 
   try {
     const brief = await extractBrief(transcript, "Source content");
     return summaryFromBrief(brief);
   } catch (error) {
-    console.error("Gemini API Error (summarizeTranscript), falling back to local summary:", error);
+    console.error("OpenAI API Error (summarizeTranscript), falling back to local summary:", error);
     return localSummary;
   }
 }
@@ -97,7 +97,10 @@ export async function generatePlatformOutputs({
     );
   }
 
-  const brief = await extractBrief(source.transcript, title);
+  const brief = await extractBrief(source.transcript, title).catch((error) => {
+    console.error("Brief extraction provider failed, using transcript-grounded fallback:", error);
+    return briefFromTranscript(source.transcript);
+  });
   const groundedBrief = groundBriefInSource(brief, title, source.transcript, source.summary);
 
   const posts = await generateAllPosts({
@@ -124,8 +127,8 @@ export async function generatePlatformOutputs({
 
 /** Step 1 — internal brief extraction. Never shown to user. */
 export async function extractBrief(transcript: string, title: string): Promise<GenerationBrief> {
-  const gemini = getGeminiClient();
-  if (!gemini) throw new Error("Gemini API client not configured.");
+  const aiClient = getAIClient();
+  if (!aiClient) return briefFromTranscript(transcript);
 
   const source = truncateWords(transcript, 5000);
   const prompt = extractBriefPrompt(source, title);
@@ -137,12 +140,12 @@ export async function extractBrief(transcript: string, title: string): Promise<G
   console.log(`Fact count: N/A (Brief extraction)`);
   console.log(`Context length: ${prompt.length}`);
   console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: Gemini`);
-  console.log(`Model: gemini-2.5-flash`);
+  console.log(`Provider: OpenAI`);
+  console.log(`Model: OpenAI configured model`);
   console.log("============================================================================================");
 
-  const text = await generateGeminiText({
-    model: "gemini-2.5-flash",
+  const text = await generateAIText({
+    model: "gpt-5.4-mini",
     prompt,
     temperature: 0.25,
     responseMimeType: "application/json",
@@ -200,8 +203,8 @@ async function writePlatformPost({
   isRegeneration?: boolean;
   transcriptLength: number;
 }) {
-  const gemini = getGeminiClient();
-  if (!gemini) throw new Error("Gemini API client not configured.");
+  const aiClient = getAIClient();
+  if (!aiClient) throw new Error("OpenAI API client not configured.");
 
   let prompt = platformWriterPrompt(platform, brief, title);
 
@@ -229,8 +232,8 @@ async function writePlatformPost({
   console.log(`Fact count: ${factCount}`);
   console.log(`Context length: ${prompt.length}`);
   console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: Gemini`);
-  console.log(`Model: gemini-2.5-flash`);
+  console.log(`Provider: OpenAI`);
+  console.log(`Model: OpenAI configured model`);
   console.log("============================================================================================");
 
   // Validation: If no real facts are present, fail loudly
@@ -238,14 +241,19 @@ async function writePlatformPost({
     throw new Error("Prompt validation failed: No real transcript facts/insights supplied. Stopping generation.");
   }
 
-  const text = await generateGeminiText({
-    model: "gemini-2.5-flash",
-    prompt,
-    systemInstruction: CONTENT_WRITER_SYSTEM_PROMPT,
-    temperature: 0.85,
-  });
+  try {
+    const text = await generateAIText({
+      model: "gpt-5.4-mini",
+      prompt,
+      systemInstruction: CONTENT_WRITER_SYSTEM_PROMPT,
+      temperature: 0.85,
+    });
 
-  return cleanupPost(text);
+    return cleanupPost(text);
+  } catch (error) {
+    console.error(`Platform generation provider failed for ${platform}, using transcript-grounded fallback:`, error);
+    return writeLocalPlatformPost(platform, brief);
+  }
 }
 
 async function generateWithRetry(platform: Platform, title: string, generateFn: () => Promise<string>) {
@@ -336,15 +344,15 @@ function groundBriefInSource(
   const fallback = briefFromTranscript(evidenceText);
 
   return {
-    core_promise: useIfNotTitleEcho(brief.core_promise, fallback.core_promise, title),
-    pain_point: useIfNotTitleEcho(brief.pain_point, fallback.pain_point, title),
+    core_promise: keepIfNotTitleEcho(brief.core_promise, fallback.core_promise, title),
+    pain_point: keepIfNotTitleEcho(brief.pain_point, fallback.pain_point, title),
     key_steps: brief.key_steps.map((step, index) =>
-      useIfNotTitleEcho(step, fallback.key_steps[index] ?? fallback.core_promise, title),
+      keepIfNotTitleEcho(step, fallback.key_steps[index] ?? fallback.core_promise, title),
     ),
-    hook_angle: useIfNotTitleEcho(brief.hook_angle, fallback.hook_angle, title),
-    target_audience: useIfNotTitleEcho(brief.target_audience, fallback.target_audience, title),
-    cta: useIfNotTitleEcho(brief.cta, fallback.cta, title),
-    specific_detail: useIfNotTitleEcho(
+    hook_angle: keepIfNotTitleEcho(brief.hook_angle, fallback.hook_angle, title),
+    target_audience: keepIfNotTitleEcho(brief.target_audience, fallback.target_audience, title),
+    cta: keepIfNotTitleEcho(brief.cta, fallback.cta, title),
+    specific_detail: keepIfNotTitleEcho(
       brief.specific_detail ?? "",
       fallback.specific_detail ?? fallback.key_steps[0] ?? fallback.core_promise,
       title,
@@ -352,7 +360,7 @@ function groundBriefInSource(
   };
 }
 
-function useIfNotTitleEcho(value: string, fallback: string, title: string) {
+function keepIfNotTitleEcho(value: string, fallback: string, title: string) {
   const trimmed = value.trim();
   if (!trimmed || echoesTitle(trimmed, title)) return fallback;
   return trimmed;
@@ -409,6 +417,68 @@ function normalizeToneName(tone: Tone | string | undefined) {
 
 function truncateWords(value: string, words: number) {
   return value.split(/\s+/).slice(0, words).join(" ");
+}
+
+function writeLocalPlatformPost(platform: Platform, brief: GenerationBrief) {
+  const steps = brief.key_steps.filter(Boolean).slice(0, 3);
+  const detail = brief.specific_detail ?? steps[2] ?? brief.core_promise;
+
+  switch (platform) {
+    case "TWITTER":
+      return [
+        `1/ ${brief.hook_angle}`,
+        `2/ ${brief.core_promise}`,
+        `3/ ${steps[0] ?? detail}`,
+        `4/ ${steps[1] ?? detail}`,
+        `5/ ${steps[2] ?? detail}`,
+        `6/ ${brief.cta}`,
+      ].join("\n---\n");
+    case "LINKEDIN":
+      return [
+        brief.hook_angle,
+        "",
+        brief.core_promise,
+        "",
+        ...steps.map((step) => `- ${step}`),
+        "",
+        `The useful detail: ${detail}`,
+        "",
+        brief.cta,
+      ].join("\n");
+    case "INSTAGRAM":
+      return [
+        brief.hook_angle,
+        "",
+        brief.core_promise,
+        "",
+        ...steps.map((step) => `-> ${step}`),
+        "",
+        `Save this: ${detail}`,
+      ].join("\n");
+    case "CAROUSEL":
+      return [
+        `SLIDE 1: ${brief.hook_angle}`,
+        "---",
+        `SLIDE 2: ${steps[0] ?? brief.core_promise}`,
+        "---",
+        `SLIDE 3: ${steps[1] ?? detail}`,
+        "---",
+        `SLIDE 4: ${steps[2] ?? detail}`,
+        "---",
+        `SLIDE 5: ${brief.cta}`,
+      ].join("\n");
+    case "COMMUNITY":
+      return `${brief.hook_angle}\n\n${brief.core_promise}\n\nA) ${steps[0] ?? detail}\nB) ${steps[1] ?? detail}\nC) ${steps[2] ?? detail}\nD) ${brief.cta}`;
+    case "HOOKS":
+      return [brief.hook_angle, brief.core_promise, brief.pain_point, detail, ...steps].join("\n---\n");
+    case "CTA":
+      return [brief.cta, `Save this if you need: ${detail}`, `Try this next: ${steps[0] ?? detail}`, `Share this with ${brief.target_audience}`].join("\n---\n");
+    case "FACEBOOK":
+    case "THREADS":
+    case "STORY":
+    default:
+      return [brief.hook_angle, "", brief.core_promise, "", ...steps, "", brief.cta].join("\n");
+  }
 }
 
 // Re-export for tests

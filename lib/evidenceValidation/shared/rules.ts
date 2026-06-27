@@ -5,20 +5,7 @@
  * Implements specific validation rules that must be satisfied for a fact to be considered valid
  */
 
-import { ValidationRule } from './types';
-
-/**
- * Base validation rule interface
- */
-export interface ValidationRule {
-  id: string;
-  description: string;
-  validate: (fact: any, chunk: string, matchData: any) => {
-    passed: boolean;
-    score: number; // 0.0 to 1.0
-    reason: string;
-  };
-}
+import type { ValidationRule } from "./types";
 
 /**
  * Rule: Exact evidence must exist in the source chunk
@@ -27,6 +14,7 @@ export const ExactEvidenceRule: ValidationRule = {
   id: 'exact-evidence',
   description: 'The exact evidence text must be present in the source chunk',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (!match || !match.matchedText) {
       return {
         passed: false,
@@ -63,6 +51,7 @@ export const QuoteVerbatimRule: ValidationRule = {
   id: 'quote-verbatim',
   description: 'Quoted text must match exactly (verbatim)',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (fact.factType !== 'quote') {
       return {
         passed: true,
@@ -107,6 +96,7 @@ export const NumericExactMatchRule: ValidationRule = {
   id: 'numeric-exact',
   description: 'Statistical values and units must match exactly',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (fact.factType !== 'statistic') {
       return {
         passed: true,
@@ -170,6 +160,7 @@ export const DateExactMatchRule: ValidationRule = {
   id: 'date-exact',
   description: 'Date references must match exactly',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (fact.factType !== 'date') {
       return {
         passed: true,
@@ -222,6 +213,7 @@ export const EntityExactMatchRule: ValidationRule = {
   id: 'entity-exact',
   description: 'Named entity text must match exactly',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (fact.factType !== 'entity') {
       return {
         passed: true,
@@ -296,6 +288,7 @@ export const NoFabricationRule: ValidationRule = {
   id: 'no-fabrication',
   description: 'Facts must not be fabricated - must have evidence support',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (!match || !match.matchedText) {
       return {
         passed: false,
@@ -320,6 +313,7 @@ export const ContextAppropriatenessRule: ValidationRule = {
   id: 'context-appropriateness',
   description: 'Fact must be appropriately contextualized in source',
   validate: (fact: any, chunk: string, matchData: any) => {
+    const match = matchData;
     if (!match || !match.matchedText) {
       return {
         passed: false,

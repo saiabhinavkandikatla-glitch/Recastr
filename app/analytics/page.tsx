@@ -203,6 +203,7 @@ function StatsCard({
 }) {
   const absoluteChange = change ? `${change > 0 ? "+" : ""}${change}%` : null;
   const bgColor = change ? (change > 0 ? "bg-green-500/20" : "bg-red-500/20") : "bg-[var(--app-line)]/20";
+  const changeColor = change && change > 0 ? "text-green-400" : "text-red-400";
 
   return (
     <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6">
@@ -212,7 +213,7 @@ function StatsCard({
           <h3 className="text-sm font-medium text-white">{label}</h3>
         </div>
         {absoluteChange && (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${bgColor} text-[${change > 0 ? "green" : "red"}]`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${bgColor} ${changeColor}`}>
             {absoluteChange}
           </span>
         )}

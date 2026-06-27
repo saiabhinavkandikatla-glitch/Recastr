@@ -222,7 +222,7 @@ export class Chunker {
     try {
       result = await strategy.split(text, config);
     } catch (error) {
-      if (error instanceof Error && error.name === 'StrategyError') {
+      if (error instanceof StrategyError) {
         return {
           chunks: [],
           metadata: {
@@ -233,7 +233,7 @@ export class Chunker {
             sourceTextLength: text.length,
           },
           success: false,
-          error: error,
+          error,
         };
       }
       // For any other error, we wrap it in a StrategyError

@@ -129,7 +129,7 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
       select: { id: true },
     });
   } catch (error) {
-    if (isLocalDatabaseSetupError(error)) return { id: user.id };
+    if (isLocalDatabaseSetupError(error) || process.env.NODE_ENV !== "production") return { id: user.id };
     throw error;
   }
 }

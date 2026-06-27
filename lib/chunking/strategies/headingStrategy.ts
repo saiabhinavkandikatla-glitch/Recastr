@@ -1,8 +1,7 @@
 // lib/chunking/strategies/headingStrategy.ts
 
-import { BaseChunkingStrategy } from '../shared/types';
-import { ChunkingResult, ChunkingConfig, ChunkingError } from '../shared/types';
-import { ValidationError } from '../shared/errors';
+import type { BaseChunkingStrategy, Chunk, ChunkingConfig, ChunkingResult } from "../shared/types";
+import { ChunkingError } from "../shared/errors";
 
 export class HeadingChunker implements BaseChunkingStrategy {
   /**
@@ -17,22 +16,34 @@ export class HeadingChunker implements BaseChunkingStrategy {
 
   async split(text: string, config: ChunkingConfig): Promise<ChunkingResult> {
     try {
-      // Implementation would:
-      // 1. Parse the text to identify headings (e.g., lines starting with # for markdown, or HTML headers)
-      // 2. Build a hierarchy of headings
-      // 3. Split the text into sections based on headings
-      // 4. For each section, if it's too large, break it down further (e.g., by paragraphs or fixed size)
-      // 5. Group sections into chunks while respecting the target size and heading boundaries
-      // 6. For each chunk, record the heading path (e.g., ['Introduction', 'Background'])
-      // 7. Apply overlap between chunks if configured (e.g., overlap by a few lines or a percentage)
-
-      // Placeholder
-      const chunks: any[] = [];
+      const sections = text
+        .split(/(?=^#{1,6}\s+)/m)
+        .map((section) => section.trim())
+        .filter(Boolean);
+      const sourceSections = sections.length ? sections : [text.trim()].filter(Boolean);
+      const chunks: Chunk[] = sourceSections.map((section, index) => {
+        const heading = section.match(/^#{1,6}\s+(.+)$/m)?.[1]?.trim();
+        const startOffset = text.indexOf(section);
+        const words = section.split(/\s+/).filter(Boolean);
+        return {
+          id: `heading-${index + 1}`,
+          text: section,
+          index,
+          tokenCount: Math.round(words.length * 1.3),
+          wordCount: words.length,
+          charCount: section.length,
+          startOffset,
+          endOffset: startOffset + section.length,
+          headingPath: heading ? [heading] : [],
+          contentHash: `${index}-${section.length}`,
+          metadata: {},
+        };
+      });
 
       return {
         chunks,
         metadata: {
-          strategy: 'heading',
+          strategy: "heading",
           config,
           totalChunks: chunks.length,
           processingTimeMs: 0,
@@ -46,8 +57,8 @@ export class HeadingChunker implements BaseChunkingStrategy {
       }
       throw new ChunkingError(
         `Heading chunking failed: ${error instanceof Error ? error.message : String(error)}`,
-        'CHUNKING_ERROR',
-        false
+        "CHUNKING_ERROR",
+        false,
       );
     }
   }

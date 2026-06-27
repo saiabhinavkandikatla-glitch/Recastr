@@ -42,7 +42,6 @@ export function extractVideoId(value: string): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   
-  // If it's already a clean 11-character video ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
     return trimmed;
   }
@@ -62,7 +61,6 @@ export function extractVideoId(value: string): string | null {
       if (directId && directId.length === 11) return directId;
       
       const parts = parsed.pathname.split("/").filter(Boolean);
-      // Handles /embed/ID, /shorts/ID, /live/ID, /v/ID
       if (["embed", "shorts", "live", "v"].includes(parts[0])) {
         const id = parts[1] ?? "";
         if (id.length === 11) return id;
@@ -72,7 +70,6 @@ export function extractVideoId(value: string): string | null {
     // Ignore URL parsing errors and fall back to regex matching
   }
   
-  // Fallback regex matching for all known formats
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/(?:embed|shorts|live|v)\/)([a-zA-Z0-9_-]{11})/i,
     /([a-zA-Z0-9_-]{11})/
@@ -96,7 +93,7 @@ export function normalizeYoutubeUrl(url: string): string {
 
 /**
  * Fetches a real YouTube transcript using a robust retry and fallback mechanism.
- * Never swallows exceptions silently. Logs all required metrics for each stage.
+ * Uses Promise.any for lightweight fallbacks to prevent Vercel 10-second timeouts.
  */
 export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
   const normalizedUrl = normalizeYoutubeUrl(videoIdOrUrl);
@@ -111,39 +108,50 @@ export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
 
   const errors: Array<{ provider: string; error: string; code: string }> = [];
 
-  // Provider 1: Supadata (canonical)
+  // Provider 1: Supadata (canonical, if key exists)
   if (env.supadataKey) {
     try {
       return await fetchSupadataTranscriptWithRetry(normalizedUrl, videoId);
     } catch (e: any) {
       const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
       errors.push({ provider: "supadata", error: e.message || String(e), code });
-      console.warn(`[Transcript Pipeline] Supadata failed. Code: ${code}. Trying next fallback provider...`);
+      console.warn(`[Transcript Pipeline] Supadata failed. Code: ${code}. Trying fallbacks...`);
     }
   } else {
     console.log(`[Transcript Pipeline] Supadata API key is not configured, skipping.`);
     errors.push({ provider: "supadata", error: "SUPADATA_API_KEY is not configured", code: "INVALID_API_KEY" });
   }
 
-  // Provider 2: youtube-transcript package
+  let transcript: string | null = null;
+
+  // Provider 2 & 3: Run lightweight providers in parallel to avoid Vercel 10s timeout
+  console.log(`[Transcript Pipeline] Running lightweight fallbacks (youtube-transcript & scrape-watch-page) concurrently...`);
+  const lightweightPromises = [
+    fetchWithYoutubeTranscriptLib(videoId, normalizedUrl).catch(e => {
+      const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
+      const errObj = { provider: "youtube-transcript", error: e.message || String(e), code };
+      errors.push(errObj);
+      throw errObj;
+    }),
+    scrapeWatchPageCaptions(videoId, normalizedUrl).catch(e => {
+      const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
+      const errObj = { provider: "scrape-watch-page", error: e.message || String(e), code };
+      errors.push(errObj);
+      throw errObj;
+    })
+  ];
+
   try {
-    return await fetchWithYoutubeTranscriptLib(videoId, normalizedUrl);
-  } catch (e: any) {
-    const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
-    errors.push({ provider: "youtube-transcript", error: e.message || String(e), code });
-    console.warn(`[Transcript Pipeline] youtube-transcript package failed. Code: ${code}. Trying next fallback provider...`);
+    transcript = await Promise.any(lightweightPromises);
+  } catch (aggregateError) {
+    console.warn(`[Transcript Pipeline] All lightweight fallbacks failed. Checking yt-dlp...`);
   }
 
-  // Provider 3: Scrape watch page captions
-  try {
-    return await scrapeWatchPageCaptions(videoId, normalizedUrl);
-  } catch (e: any) {
-    const code = e instanceof TranscriptError ? e.code : "TRANSCRIPT_UNAVAILABLE";
-    errors.push({ provider: "scrape-watch-page", error: e.message || String(e), code });
-    console.warn(`[Transcript Pipeline] scrapeWatchPageCaptions failed. Code: ${code}. Trying next fallback provider...`);
+  if (transcript) {
+    return transcript;
   }
 
-  // Provider 4: fetchYtdlSubtitles (yt-dlp)
+  // Provider 4: yt-dlp (heavy fallback)
   try {
     return await fetchYtdlSubtitles(videoId, normalizedUrl);
   } catch (e: any) {
@@ -157,7 +165,6 @@ export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
     console.error(`  - Provider: ${err.provider}, Code: ${err.code}, Error: ${err.error}`);
   }
 
-  // Pick the most meaningful error code
   const noCaptions = errors.find(e => e.code === "NO_CAPTIONS");
   const regionBlocked = errors.find(e => e.code === "REGION_BLOCKED");
   const quotaExceeded = errors.find(e => e.code === "TRANSCRIPT_QUOTA_EXCEEDED");
@@ -193,7 +200,7 @@ export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
 
 async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: string): Promise<string> {
   let attempt = 0;
-  const maxAttempts = 3;
+  const maxAttempts = 2; // Reduced to 2 to minimize Vercel timeout risk
   let lastError: any = null;
 
   while (attempt < maxAttempts) {
@@ -210,12 +217,11 @@ async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: strin
           text: true,
           mode: "native",
         },
-        timeout: 30000,
-        validateStatus: () => true, // capture raw error details
+        timeout: 5000, // Strict timeout to prevent Vercel 10s execution cap
+        validateStatus: () => true,
       });
 
       const elapsedMs = Date.now() - startTime;
-      
       console.log(`[Supadata Client] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
 
       if (response.status === 202 && response.data.jobId) {
@@ -247,28 +253,16 @@ async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: strin
     } catch (error: any) {
       const elapsedMs = Date.now() - startTime;
       console.error(`[Supadata Client] FAILED - Attempt ${attempt}/${maxAttempts}\n- Duration: ${elapsedMs}ms`);
-      console.error(`- Provider: supadata`);
-      console.error(`- Video ID: ${videoId}`);
-      console.error(`- Normalized URL: ${videoUrl}`);
       
-      if (error.response) {
-        console.error(`- HTTP Status: ${error.response.status}`);
-        console.error(`- Response Body:`, JSON.stringify(error.response.data));
-      } else {
-        console.error(`- Error: ${error.message || error}`);
-      }
-
       lastError = error;
 
-      // Do not retry on permanent errors
       if (error instanceof TranscriptError && 
          (error.code === "NO_CAPTIONS" || error.code === "INVALID_API_KEY" || error.code === "TRANSCRIPT_QUOTA_EXCEEDED")) {
         throw error;
       }
 
       if (attempt < maxAttempts) {
-        const backoff = attempt * 1000;
-        console.log(`[Supadata Client] Retrying after ${backoff}ms backoff...`);
+        const backoff = 500;
         await new Promise((resolve) => setTimeout(resolve, backoff));
       }
     }
@@ -278,19 +272,19 @@ async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: strin
 }
 
 async function pollSupadataJob(jobId: string, videoUrl: string, videoId: string): Promise<string> {
-  const deadline = Date.now() + 55000;
+  const deadline = Date.now() + 8000; // Limit poll duration on Serverless
   let lastStatus = "queued";
   const pollStartTime = Date.now();
 
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const stepStart = Date.now();
     console.log(`[Supadata Client Poll] START - Job ${jobId}`);
 
     try {
       const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript/${jobId}`, {
         headers: { "x-api-key": env.supadataKey },
-        timeout: 15000,
+        timeout: 3000,
         validateStatus: () => true,
       });
 
@@ -311,25 +305,15 @@ async function pollSupadataJob(jobId: string, videoUrl: string, videoId: string)
       if (response.data.status === "completed" || response.data.content) {
         const content = readSupadataContent(response.data);
         const transcript = normalizeAndValidateTranscript(content, "supadata");
-        console.log(`[Supadata Client Poll] SUCCESS\n- Duration: ${Date.now() - pollStartTime}ms\n- Output sample: ${transcript.slice(0, 80)}...`);
         return transcript;
       }
     } catch (error: any) {
-      console.error(`[Supadata Client Poll] FAILED - Job ${jobId}`);
-      console.error(`- Provider: supadata`);
-      console.error(`- Video ID: ${videoId}`);
-      console.error(`- Normalized URL: ${videoUrl}`);
-      if (error.response) {
-        console.error(`- HTTP Status: ${error.response.status}`);
-        console.error(`- Response Body:`, JSON.stringify(error.response.data));
-      } else {
-        console.error(`- Error: ${error.message || error}`);
-      }
+      console.error(`[Supadata Client Poll] FAILED - Job ${jobId}: ${error.message}`);
       throw error;
     }
   }
 
-  throw new TranscriptError(`Supadata transcript job ${jobId} timed out while status was ${lastStatus}.`, "PROVIDER_TIMEOUT");
+  throw new TranscriptError(`Supadata transcript job ${jobId} timed out.`, "PROVIDER_TIMEOUT");
 }
 
 async function fetchWithYoutubeTranscriptLib(videoId: string, videoUrl: string): Promise<string> {
@@ -350,15 +334,11 @@ async function fetchWithYoutubeTranscriptLib(videoId: string, videoUrl: string):
       .join(" ");
 
     const transcript = normalizeAndValidateTranscript(rawText, "youtube-transcript");
-    console.log(`[youtube-transcript Package] SUCCESS\n- Duration: ${elapsedMs}ms\n- Output sample: ${transcript.slice(0, 80)}...`);
+    console.log(`[youtube-transcript Package] SUCCESS\n- Duration: ${elapsedMs}ms`);
     return transcript;
   } catch (error: any) {
     const elapsedMs = Date.now() - startTime;
-    console.error(`[youtube-transcript Package] FAILED\n- Duration: ${elapsedMs}ms`);
-    console.error(`- Provider: youtube-transcript`);
-    console.error(`- Video ID: ${videoId}`);
-    console.error(`- Normalized URL: ${videoUrl}`);
-    console.error(`- Error: ${error.message || error}`);
+    console.error(`[youtube-transcript Package] FAILED\n- Duration: ${elapsedMs}ms\n- Error: ${error.message || error}`);
 
     let code = "TRANSCRIPT_UNAVAILABLE";
     if (error.message && (
@@ -381,7 +361,7 @@ async function scrapeWatchPageCaptions(videoId: string, videoUrl: string): Promi
 
   try {
     const response = await axios.get(videoUrl, {
-      timeout: 15000,
+      timeout: 4000, // Short timeout for race safety
       headers: browserHeaders(),
       validateStatus: () => true,
     });
@@ -415,7 +395,7 @@ async function scrapeWatchPageCaptions(videoId: string, videoUrl: string): Promi
         console.log(`[Scrape Watch Page] Fetching caption URL candidate: ${url}`);
         const capRes = await axios.get<unknown>(url, {
           headers: browserHeaders(),
-          timeout: 10000,
+          timeout: 3000,
         });
 
         const rawText =
@@ -425,7 +405,7 @@ async function scrapeWatchPageCaptions(videoId: string, videoUrl: string): Promi
 
         if (rawText && rawText.length > 80) {
           const transcript = normalizeAndValidateTranscript(rawText, "scrape-watch-page");
-          console.log(`[Scrape Watch Page] SUCCESS\n- Duration: ${Date.now() - startTime}ms\n- Output sample: ${transcript.slice(0, 80)}...`);
+          console.log(`[Scrape Watch Page] SUCCESS\n- Duration: ${Date.now() - startTime}ms`);
           return transcript;
         }
       } catch (e: any) {
@@ -436,11 +416,7 @@ async function scrapeWatchPageCaptions(videoId: string, videoUrl: string): Promi
     throw new TranscriptError("Exhausted all caption track URLs without parsing text", "NO_CAPTIONS");
   } catch (error: any) {
     const elapsedMs = Date.now() - startTime;
-    console.error(`[Scrape Watch Page] FAILED\n- Duration: ${elapsedMs}ms`);
-    console.error(`- Provider: scrape-watch-page`);
-    console.error(`- Video ID: ${videoId}`);
-    console.error(`- Normalized URL: ${videoUrl}`);
-    console.error(`- Error: ${error.message || error}`);
+    console.error(`[Scrape Watch Page] FAILED\n- Duration: ${elapsedMs}ms\n- Error: ${error.message || error}`);
     throw error instanceof TranscriptError ? error : new TranscriptError(error.message || "Watch page scrape failed", "TRANSCRIPT_UNAVAILABLE");
   }
 }
@@ -501,15 +477,11 @@ async function fetchYtdlSubtitles(videoId: string, videoUrl: string): Promise<st
       .trim();
 
     const transcript = normalizeAndValidateTranscript(cleanedText, "yt-dlp");
-    console.log(`[yt-dlp Subtitles] SUCCESS\n- Duration: ${Date.now() - startTime}ms\n- Output sample: ${transcript.slice(0, 80)}...`);
+    console.log(`[yt-dlp Subtitles] SUCCESS\n- Duration: ${Date.now() - startTime}ms`);
     return transcript;
   } catch (error: any) {
     const elapsedMs = Date.now() - startTime;
-    console.error(`[yt-dlp Subtitles] FAILED\n- Duration: ${elapsedMs}ms`);
-    console.error(`- Provider: yt-dlp`);
-    console.error(`- Video ID: ${videoId}`);
-    console.error(`- Normalized URL: ${videoUrl}`);
-    console.error(`- Error: ${error.message || error}`);
+    console.error(`[yt-dlp Subtitles] FAILED\n- Duration: ${elapsedMs}ms\n- Error: ${error.message || error}`);
 
     let code = "TRANSCRIPT_UNAVAILABLE";
     if (error.message && error.message.includes("geo-restricted")) {
@@ -624,6 +596,7 @@ function withCaptionFormat(baseUrl: string, format: "json3" | "vtt") {
   return `${baseUrl}${separator}fmt=${format}`;
 }
 
+// export default is not needed - exporting individual functions
 function addCaptionParam(baseUrl: string, key: string, value: string) {
   const separator = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;

@@ -123,6 +123,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    console.error("GET /api/generate failed:", error);
     const planResponse = planLimitErrorResponse(error);
     if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
@@ -253,6 +254,7 @@ export async function POST(request: Request) {
     return Response.json({ success: true, posts, insights_used: true });
   } catch (error) {
     if (error instanceof Response) return error;
+    console.error("POST /api/generate failed:", error);
     const planResponse = planLimitErrorResponse(error);
     if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);

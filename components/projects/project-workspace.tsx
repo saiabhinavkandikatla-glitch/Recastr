@@ -459,6 +459,7 @@ async function scheduleContent(payload: {
   contentType: string;
   tone: string;
   postingMethod: "email_reminder" | "direct_post";
+  hookId?: string;
 }) {
   const response = await fetch("/api/schedule", {
     method: "POST",

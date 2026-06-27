@@ -40,8 +40,8 @@ export function briefFromSummary(summary?: SourceSummary, transcript = ""): Gene
 
 export function briefFromTranscript(transcript: string): GenerationBrief {
   const lines = transcript
-    .split(/\n+/)
-    .map((line) => line.trim())
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((line) => line.trim().replace(/\s+/g, " "))
     .filter(
       (line) =>
         line.length > 20 &&
@@ -49,11 +49,16 @@ export function briefFromTranscript(transcript: string): GenerationBrief {
         !line.startsWith("Video description:"),
     );
   const first = lines[0] ?? fallbackGenerationBrief.core_promise;
+  const second = lines[1] ?? first;
+  const third = lines[2] ?? second;
+  const fourth = lines[3] ?? third;
   return {
     ...fallbackGenerationBrief,
     core_promise: first.slice(0, 240),
-    hook_angle: first.slice(0, 160),
-    key_steps: lines.slice(1, 4).length >= 3 ? lines.slice(1, 4) : fallbackGenerationBrief.key_steps,
+    pain_point: second.slice(0, 220),
+    hook_angle: third.slice(0, 180),
+    key_steps: [second, third, fourth].map((line) => line.slice(0, 180)),
+    specific_detail: fourth.slice(0, 220),
   };
 }
 

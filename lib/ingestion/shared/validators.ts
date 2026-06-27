@@ -51,7 +51,7 @@ export class SourceValidators {
   static async validateFileSize(buffer: Buffer, maxSizeMb: number = 100): Promise<void> {
     const maxSizeBytes = maxSizeMb * 1024 * 1024;
     if (buffer.length > maxSizeBytes) {
-      throw new ValidationError(`File size exceeds ${maxSizeMB}MB limit`);
+      throw new ValidationError(`File size exceeds ${maxSizeMb}MB limit`);
     }
   }
 }

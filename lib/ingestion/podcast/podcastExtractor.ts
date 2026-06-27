@@ -4,10 +4,10 @@ import {
   NormalizedContent,
   ExtractionResponse,
   SourceMetadata
-} from './shared/types';
-import { ValidationError, ExtractionError, ExternalServiceError } from './shared/errors';
-import { SourceValidators } from './shared/validators';
-import { Retryer } from './shared/retryer';
+} from '../shared/types';
+import { ValidationError, ExtractionError, ExternalServiceError } from '../shared/errors';
+import { SourceValidators } from '../shared/validators';
+import { Retryer } from '../shared/retryer';
 
 export class PodcastExtractor implements BaseSourceExtractor {
   private url: string;
@@ -80,7 +80,7 @@ export class PodcastExtractor implements BaseSourceExtractor {
           code: error instanceof Error && 'code' in error ? (error as any).code : 'UNKNOWN_ERROR',
           recoverable: error instanceof Error && 'recoverable' in error ? (error as any).recoverable : false
         },
-        metadata: await this.getMetadata().catch(() => ({}))
+        metadata: await this.getMetadata()
       };
     }
   }

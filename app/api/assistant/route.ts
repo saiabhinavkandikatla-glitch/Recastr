@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/auth";
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    const gemini = getGeminiClient();
-    if (gemini && env.geminiKey) {
+    const aiClient = getAIClient();
+    if (aiClient && env.openaiKey) {
       try {
         const formattedContents: string[] = [];
         
@@ -48,16 +48,16 @@ export async function POST(request: Request) {
           "- Settings (/settings): Subscriptions, profile, connected platform credentials.\n\n" +
           "Answer user questions about content strategy, writing hooks, or how to use ReCastr. Keep your responses natural, conversational, actionable, and formatted in clean markdown. Always write in a helpful, human-like voice.";
 
-        const replyText = await generateGeminiText({
-          model: "gemini-2.5-flash",
+        const replyText = await generateAIText({
+          model: "gpt-5.4-mini",
           prompt: formattedContents.join("\n\n"),
           temperature: 0.7,
           systemInstruction,
         });
 
         return NextResponse.json({ response: replyText || "I'm sorry, I couldn't generate a response." });
-      } catch (geminiError: any) {
-        console.error("Gemini Assistant Error:", geminiError);
+      } catch (openAIError: any) {
+        console.error("OpenAI Assistant Error:", openAIError);
         // Fall back to rule-based mock if API fails
       }
     }

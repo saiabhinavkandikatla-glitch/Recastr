@@ -4,10 +4,10 @@ import {
   NormalizedContent,
   ExtractionResponse,
   SourceMetadata
-} from './shared/types';
-import { ValidationError, ExtractionError, ExternalServiceError } from './shared/errors';
-import { SourceValidators } from './shared/validators';
-import { Retryer } from './shared/retryer';
+} from '../shared/types';
+import { ValidationError, ExtractionError, ExternalServiceError } from '../shared/errors';
+import { SourceValidators } from '../shared/validators';
+import { Retryer } from '../shared/retryer';
 import * as cheerio from 'cheerio';
 import axios from 'axios';
 
@@ -49,11 +49,12 @@ export class ArticleExtractor implements BaseSourceExtractor {
           if (error.response?.status === 429) {
             throw new ExternalServiceError('Rate limited', true);
           }
-          if (error.response?.status >= 500) {
-            throw new ExternalServiceError(`Server error: ${error.response.status}`, true);
+          const status = error.response?.status;
+          if (status && status >= 500) {
+            throw new ExternalServiceError(`Server error: ${status}`, true);
           }
         }
-        throw new Error(`HTTP request failed: ${error.message}`);
+        throw new Error(`HTTP request failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
   }
@@ -105,7 +106,7 @@ export class ArticleExtractor implements BaseSourceExtractor {
           code: error instanceof Error && 'code' in error ? (error as any).code : 'UNKNOWN_ERROR',
           recoverable: error instanceof Error && 'recoverable' in error ? (error as any).recoverable : false
         },
-        metadata: await this.getMetadata().catch(() => ({}))
+        metadata: await this.getMetadata()
       };
     }
   }

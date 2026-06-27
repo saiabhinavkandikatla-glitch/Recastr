@@ -1,4 +1,4 @@
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import { nanoid } from "nanoid";
 import { buildGenerationPrompt, chunkTranscript, SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { generatedArraySchema } from "@/lib/ai/schemas";
@@ -26,9 +26,9 @@ export async function generateContentSuite(
 ): Promise<SocialOutput[]> {
   const transcriptChunks = chunkTranscript(request.transcript);
 
-  if (env.geminiKey && !env.demoMode) {
-    const gemini = getGeminiClient();
-    if (gemini) {
+  if (env.openaiKey && !env.demoMode) {
+    const aiClient = getAIClient();
+    if (aiClient) {
       const platform = request.platform ?? "TWITTER";
       const systemInstructions = SYSTEM_PROMPT.replace("[TONE]", request.tone).replace("[AUDIENCE]", request.audience);
       const userPrompt = buildGenerationPrompt({
@@ -41,8 +41,8 @@ export async function generateContentSuite(
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          const text = await generateGeminiText({
-            model: "gemini-2.5-flash",
+          const text = await generateAIText({
+            model: "gpt-5.4-mini",
             prompt: fullPrompt + retryConstraint(attempt, platform),
             temperature: 0.7,
             responseMimeType: "application/json",
@@ -60,11 +60,11 @@ export async function generateContentSuite(
           const valid = outputs.every((output) => validatePlatformLimit(output.platform, stringifyContent(output.content)));
           if (valid) return outputs;
         } catch (error) {
-          console.error(`Gemini API Error (generateContentSuite attempt ${attempt + 1}):`, error);
+          console.error(`OpenAI API Error (generateContentSuite attempt ${attempt + 1}):`, error);
           if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
-            throw new Error("Invalid Gemini API Key - Please get a valid key starting with 'AIzaSy' from Google AI Studio.");
+            throw new Error("Invalid OpenAI API Key - Please get a valid key from OpenAI Platform.");
           }
-          throw new Error("Failed to generate suite with Gemini. Please check your API key.");
+          throw new Error("Failed to generate suite with OpenAI. Please check your API key.");
         }
       }
     }

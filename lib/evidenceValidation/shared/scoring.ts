@@ -161,10 +161,14 @@ export function calculateContextCompleteness(
   if (!claimedFact || !sourceChunk) return 0.0;
 
   if (startOffset === null || endOffset === null) {
-    }
-  else {
     return 0.1; // No exact match found
   }
+
+  const contextBefore = Math.min(80, startOffset);
+  const contextAfter = Math.min(80, Math.max(0, sourceChunk.length - endOffset));
+  if (contextBefore > 20 || contextAfter > 20) return 1.0;
+  if (contextBefore > 0 || contextAfter > 0) return 0.7;
+  return 0.4;
 }
 
 /**

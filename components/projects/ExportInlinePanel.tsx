@@ -45,7 +45,7 @@ export function ExportInlinePanel({
       await assertApiOk(response);
     } catch (error) {
       if (error instanceof Error && error.message === "credit_exhausted") return;
-      toast.error("Export failed");
+      toast.error(error instanceof Error ? error.message : "Export failed");
       return;
     }
     const blob = await response.blob();

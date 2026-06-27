@@ -1,4 +1,4 @@
-import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import { env } from "@/lib/env";
 
 export type RewriteMode =
@@ -179,22 +179,22 @@ ${extractedFacts ? `Source facts to preserve:\n${JSON.stringify(extractedFacts, 
 Rewrite this content now in ${mode} tone for ${platform}. Output only the rewritten post.
 `;
 
-  const gemini = getGeminiClient();
-  if (gemini && !env.demoMode) {
+  const aiClient = getAIClient();
+  if (aiClient && !env.demoMode) {
     try {
       const fullPrompt = `${systemPrompt}\n\n${userMessage}`;
-      const text = await generateGeminiText({
-        model: "gemini-2.5-flash",
+      const text = await generateAIText({
+        model: "gpt-5.4-mini",
         prompt: fullPrompt,
         temperature: 0.6,
       });
       return runHumanizerFilter(text.trim());
     } catch (err) {
-      console.error("Gemini rewrite API failed, falling back to local:", err);
+      console.error("OpenAI rewrite API failed, falling back to local:", err);
     }
   }
 
-  // Fallback if gemini not configured or in demo mode
+  // Fallback if aiClient not configured or in demo mode
   return runHumanizerFilter(fallbackLocalRewrite(originalContent, mode));
 }
 

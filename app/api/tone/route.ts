@@ -5,7 +5,7 @@ import { toneSchema } from "@/lib/ai/schemas";
 import { trackServerEvent } from "@/lib/analytics";
 import { creditErrorResponse, requireCredits } from "@/lib/credits";
 import { prisma } from "@/lib/prisma/client";
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateAIText, getAIClient } from "@/lib/ai/client";
 import { cleanupPost } from "@/lib/ai/validation";
 
 export const runtime = "nodejs";
@@ -32,18 +32,18 @@ export async function POST(request: Request) {
       if (existingContent) {
         platform = existingContent.platform;
         if (existingContent.project) {
-          projectTitle = existingContent.project.title;
-          projectTranscript = existingContent.project.transcript;
+          projectTitle = existingContent.project.title ?? "";
+          projectTranscript = existingContent.project.transcript ?? "";
           projectSummary = existingContent.project.summary as SourceSummary | null;
         }
       }
     }
 
-    const gemini = getGeminiClient();
+    const aiClient = getAIClient();
     let rewritten = "";
     const isRegen = payload.regenerate === true;
 
-    if (gemini) {
+    if (aiClient) {
       try {
         let prompt = "";
         if (isRegen) {
@@ -78,16 +78,13 @@ If available, here is the background context of the project "${projectTitle}":
 Output ONLY the rewritten raw content of the post. Do not include markdown wraps, quote marks, introductory text, or explanations.`;
         }
 
-        const response = await gemini.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: {
-            temperature: isRegen ? 0.85 : 0.6,
-          },
+        const response = await generateAIText({
+          prompt,
+          temperature: isRegen ? 0.85 : 0.6,
         });
-        rewritten = cleanupPost(response.text ?? "");
-      } catch (geminiError) {
-        console.error("Gemini API call failed, falling back to local generator:", geminiError);
+        rewritten = cleanupPost(response);
+      } catch (openAIError) {
+        console.error("OpenAI API call failed, falling back to local generator:", openAIError);
         if (isRegen) {
           rewritten = fallbackLocalRegenerate(projectSummary, platform, projectTitle);
         } else {
