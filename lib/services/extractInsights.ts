@@ -7,7 +7,7 @@ import { generateAIText, getAIClient } from "@/lib/ai/client";
 export async function extractInsights(transcript: string, videoTitle: string) {
   const aiClient = getAIClient();
   if (!aiClient) {
-    throw new Error('OpenAI API key not configured');
+    throw new Error('AI API key not configured. Set NVIDIA_API_KEY.');
   }
 
   const prompt = `
@@ -58,7 +58,6 @@ return an empty array for it — do not invent generic filler.
 `;
 
   const text = await generateAIText({
-    model: "gpt-5.4-mini",
     prompt,
     responseMimeType: "application/json",
   });

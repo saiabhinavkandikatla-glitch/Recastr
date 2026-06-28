@@ -13,7 +13,7 @@ export interface Fact {
   };
   confidence: number; // 0-1
   factType: 'fact' | 'quote' | 'statistic' | 'story' | 'example' | 'lesson' | 'insight' | 'entity' | 'date';
-  provider: 'gemini' | 'openai' | 'anthropic';
+  provider: 'gemini' | 'nvidia-nim' | 'anthropic';
   model: string;
   promptVersion: string;
   createdAt: string; // ISO timestamp

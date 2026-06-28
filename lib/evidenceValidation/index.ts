@@ -2,7 +2,7 @@
 export { EvidenceValidator } from './validator';
 export {
   GeminiValidator,
-  OpenAIValidator,
+  NIMValidator,
   AnthropicValidator,
 } from './providers';
 export type {

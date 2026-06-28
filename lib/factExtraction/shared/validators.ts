@@ -138,7 +138,7 @@ export function validateFact(fact: any): void {
   }
 
   // Validate provider
-  const validProviders = ['gemini', 'openai', 'anthropic'];
+  const validProviders = ['gemini', 'nvidia-nim', 'anthropic'];
   if (!validProviders.includes(fact.provider)) {
     throw new Error(`Invalid provider: ${fact.provider}`);
   }

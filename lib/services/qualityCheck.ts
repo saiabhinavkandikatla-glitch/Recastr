@@ -16,7 +16,7 @@ export interface QualityScore {
 export async function scoreContent(generatedText: string, sourceInsights: GenerationInsights): Promise<QualityScore> {
   const aiClient = getAIClient();
   if (!aiClient) {
-    // Fallback scoring when OpenAI is not available
+    // Fallback scoring when AI is not available
     const baseScore = Math.random() * 3 + 4; // 4-7 range
     const originality = Math.min(10, baseScore + (Math.random() * 2));
     const clarity = Math.min(10, baseScore + (Math.random() * 2));
@@ -61,7 +61,6 @@ Return ONLY this JSON:
 
   try {
     const text = await generateAIText({
-      model: "gpt-5.4-mini",
       prompt,
       responseMimeType: "application/json",
     });

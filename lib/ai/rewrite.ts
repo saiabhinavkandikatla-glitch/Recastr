@@ -184,13 +184,12 @@ Rewrite this content now in ${mode} tone for ${platform}. Output only the rewrit
     try {
       const fullPrompt = `${systemPrompt}\n\n${userMessage}`;
       const text = await generateAIText({
-        model: "gpt-5.4-mini",
         prompt: fullPrompt,
         temperature: 0.6,
       });
       return runHumanizerFilter(text.trim());
     } catch (err) {
-      console.error("OpenAI rewrite API failed, falling back to local:", err);
+      console.error("AI rewrite API failed, falling back to local:", err);
     }
   }
 

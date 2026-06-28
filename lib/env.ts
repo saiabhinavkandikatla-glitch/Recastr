@@ -42,8 +42,9 @@ const envSchema = z.object({
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
   REDIS_URL: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().optional(),
+  AI_PROVIDER: z.string().optional(),
+  NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_MODEL: z.string().optional(),
   SUPADATA_API_KEY: z.string().optional(),
 });
 
@@ -134,8 +135,9 @@ export const env = envSchema.parse({
   TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET,
   LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID,
   LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  OPENAI_MODEL: process.env.OPENAI_MODEL,
+  AI_PROVIDER: process.env.AI_PROVIDER,
+  NVIDIA_API_KEY: process.env.NVIDIA_API_KEY,
+  NVIDIA_MODEL: process.env.NVIDIA_MODEL,
   SUPADATA_API_KEY: process.env.SUPADATA_API_KEY,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
@@ -149,8 +151,9 @@ export const env = envSchema.parse({
   twitterClientSecret: string | undefined;
   linkedinClientId: string | undefined;
   linkedinClientSecret: string | undefined;
-  openaiKey: string | undefined;
-  openaiModel: string | undefined;
+  aiProvider: string | undefined;
+  nvidiaKey: string | undefined;
+  nvidiaModel: string | undefined;
   supadataKey: string | undefined;
 };
 
@@ -167,8 +170,9 @@ env.twitterClientId = env.TWITTER_CLIENT_ID;
 env.twitterClientSecret = env.TWITTER_CLIENT_SECRET;
 env.linkedinClientId = env.LINKEDIN_CLIENT_ID;
 env.linkedinClientSecret = env.LINKEDIN_CLIENT_SECRET;
-env.openaiKey = stripEnvValue(env.OPENAI_API_KEY);
-env.openaiModel = stripEnvValue(env.OPENAI_MODEL);
+env.aiProvider = stripEnvValue(env.AI_PROVIDER) ?? "nim";
+env.nvidiaKey = stripEnvValue(env.NVIDIA_API_KEY);
+env.nvidiaModel = stripEnvValue(env.NVIDIA_MODEL);
 env.supadataKey = env.SUPADATA_API_KEY;
 
 export function isDemoMode() {

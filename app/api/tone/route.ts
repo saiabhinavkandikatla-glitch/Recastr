@@ -83,8 +83,8 @@ Output ONLY the rewritten raw content of the post. Do not include markdown wraps
           temperature: isRegen ? 0.85 : 0.6,
         });
         rewritten = cleanupPost(response);
-      } catch (openAIError) {
-        console.error("OpenAI API call failed, falling back to local generator:", openAIError);
+      } catch (aiError) {
+        console.error("AI API call failed, falling back to local generator:", aiError);
         if (isRegen) {
           rewritten = fallbackLocalRegenerate(projectSummary, platform, projectTitle);
         } else {

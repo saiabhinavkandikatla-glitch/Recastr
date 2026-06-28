@@ -26,7 +26,7 @@ export async function generateContentSuite(
 ): Promise<SocialOutput[]> {
   const transcriptChunks = chunkTranscript(request.transcript);
 
-  if (env.openaiKey && !env.demoMode) {
+  if (env.nvidiaKey && !env.demoMode) {
     const aiClient = getAIClient();
     if (aiClient) {
       const platform = request.platform ?? "TWITTER";
@@ -42,7 +42,6 @@ export async function generateContentSuite(
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           const text = await generateAIText({
-            model: "gpt-5.4-mini",
             prompt: fullPrompt + retryConstraint(attempt, platform),
             temperature: 0.7,
             responseMimeType: "application/json",
@@ -60,11 +59,11 @@ export async function generateContentSuite(
           const valid = outputs.every((output) => validatePlatformLimit(output.platform, stringifyContent(output.content)));
           if (valid) return outputs;
         } catch (error) {
-          console.error(`OpenAI API Error (generateContentSuite attempt ${attempt + 1}):`, error);
+          console.error(`AI API Error (generateContentSuite attempt ${attempt + 1}):`, error);
           if (error instanceof Error && error.message.toLowerCase().includes("api key not valid")) {
-            throw new Error("Invalid OpenAI API Key - Please get a valid key from OpenAI Platform.");
+            throw new Error("Invalid NVIDIA NIM API Key - Please get a valid key from NVIDIA Build.");
           }
-          throw new Error("Failed to generate suite with OpenAI. Please check your API key.");
+          throw new Error("Failed to generate suite with NVIDIA NIM. Please check your API key.");
         }
       }
     }

@@ -1,19 +1,27 @@
 import OpenAI from "openai";
-import type { ResponseInput } from "openai/resources/responses/responses";
 import { env } from "@/lib/env";
 
-const DEFAULT_OPENAI_MODEL = "gpt-5.4-mini";
+const DEFAULT_NIM_MODEL = "meta/llama-3.1-70b-instruct";
+const DEFAULT_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1";
 
-let openai: OpenAI | undefined;
+let nimClient: OpenAI | undefined;
 
-export function getOpenAITextClient() {
-  if (!env.openaiKey) return undefined;
-  openai ??= new OpenAI({ apiKey: env.openaiKey });
-  return openai;
+/**
+ * Returns the NVIDIA NIM client (using the OpenAI SDK as an HTTP transport).
+ * The client is configured to hit the NIM-compatible chat completions endpoint.
+ */
+export function getNIMClient(): OpenAI | undefined {
+  if (!env.nvidiaKey) return undefined;
+  nimClient ??= new OpenAI({
+    apiKey: env.nvidiaKey,
+    baseURL: DEFAULT_NIM_BASE_URL,
+  });
+  return nimClient;
 }
 
+/** Alias kept for backward-compatibility across the codebase. */
 export function getAIClient() {
-  return getOpenAITextClient();
+  return getNIMClient();
 }
 
 type GenerateAITextOptions = {
@@ -25,35 +33,49 @@ type GenerateAITextOptions = {
   systemInstruction?: string;
 };
 
+/**
+ * Central text-generation function used by every AI call in Recastr.
+ *
+ * Sends a chat-completion request to NVIDIA NIM (or any OpenAI-compatible
+ * endpoint) and returns the generated text.
+ */
 export async function generateAIText({
   prompt,
-  model = DEFAULT_OPENAI_MODEL,
+  model,
   temperature,
   maxOutputTokens,
   responseMimeType,
   systemInstruction,
 }: GenerateAITextOptions): Promise<string> {
-  const client = getOpenAITextClient();
+  const client = getNIMClient();
   if (!client) {
-    throw new Error("OpenAI API client not configured.");
+    throw new Error("AI API client not configured. Set NVIDIA_API_KEY.");
   }
 
-  const input: ResponseInput = [{ role: "user", content: prompt }];
-  const resolvedModel = env.openaiModel ?? (model.startsWith("gpt-") ? model : DEFAULT_OPENAI_MODEL);
-  const response = await client.responses.create({
+  const resolvedModel = env.nvidiaModel ?? model ?? DEFAULT_NIM_MODEL;
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+
+  if (systemInstruction) {
+    messages.push({ role: "system", content: systemInstruction });
+  }
+  messages.push({ role: "user", content: prompt });
+
+  const response = await client.chat.completions.create({
     model: resolvedModel,
-    input,
-    instructions: systemInstruction,
+    messages,
     ...(typeof temperature === "number" ? { temperature } : {}),
-    ...(typeof maxOutputTokens === "number" ? { max_output_tokens: maxOutputTokens } : {}),
+    ...(typeof maxOutputTokens === "number"
+      ? { max_tokens: maxOutputTokens }
+      : {}),
     ...(responseMimeType === "application/json"
-      ? { text: { format: { type: "json_object" } } }
-      : { text: { verbosity: "medium" } }),
+      ? { response_format: { type: "json_object" as const } }
+      : {}),
   });
 
-  return (response.output_text ?? "").trim();
+  return (response.choices[0]?.message?.content ?? "").trim();
 }
 
 export function getConfiguredAIModel() {
-  return env.openaiModel ?? DEFAULT_OPENAI_MODEL;
+  return env.nvidiaModel ?? DEFAULT_NIM_MODEL;
 }

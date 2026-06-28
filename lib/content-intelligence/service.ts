@@ -28,7 +28,7 @@ export class ContentIntelligenceService {
   }> {
     const aiClient = getAIClient();
     if (!aiClient) {
-      throw new Error("OpenAI API key not configured");
+      throw new Error("AI API key not configured. Set NVIDIA_API_KEY.");
     }
 
     const transcriptWords = transcript.split(/\s+/).filter(Boolean).length;
@@ -105,12 +105,11 @@ Return JSON in this exact format:
           "Facts: 0 before extraction",
           "Validated facts: 0 before extraction",
           `Prompt size: ${prompt.length}`,
-          "Model: OpenAI configured model",
-          "Provider: OpenAI",
+          "Model: NVIDIA NIM configured model",
+          "Provider: NVIDIA NIM",
         ].join("\n"),
       );
       const text = await generateAIText({
-        model: "gpt-5.4-mini",
         prompt,
         responseMimeType: "application/json",
       });
@@ -210,7 +209,7 @@ Return JSON in this exact format:
       });
     });
 
-    // If we have OpenAI, use it to find relationships between insights
+    // If we have NIM/AI, use it to find relationships between insights
     if (getAIClient() && insights.length > 1) {
       try {
         const relationships = await this.discoverInsightRelationships(insights);
@@ -229,7 +228,7 @@ Return JSON in this exact format:
   }
 
   /**
-   * Use OpenAI to discover relationships between insights
+   * Use NIM/AI to discover relationships between insights
    */
   private async discoverInsightRelationships(insights: ExtractedInsight[]): Promise<KnowledgeGraphEdge[]> {
     const aiClient = getAIClient();
@@ -275,7 +274,6 @@ Return JSON in this exact format:
 
     try {
       const text = await generateAIText({
-        model: "gpt-5.4-mini",
         prompt,
         responseMimeType: "application/json",
       });
@@ -531,7 +529,7 @@ Return JSON in this exact format:
   ): Promise<string | null> {
     const aiClient = getAIClient();
     if (!aiClient) {
-      throw new Error("OpenAI API key not configured");
+      throw new Error("AI API key not configured. Set NVIDIA_API_KEY.");
     }
 
     // Platform-specific prompts
@@ -564,13 +562,12 @@ Return JSON in this exact format:
         `Facts: ${insights.length}`,
         `Validated facts: ${insights.filter((insight) => Boolean(insight.evidence || insight.text)).length}`,
         `Prompt size: ${prompt.length}`,
-        "Model: OpenAI configured model",
-        "Provider: OpenAI",
+        "Model: NVIDIA NIM configured model",
+        "Provider: NVIDIA NIM",
       ].join("\n"),
     );
 
     return generateAIText({
-      model: "gpt-5.4-mini",
       prompt,
       temperature: 0.7,
       maxOutputTokens: 1000,
@@ -832,7 +829,7 @@ OUTPUT ONLY THE CONTENT.`;
   }
 
   /**
-   * Fallback content generation when OpenAI is not available
+   * Fallback content generation when NVIDIA NIM is not available
    */
   private fallbackPlatformContent(platform: string, category: ContentCategory, insights: ExtractedInsight[]): string {
     if (insights.length === 0) return "No insights available for content generation.";
@@ -923,7 +920,7 @@ OUTPUT ONLY THE CONTENT.`;
 
     const averageScore = scoredCount > 0 ? totalScore / scoredCount : 0;
 
-    // Regenerate rejected content if we have OpenAI
+    // Regenerate rejected content if we have NIM/AI
     if (getAIClient() && rejected.length > 0) {
       const regenerated = await this.regeneratePoorContent(rejected, minScore);
       accepted.push(...regenerated.accepted);
@@ -944,7 +941,7 @@ OUTPUT ONLY THE CONTENT.`;
   private async scoreContentQuality(draft: ContentDraft): Promise<QualityScores> {
     const aiClient = getAIClient();
     if (!aiClient) {
-      throw new Error("OpenAI API key not configured");
+      throw new Error("AI API key not configured. Set NVIDIA_API_KEY.");
     }
 
     const prompt = `
@@ -978,7 +975,6 @@ Return ONLY a JSON object in this exact format:
     `;
 
     const text = await generateAIText({
-      model: "gpt-5.4-mini",
       prompt,
       responseMimeType: "application/json",
     });

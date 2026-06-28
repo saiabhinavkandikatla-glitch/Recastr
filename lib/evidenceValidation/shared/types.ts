@@ -11,7 +11,7 @@ export interface ValidationResult {
   supported: boolean;
   validationScore: number; // 0-1
   validationReason: string;
-  validatorProvider: 'gemini' | 'openai' | 'anthropic';
+  validatorProvider: 'gemini' | 'nvidia-nim' | 'anthropic';
   validatorModel: string;
   validatorPromptVersion: string;
   validatorVersion: string; // e.g., "1.0.0"

@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       only to generate social posts on your behalf.</p>
       <h2>Third parties</h2>
       <p>We use Google OAuth for authentication. We use Supabase for database
-      and auth infrastructure. We use AI APIs (OpenAI/Anthropic) to generate
+      and auth infrastructure. We use AI APIs (NVIDIA NIM) to generate
       content — your content is sent to these services to produce posts.</p>
       <h2>Data deletion</h2>
       <p>You can delete your account and all associated data at any time from

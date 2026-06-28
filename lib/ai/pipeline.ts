@@ -1,15 +1,13 @@
 import { getAIClient } from "@/lib/ai/client";
-import { YoutubeTranscript } from "youtube-transcript";
 import axios from "axios";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
 import type { ContentPiece, Platform, SourceSummary, ViralHook, SourceType, Project } from "@/lib/types";
 import { hash } from "@/lib/ingest";
-import { fetchTranscript, extractVideoId } from "@/lib/transcript";
+import { extractVideoId, getYouTubeTranscript } from "@/lib/transcript";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
-import ytdl from "yt-dlp-exec";
 import { contentIntelligenceService } from "@/lib/content-intelligence/service";
 
 // ==========================================
@@ -168,7 +166,7 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
   const factsSupplied = rawInsights?.insights ? rawInsights.insights.length : 0;
   const contextSize = chunks.map(c => c.text.length).reduce((a, b) => a + b, 0);
   const generatedTokens = contents.map(c => c.body.length).reduce((a, b) => a + b, 0);
-  console.log(`[GENERATION]\nFacts supplied to LLM: ${factsSupplied}\nContext size: ${contextSize}\nProvider used: Gemini\nPrompt version: v1\nGenerated tokens: ${generatedTokens}`);
+  console.log(`[GENERATION]\nFacts supplied to LLM: ${factsSupplied}\nContext size: ${contextSize}\nProvider used: NVIDIA NIM/local fallback\nPrompt version: v1\nGenerated tokens: ${generatedTokens}`);
 
   // STAGE 12: Final Output structure
   const summary: SourceSummary = {
@@ -308,27 +306,32 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
     });
 
     const providerStartedAt = Date.now();
-    let providerTranscript: string;
-    try {
-      providerTranscript = await fetchTranscript(options.url);
-    } catch (error: any) {
+    const transcriptResult = await getYouTubeTranscript(options.url);
+    if (!transcriptResult.success || !transcriptResult.transcript) {
       logPipelineStage("Transcript Provider", {
         status: "FAILED",
-        provider: "configured transcript provider",
+        provider: transcriptResult.provider ?? "all-providers",
         input: options.url,
         videoId: parsedVideoId,
         length: 0,
         words: 0,
-        error: error.message || String(error),
+        error: `${transcriptResult.code ?? "TRANSCRIPT_UNAVAILABLE"}: ${transcriptResult.reason ?? transcriptResult.error ?? "Transcript unavailable"}`,
         startedAt: providerStartedAt,
       });
-      throw error;
+      throw new Error(JSON.stringify({
+        code: transcriptResult.code ?? "TRANSCRIPT_UNAVAILABLE",
+        reason: transcriptResult.reason ?? transcriptResult.error ?? "Transcript unavailable",
+        provider: transcriptResult.provider ?? "all-providers",
+        failures: transcriptResult.failures ?? [],
+      }));
     }
 
+    const providerTranscript = transcriptResult.transcript;
     const normalized = normalizeTranscript(providerTranscript);
     const words = countWords(normalized);
     logPipelineStage("Transcript Parsing", {
       status: words >= MIN_TRANSCRIPT_WORDS ? "SUCCESS" : "FAILED",
+      provider: transcriptResult.provider,
       input: `Provider transcript chars=${providerTranscript.length}`,
       output: normalized.slice(0, 500),
       length: normalized.length,
@@ -342,40 +345,6 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
 
     return normalized;
 
-    /*
-    // Legacy direct YouTube extraction path intentionally disabled.
-    // Production uses Supadata through fetchTranscript(); local development
-    // uses youtube-transcript only when SUPADATA_API_KEY is absent.
-    // 1. Scraping caption watch page
-    const videoId = extractYouTubeVideoId(options.url);
-    if (!videoId) {
-      throw new Error("Invalid YouTube URL - Unable to extract video ID");
-    }
-
-    console.log(`[pipeline:extract] Attempting caption watch page scrape for: ${videoId}`);
-    let transcript = await scrapeWatchPageCaptions(videoId);
-
-    // 2. youtube-transcript npm package
-    if (!transcript) {
-      console.log(`[pipeline:extract] Watch page scrape failed, trying youtube-transcript library...`);
-      transcript = await fetchWithYoutubeTranscriptLib(videoId);
-    }
-
-    // 3. yt-dlp subtitles
-    if (!transcript) {
-      console.log(`[pipeline:extract] Trying yt-dlp for subtitles...`);
-      transcript = await fetchYtdlSubtitles(videoId);
-    }
-
-    // 4. If transcript is completely blocked, throw an error
-    if (!transcript) {
-      throw new Error(
-        "Unable to retrieve subtitles automatically. We couldn't access subtitles for this video.\n\nPossible reasons:\n• Captions are disabled.\n• The video is private or restricted.\n• YouTube temporarily blocked transcript access.\n\nYou can paste a transcript manually or try another video."
-      );
-    }
-
-    return transcript;
-    */
   }
 
   // Fallback for Blog
@@ -411,188 +380,7 @@ function isPlaceholderTranscript(value: string) {
   );
 }
 
-async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
-  try {
-    console.log(`[pipeline:extract] Fetching subtitles via yt-dlp for videoId: ${videoId}`);
 
-    // First, list available subtitles
-    const infoResult = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
-      dumpSingleJson: true,
-      skipDownload: true,
-    });
-    const info = typeof infoResult === "string"
-      ? infoResult
-      : JSON.stringify(infoResult);
-
-    const infoJson = JSON.parse(info);
-
-    // Check if subtitles are available
-    const hasSubtitles = infoJson.requestedSubtitles || infoJson.automatic_captions;
-    if (!hasSubtitles) {
-      console.log(`[pipeline:extract] No subtitles available via yt-dlp for videoId: ${videoId}`);
-      return null;
-    }
-
-    // Try to get English subtitles first
-    let subtitleUrl = null;
-    let subtitleLang = null;
-
-    // Check requested subtitles (user-uploaded)
-    if (infoJson.requestedSubtitles) {
-      const enSubtitle = infoJson.requestedSubtitles.en;
-      if (enSubtitle) {
-        subtitleUrl = enSubtitle.url;
-        subtitleLang = 'en';
-      }
-    }
-
-    // If no English requested subs, try automatic captions
-    if (!subtitleUrl && infoJson.automatic_captions) {
-      const enAuto = infoJson.automatic_captions['en'];
-      if (enAuto) {
-        subtitleUrl = enAuto.url;
-        subtitleLang = 'en-auto';
-      }
-    }
-
-    // If still no English, take whatever is available
-    if (!subtitleUrl) {
-      if (infoJson.requestedSubtitles) {
-        const firstLang = Object.keys(infoJson.requestedSubtitles)[0];
-        if (firstLang) {
-          subtitleUrl = infoJson.requestedSubtitles[firstLang].url;
-          subtitleLang = firstLang;
-        }
-      } else if (infoJson.automatic_captions) {
-        const firstLang = Object.keys(infoJson.automatic_captions)[0];
-        if (firstLang) {
-          subtitleUrl = infoJson.automatic_captions[firstLang].url;
-          subtitleLang = `${firstLang}-auto`;
-        }
-      }
-    }
-
-    if (!subtitleUrl) {
-      console.log(`[pipeline:extract] No subtitle URL found via yt-dlp for videoId: ${videoId}`);
-      return null;
-    }
-
-    // Fetch the subtitle content
-    console.log(`[pipeline:extract] Downloading subtitles (lang: ${subtitleLang}) for videoId: ${videoId}`);
-    const text = (await ytdl(subtitleUrl)) as unknown as string;
-
-    // Clean up the subtitle text (remove timing info, etc.)
-    const cleanedText = text
-      .replace(/<\d{2}:\d{2}:\d{2}\.\d{3}><\/\d{2}:\d{2}:\d{2}\.\d{3}>/g, '') // Remove XML-style tags
-      .replace(/\[\d{2}:\d{2}:\d{2}\.\d{3}\]/g, '') // Remove timestamp brackets
-      .replace(/\(\d{2}:\d{2}:\d{2}\.\d{3}\)/, '') // Remove parenthetical timestamps
-      .replace(/^\s*[\d\-:]+\s*$/gm, '') // Remove lines that are just timestamps
-      .replace(/^\s*$/gm, '') // Remove empty lines
-      .trim();
-
-    if (cleanedText.length > 50) { // Require at least 50 characters to be useful
-      console.log(`[pipeline:extract] Successfully extracted ${cleanedText.length} characters of subtitles via yt-dlp`);
-      return cleanedText;
-    } else {
-      console.log(`[pipeline:extract] Subtitles too short via yt-dlp: ${cleanedText.length} characters`);
-      return null;
-    }
-  } catch (error) {
-    console.error("[pipeline:extract] yt-dlp subtitle extraction failed:", error);
-    return null;
-  }
-}
-
-// Helper function to scrape watch page captions
-async function scrapeWatchPageCaptions(videoId: string): Promise<string | null> {
-  try {
-    console.log(`[pipeline:extract] Scraping watch page captions for videoId: ${videoId}`);
-    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const res = await axios.get(watchUrl, {
-      timeout: 8000,
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
-    });
-
-    const $ = cheerio.load(res.data);
-
-    // Look for caption tracks in the page
-    const captionTracks = $('ytmp3captionstrack');
-    if (captionTracks.length > 0) {
-      // This is a simplified approach - in reality, YouTube's caption extraction is more complex
-      // For now, we'll return null to fall back to other methods
-      console.log(`[pipeline:extract] Found caption tracks but implementation needed`);
-      return null;
-    }
-
-    // Alternative: look for captions in player response
-    const playerResponseMatch = res.data.match(/var ytInitialPlayerResponse = ({.+?});/);
-    if (playerResponseMatch) {
-      try {
-        const playerResponse = JSON.parse(playerResponseMatch[1]) as {
-          captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: Array<{ languageCode?: string; baseUrl?: string }> } };
-        };
-        const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-        if (captionTracks && captionTracks.length > 0) {
-          // Try to fetch the first English caption track
-          const enTrack = captionTracks.find((track) => track.languageCode === 'en');
-          const trackToFetch = enTrack || captionTracks[0];
-
-          if (trackToFetch && trackToFetch.baseUrl) {
-            const captionRes = await axios.get(trackToFetch.baseUrl, {
-              timeout: 5000
-            });
-
-            // Parse XML caption to plain text
-            const $caption = cheerio.load(captionRes.data, { xmlMode: true });
-            const text = $caption('p').text().trim();
-            if (text.length > 50) {
-              console.log(`[pipeline:extract] Successfully scraped ${text.length} characters of captions from watch page`);
-              return text;
-            }
-          }
-        }
-      } catch (parseError) {
-        console.error(`[pipeline:extract] Failed to parse player response for captions:`, parseError);
-      }
-    }
-
-    console.log(`[pipeline:extract] No captions found via watch page scrape for videoId: ${videoId}`);
-    return null;
-  } catch (error) {
-    console.error(`[pipeline:extract] Watch page caption scrape failed for videoId ${videoId}:`, error);
-    return null;
-  }
-}
-
-// Helper function to fetch transcript using youtube-transcript library
-async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string | null> {
-  try {
-    console.log(`[pipeline:extract] Fetching transcript via youtube-transcript library for videoId: ${videoId}`);
-
-    // Try to fetch transcript
-    const segments = await YoutubeTranscript.fetchTranscript(videoId);
-
-    if (segments && segments.length > 0) {
-      const transcript = segments
-        .map((segment) => segment.text.trim())
-        .filter(Boolean)
-        .join(" ");
-
-      if (transcript.length > 50) {
-        console.log(`[pipeline:extract] Successfully fetched ${transcript.length} characters via youtube-transcript library`);
-        return transcript;
-      }
-    }
-
-    console.log(`[pipeline:extract] No transcript found via youtube-transcript library for videoId: ${videoId}`);
-    return null;
-  } catch (error) {
-    console.error(`[pipeline:extract] Youtube-transcript library fetch failed for videoId ${videoId}:`, error);
-    return null;
-  }
-}
-
-// Helper function to scrape blog/text content from URL
 async function scrapeBlogText(url: string): Promise<string> {
   try {
     console.log(`[pipeline:extract] Scraping blog content from URL: ${url}`);

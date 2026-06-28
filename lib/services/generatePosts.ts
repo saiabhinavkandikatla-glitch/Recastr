@@ -56,7 +56,7 @@ async function generatePostWithAI(
 ) {
   const aiClient = getAIClient();
   if (!aiClient) {
-    throw new Error("OpenAI API client not configured.");
+    throw new Error("AI API client not configured.");
   }
 
   // Calculate fact count
@@ -82,8 +82,8 @@ async function generatePostWithAI(
   console.log(`Fact count: ${factCount}`);
   console.log(`Context length: ${prompt.length}`);
   console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: OpenAI`);
-  console.log(`Model: OpenAI configured model`);
+  console.log(`Provider: NVIDIA NIM`);
+  console.log(`Model: NVIDIA NIM configured model`);
   console.log("============================================================================================");
 
   // Validation: If no real facts are present, fail loudly
@@ -92,7 +92,6 @@ async function generatePostWithAI(
   }
 
   const text = await generateAIText({
-    model: "gpt-5.4-mini",
     prompt,
   });
 

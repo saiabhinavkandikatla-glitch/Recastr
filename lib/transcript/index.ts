@@ -1,20 +1,26 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { YoutubeTranscript } from "youtube-transcript";
-import { env } from "@/lib/env";
-import ytdl from "yt-dlp-exec";
-import * as cheerio from "cheerio";
 
 const MIN_TRANSCRIPT_WORDS = 50;
-const SUPADATA_BASE_URL = "https://api.supadata.ai/v1";
+type TranscriptProvider = "youtube-transcript" | "watch-page" | "nvidia-nim";
 
-export type SupadataTranscriptResponse = {
-  content?: string | Array<{ text?: string }>;
-  jobId?: string;
-  status?: "queued" | "active" | "completed" | "failed";
-  error?: string | { message?: string };
-};
+type TranscriptErrorCode =
+  | "INVALID_URL"
+  | "NO_CAPTIONS"
+  | "PRIVATE_VIDEO"
+  | "AGE_RESTRICTED"
+  | "REGION_BLOCKED"
+  | "VIDEO_UNAVAILABLE"
+  | "LIVE_STREAM_UNSUPPORTED"
+  | "TRANSCRIPT_DISABLED"
+  | "PROVIDER_TIMEOUT"
+  | "TRANSCRIPT_QUOTA_EXCEEDED"
+  | "NETWORK_FAILURE"
+  | "UNSUPPORTED_SOURCE"
+  | "TRANSCRIPT_UNAVAILABLE";
 
-export type CaptionTrack = {
+
+type CaptionTrack = {
   baseUrl?: string;
   languageCode?: string;
   kind?: string;
@@ -24,419 +30,461 @@ export type CaptionTrack = {
   };
 };
 
+type ProviderResult = {
+  provider: TranscriptProvider;
+  transcript: string;
+  durationMs: number;
+};
+
+type ProviderFailure = {
+  provider: TranscriptProvider;
+  code: TranscriptErrorCode;
+  reason: string;
+  durationMs: number;
+};
+
 export class TranscriptError extends Error {
-  code: string;
-  constructor(message: string, code: string) {
-    super(message);
+  code: TranscriptErrorCode;
+  provider: string;
+  reason: string;
+  failures: ProviderFailure[];
+
+  constructor({
+    code,
+    reason,
+    provider = "transcript",
+    failures = [],
+  }: {
+    code: TranscriptErrorCode;
+    reason: string;
+    provider?: string;
+    failures?: ProviderFailure[];
+  }) {
+    super(reason);
     this.name = "TranscriptError";
     this.code = code;
+    this.provider = provider;
+    this.reason = reason;
+    this.failures = failures;
   }
 }
 
-/**
- * Normalizes any YouTube URL by extracting its canonical 11-char video ID
- * and constructing the canonical URL. This strips all tracking parameters
- * such as si, feature, list, index, t, pp, ab_channel, utm_*, etc.
- */
-export function extractVideoId(url: string): string | null {
-  const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&?/\s]+)/
-  )
-  return match ? match[1] : null
+export function extractVideoId(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim());
+    const host = parsed.hostname.replace(/^www\./, "").replace(/^m\./, "");
+
+    if (host === "youtu.be") return sanitizeVideoId(parsed.pathname.split("/").filter(Boolean)[0]);
+
+    const attributionTarget = parsed.searchParams.get("u");
+    if (attributionTarget) {
+      const decoded = decodeURIComponent(attributionTarget);
+      const nested = decoded.startsWith("http") ? decoded : `https://www.youtube.com${decoded}`;
+      const nestedId = extractVideoId(nested);
+      if (nestedId) return nestedId;
+    }
+
+    if (host.endsWith("youtube.com") || host === "youtube-nocookie.com") {
+      const directId = parsed.searchParams.get("v");
+      if (directId) return sanitizeVideoId(directId);
+
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (["shorts", "embed", "live", "v"].includes(parts[0] ?? "")) {
+        return sanitizeVideoId(parts[1]);
+      }
+    }
+  } catch {
+    const looseMatch = rawUrl.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})/);
+    return sanitizeVideoId(looseMatch?.[1]);
+  }
+
+  return null;
 }
 
-export function normalizeYoutubeUrl(url: string): string {
-  const videoId = extractVideoId(url);
-  if (!videoId) return url;
+export function normalizeYoutubeUrl(rawUrl: string): string {
+  const videoId = extractVideoId(rawUrl);
+  if (!videoId) {
+    throw new TranscriptError({
+      code: "INVALID_URL",
+      provider: "url-normalizer",
+      reason: "Invalid YouTube URL. Supported formats include youtube.com, m.youtube.com, youtu.be, shorts, live, and embed URLs.",
+    });
+  }
   return `https://www.youtube.com/watch?v=${videoId}`;
 }
 
 export async function getYouTubeTranscript(videoUrl: string): Promise<{
-  success: boolean
-  transcript?: string
-  error?: string
+  success: boolean;
+  transcript?: string;
+  provider?: string;
+  videoId?: string;
+  normalizedUrl?: string;
+  error?: string;
+  code?: TranscriptErrorCode;
+  reason?: string;
+  failures?: ProviderFailure[];
 }> {
-  const videoId = extractVideoId(videoUrl)
-  if (!videoId) return { success: false, error: 'INVALID_URL' }
-
-  // PRIMARY: Supadata (not IP blocked on Vercel)
   try {
-    const res = await fetch(
-      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
-      { headers: { 'x-api-key': process.env.SUPADATA_API_KEY || '' } }
-    )
-    if (res.ok) {
-      const data = await res.json()
-      const transcript = data?.content || data?.transcript || ''
-      if (transcript && transcript.length > 50) {
-        console.log('[TRANSCRIPT] Supadata success:', transcript.length, 'chars')
-        return { success: true, transcript }
-      }
-    } else {
-      console.error('[TRANSCRIPT] Supadata status:', res.status, await res.text())
+    const normalizedUrl = normalizeYoutubeUrl(videoUrl);
+    const videoId = extractVideoId(normalizedUrl);
+    if (!videoId) {
+      throw new TranscriptError({ code: "INVALID_URL", provider: "url-normalizer", reason: "Unable to extract a YouTube video ID." });
     }
-  } catch (err: any) {
-    console.error('[TRANSCRIPT] Supadata error:', err.message)
-  }
 
-  // FALLBACK: youtube-transcript package
-  try {
-    const { YoutubeTranscript } = await import('youtube-transcript')
-    const items = await YoutubeTranscript.fetchTranscript(videoId)
-    if (items?.length > 0) {
-      const text = items.map((i: any) => i.text).join(' ').replace(/\s+/g, ' ').trim()
-      if (text.length > 50) {
-        console.log('[TRANSCRIPT] Package success:', text.length, 'chars')
-        return { success: true, transcript: text }
-      }
-    }
-  } catch (err: any) {
-    console.error('[TRANSCRIPT] Package error:', err.message)
-  }
+    console.log(`[Transcript] Incoming URL: ${videoUrl}`);
+    console.log(`[Transcript] Normalized URL: ${normalizedUrl}`);
+    console.log(`[Transcript] Video ID: ${videoId}`);
 
-  return { success: false, error: 'NO_TRANSCRIPT_AVAILABLE' }
+    const result = await fetchTranscriptResult(normalizedUrl, videoId);
+    return {
+      success: true,
+      transcript: result.transcript,
+      provider: result.provider,
+      videoId,
+      normalizedUrl,
+    };
+  } catch (error) {
+    const transcriptError = toTranscriptError(error, "transcript");
+    return {
+      success: false,
+      error: transcriptError.reason,
+      code: transcriptError.code,
+      reason: transcriptError.reason,
+      provider: transcriptError.provider,
+      failures: transcriptError.failures,
+    };
+  }
 }
 
 export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
-  const res = await getYouTubeTranscript(videoIdOrUrl);
-  if (res.success && res.transcript) {
-    return res.transcript;
+  const normalizedUrl = normalizeYoutubeUrl(videoIdOrUrl);
+  const videoId = extractVideoId(normalizedUrl);
+  if (!videoId) {
+    throw new TranscriptError({ code: "INVALID_URL", provider: "url-normalizer", reason: "Unable to extract a YouTube video ID." });
   }
-  throw new TranscriptError(res.error || "NO_TRANSCRIPT_AVAILABLE", "TRANSCRIPT_UNAVAILABLE");
+  const result = await fetchTranscriptResult(normalizedUrl, videoId);
+  return result.transcript;
 }
 
-async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: string): Promise<string> {
-  let attempt = 0;
-  const maxAttempts = 2; // Reduced to 2 to minimize Vercel timeout risk
-  let lastError: any = null;
+async function fetchTranscriptResult(videoUrl: string, videoId: string): Promise<ProviderResult> {
+  const failures: ProviderFailure[] = [];
+  const lightweightProviders: Array<() => Promise<ProviderResult>> = [
+    () => runProvider("youtube-transcript", () => fetchWithYoutubeTranscriptLib(videoId), 7000),
+    () => runProvider("watch-page", () => scrapeWatchPageCaptions(videoUrl), 8000),
+  ];
 
-  while (attempt < maxAttempts) {
-    attempt++;
-    const startTime = Date.now();
-    console.log(`[Supadata Client] START - Attempt ${attempt}/${maxAttempts}\n- Input: ${videoUrl}`);
+  const lightResult = await firstSuccessfulProvider(lightweightProviders, failures);
+  if (lightResult) return lightResult;
 
-    try {
-      const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript`, {
-        headers: { "x-api-key": env.supadataKey },
-        params: {
-          url: videoUrl,
-          lang: "en",
-          text: true,
-          mode: "native",
+  const dominant = chooseDominantFailure(failures);
+  console.error("[Transcript] All providers failed:", JSON.stringify(failures));
+  throw new TranscriptError({
+    code: dominant.code,
+    provider: dominant.provider,
+    reason: dominant.reason,
+    failures,
+  });
+}
+
+function firstSuccessfulProvider(
+  providers: Array<() => Promise<ProviderResult>>,
+  failures: ProviderFailure[],
+): Promise<ProviderResult | null> {
+  return new Promise((resolve) => {
+    let pending = providers.length;
+    for (const provider of providers) {
+      provider().then(
+        (result) => resolve(result),
+        (error) => {
+          failures.push(toProviderFailure(error));
+          pending -= 1;
+          if (pending === 0) resolve(null);
         },
-        timeout: 5000, // Strict timeout to prevent Vercel 10s execution cap
-        validateStatus: () => true,
-      });
-
-      const elapsedMs = Date.now() - startTime;
-      console.log(`[Supadata Client] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
-
-      if (response.status === 202 && response.data.jobId) {
-        return await pollSupadataJob(response.data.jobId, videoUrl, videoId);
-      }
-
-      if (response.status === 206) {
-        throw new TranscriptError("Supadata returned transcript unavailable for existing captions.", "NO_CAPTIONS");
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        throw new TranscriptError("Invalid API key configured for Supadata.", "INVALID_API_KEY");
-      }
-
-      if (response.status === 429) {
-        throw new TranscriptError("Transcript provider quota exceeded.", "TRANSCRIPT_QUOTA_EXCEEDED");
-      }
-
-      if (response.status < 200 || response.status >= 300) {
-        const errorMsg = readSupadataError(response.data);
-        throw new TranscriptError(`Supadata transcript request failed with HTTP ${response.status}: ${errorMsg}`, "TRANSCRIPT_UNAVAILABLE");
-      }
-
-      const content = readSupadataContent(response.data);
-      const transcript = normalizeAndValidateTranscript(content, "supadata");
-      
-      console.log(`[Supadata Client] SUCCESS\n- Duration: ${elapsedMs}ms\n- Output sample: ${transcript.slice(0, 80)}...`);
-      return transcript;
-    } catch (error: any) {
-      const elapsedMs = Date.now() - startTime;
-      console.error(`[Supadata Client] FAILED - Attempt ${attempt}/${maxAttempts}\n- Duration: ${elapsedMs}ms`);
-      
-      lastError = error;
-
-      if (error instanceof TranscriptError && 
-         (error.code === "NO_CAPTIONS" || error.code === "INVALID_API_KEY" || error.code === "TRANSCRIPT_QUOTA_EXCEEDED")) {
-        throw error;
-      }
-
-      if (attempt < maxAttempts) {
-        const backoff = 500;
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-      }
+      );
     }
-  }
-
-  throw lastError || new TranscriptError("Supadata failed after retries", "TRANSCRIPT_UNAVAILABLE");
+  });
 }
 
-async function pollSupadataJob(jobId: string, videoUrl: string, videoId: string): Promise<string> {
-  const deadline = Date.now() + 8000; // Limit poll duration on Serverless
-  let lastStatus = "queued";
-  const pollStartTime = Date.now();
+async function runProvider(
+  provider: TranscriptProvider,
+  fetcher: () => Promise<string>,
+  timeoutMs: number,
+): Promise<ProviderResult> {
+  const startedAt = Date.now();
+  console.log(`[Transcript Provider] START provider=${provider}`);
+  try {
+    const transcript = await withTimeout(
+      withRetry(fetcher, {
+        retries: provider === "nvidia-nim" ? 0 : 2,
+        provider,
+      }),
+      timeoutMs,
+      provider,
+    );
+    const normalized = normalizeAndValidateTranscript(transcript, provider);
+    const durationMs = Date.now() - startedAt;
+    console.log(`[Transcript Provider] SUCCESS provider=${provider} duration=${durationMs}ms length=${normalized.length} words=${wordCount(normalized)}`);
+    return { provider, transcript: normalized, durationMs };
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    const classified = toTranscriptError(error, provider);
+    console.error(`[Transcript Provider] FAILED provider=${provider} duration=${durationMs}ms code=${classified.code} reason=${classified.reason}`);
+    throw new TranscriptError({
+      code: classified.code,
+      provider,
+      reason: classified.reason,
+      failures: [{ provider, code: classified.code, reason: classified.reason, durationMs }],
+    });
+  }
+}
 
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    const stepStart = Date.now();
-    console.log(`[Supadata Client Poll] START - Job ${jobId}`);
+async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string> {
+  const segments = await YoutubeTranscript.fetchTranscript(videoId);
+  if (!segments?.length) {
+    throw new TranscriptError({ code: "NO_CAPTIONS", provider: "youtube-transcript", reason: "youtube-transcript returned no caption segments." });
+  }
+  return segments.map((segment) => segment.text?.trim() ?? "").filter(Boolean).join(" ");
+}
 
+async function scrapeWatchPageCaptions(videoUrl: string): Promise<string> {
+  const response = await axios.get<string>(videoUrl, {
+    headers: browserHeaders(),
+    timeout: 5500,
+    validateStatus: () => true,
+  });
+
+  if (response.status === 404 || response.status === 410) {
+    throw new TranscriptError({ code: "VIDEO_UNAVAILABLE", provider: "watch-page", reason: `YouTube watch page returned ${response.status}.` });
+  }
+  if (response.status === 429) {
+    throw new TranscriptError({ code: "TRANSCRIPT_QUOTA_EXCEEDED", provider: "watch-page", reason: "YouTube watch page rate limited the request." });
+  }
+  if (response.status < 200 || response.status >= 300) {
+    throw new TranscriptError({ code: "NETWORK_FAILURE", provider: "watch-page", reason: `YouTube watch page returned HTTP ${response.status}.` });
+  }
+
+  const html = response.data;
+  classifyWatchPageAvailability(html);
+  const tracks = extractCaptionTracks(html);
+  if (!tracks.length) {
+    throw new TranscriptError({ code: "NO_CAPTIONS", provider: "watch-page", reason: "No caption tracks found in the YouTube watch page." });
+  }
+
+  const track = pickCaptionTrack(tracks);
+  if (!track?.baseUrl) {
+    throw new TranscriptError({ code: "NO_CAPTIONS", provider: "watch-page", reason: "Selected caption track had no caption URL." });
+  }
+
+  for (const url of captionUrlCandidates(track)) {
     try {
-      const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript/${jobId}`, {
-        headers: { "x-api-key": env.supadataKey },
-        timeout: 3000,
-        validateStatus: () => true,
+      const captionResponse = await axios.get<unknown>(url, {
+        headers: browserHeaders(),
+        timeout: 4500,
+        validateStatus: (status) => status >= 200 && status < 300,
       });
-
-      const elapsedMs = Date.now() - stepStart;
-      console.log(`[Supadata Client Poll] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
-
-      if (response.status < 200 || response.status >= 300) {
-        const errorMsg = readSupadataError(response.data);
-        throw new TranscriptError(`Supadata job check failed with HTTP ${response.status}: ${errorMsg}`, "TRANSCRIPT_UNAVAILABLE");
-      }
-
-      lastStatus = response.data.status ?? lastStatus;
-      if (response.data.status === "failed") {
-        const errorMsg = readSupadataError(response.data);
-        throw new TranscriptError(`Supadata job failed: ${errorMsg}`, "TRANSCRIPT_UNAVAILABLE");
-      }
-
-      if (response.data.status === "completed" || response.data.content) {
-        const content = readSupadataContent(response.data);
-        const transcript = normalizeAndValidateTranscript(content, "supadata");
-        return transcript;
-      }
-    } catch (error: any) {
-      console.error(`[Supadata Client Poll] FAILED - Job ${jobId}: ${error.message}`);
-      throw error;
+      const text = typeof captionResponse.data === "string"
+        ? parseCaptionText(captionResponse.data)
+        : parseJsonCaption(captionResponse.data);
+      if (wordCount(text) >= MIN_TRANSCRIPT_WORDS) return text;
+    } catch (error) {
+      console.warn(`[Transcript Provider] watch-page caption URL failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  throw new TranscriptError(`Supadata transcript job ${jobId} timed out.`, "PROVIDER_TIMEOUT");
+  throw new TranscriptError({ code: "NO_CAPTIONS", provider: "watch-page", reason: "Caption tracks existed, but none returned usable transcript text." });
 }
 
-async function fetchWithYoutubeTranscriptLib(videoId: string, videoUrl: string): Promise<string> {
-  const startTime = Date.now();
-  console.log(`[youtube-transcript Package] START\n- Input: videoId=${videoId}`);
+async function fetchTranscriptWithNIM(videoUrl: string, videoId: string): Promise<string> {
+  throw new TranscriptError({
+    code: "NO_CAPTIONS",
+    provider: "nvidia-nim",
+    reason: "Transcript web search fallback is not supported on NVIDIA NIM.",
+  });
+}
 
-  try {
-    const segments = await YoutubeTranscript.fetchTranscript(videoId);
-    const elapsedMs = Date.now() - startTime;
-
-    if (!segments || segments.length === 0) {
-      throw new TranscriptError("No captions returned from youtube-transcript library", "NO_CAPTIONS");
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  { retries, provider }: { retries: number; provider: TranscriptProvider },
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const transcriptError = toTranscriptError(error, provider);
+      if (!isRetryable(transcriptError) || attempt === retries) break;
+      const backoffMs = 350 * 2 ** attempt;
+      console.warn(`[Transcript Provider] retry provider=${provider} attempt=${attempt + 1} backoff=${backoffMs}ms code=${transcriptError.code}`);
+      await delay(backoffMs);
     }
+  }
+  throw lastError;
+}
 
-    const rawText = segments
-      .map((item) => item.text?.trim() ?? "")
-      .filter(Boolean)
-      .join(" ");
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, provider: TranscriptProvider): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new TranscriptError({ code: "PROVIDER_TIMEOUT", provider, reason: `${provider} timed out after ${timeoutMs}ms.` }));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
 
-    const transcript = normalizeAndValidateTranscript(rawText, "youtube-transcript");
-    console.log(`[youtube-transcript Package] SUCCESS\n- Duration: ${elapsedMs}ms`);
-    return transcript;
-  } catch (error: any) {
-    const elapsedMs = Date.now() - startTime;
-    console.error(`[youtube-transcript Package] FAILED\n- Duration: ${elapsedMs}ms\n- Error: ${error.message || error}`);
+function toTranscriptError(error: unknown, provider: string): TranscriptError {
+  if (error instanceof TranscriptError) return error;
 
-    let code = "TRANSCRIPT_UNAVAILABLE";
-    if (error.message && (
-      error.message.includes("Could not find captions") ||
-      error.message.includes("disabled") ||
-      error.message.includes("no captions")
-    )) {
-      code = "NO_CAPTIONS";
-    } else if (error.message && error.message.includes("Too many requests")) {
-      code = "TRANSCRIPT_QUOTA_EXCEEDED";
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+  let code: TranscriptErrorCode = "TRANSCRIPT_UNAVAILABLE";
+  if (lower.includes("private")) code = "PRIVATE_VIDEO";
+  else if (lower.includes("age") && lower.includes("restrict")) code = "AGE_RESTRICTED";
+  else if (lower.includes("region") || lower.includes("geo")) code = "REGION_BLOCKED";
+  else if (lower.includes("live")) code = "LIVE_STREAM_UNSUPPORTED";
+  else if (lower.includes("not a bot") || lower.includes("unusual traffic")) code = "NETWORK_FAILURE";
+  else if (lower.includes("disabled")) code = "TRANSCRIPT_DISABLED";
+  else if (lower.includes("caption") || lower.includes("subtitle") || lower.includes("transcript")) code = "NO_CAPTIONS";
+  else if (lower.includes("quota") || lower.includes("429") || lower.includes("too many")) code = "TRANSCRIPT_QUOTA_EXCEEDED";
+  else if (lower.includes("timeout") || lower.includes("timed out")) code = "PROVIDER_TIMEOUT";
+  else if (isAxiosNetworkError(error)) code = "NETWORK_FAILURE";
+
+  return new TranscriptError({ code, provider, reason: message });
+}
+
+function toProviderFailure(error: unknown): ProviderFailure {
+  const transcriptError = toTranscriptError(error, "transcript");
+  const nested = transcriptError.failures[0];
+  return nested ?? {
+    provider: transcriptError.provider as TranscriptProvider,
+    code: transcriptError.code,
+    reason: transcriptError.reason,
+    durationMs: 0,
+  };
+}
+
+function chooseDominantFailure(failures: ProviderFailure[]): ProviderFailure {
+  const priority: TranscriptErrorCode[] = [
+    "INVALID_URL",
+    "PRIVATE_VIDEO",
+    "AGE_RESTRICTED",
+    "REGION_BLOCKED",
+    "VIDEO_UNAVAILABLE",
+    "LIVE_STREAM_UNSUPPORTED",
+    "TRANSCRIPT_QUOTA_EXCEEDED",
+    "NETWORK_FAILURE",
+    "TRANSCRIPT_DISABLED",
+    "NO_CAPTIONS",
+    "PROVIDER_TIMEOUT",
+  ];
+  return (
+    priority.map((code) => failures.find((failure) => failure.code === code)).find(Boolean) ??
+    failures[0] ?? {
+      provider: "nvidia-nim",
+      code: "TRANSCRIPT_UNAVAILABLE",
+      reason: "All transcript providers failed.",
+      durationMs: 0,
     }
+  );
+}
 
-    throw new TranscriptError(error.message || "Failed to fetch transcript using library", code);
+function isRetryable(error: TranscriptError) {
+  return ["NETWORK_FAILURE", "PROVIDER_TIMEOUT", "TRANSCRIPT_QUOTA_EXCEEDED", "TRANSCRIPT_UNAVAILABLE"].includes(error.code);
+}
+
+function isAxiosNetworkError(error: unknown) {
+  return axios.isAxiosError(error) && !((error as AxiosError).response?.status);
+}
+
+function classifyWatchPageAvailability(html: string) {
+  const playerResponse = extractInitialPlayerResponse(html);
+  const playability = playerResponse?.playabilityStatus;
+  const playabilityStatus = playability?.status?.toUpperCase();
+  const playabilityReason = [
+    playability?.reason,
+    ...(playability?.messages ?? []),
+  ].filter(Boolean).join(" ");
+
+  if (playerResponse?.videoDetails?.isLiveContent) {
+    throw new TranscriptError({ code: "LIVE_STREAM_UNSUPPORTED", provider: "watch-page", reason: "Live stream captions are not available for analysis yet." });
+  }
+
+  if (playabilityStatus && playabilityStatus !== "OK") {
+    throw classifyPlayabilityFailure(playabilityStatus, playabilityReason);
+  }
+
+  const lower = html.toLowerCase();
+  if (lower.includes("this video is private") || lower.includes("private video")) {
+    throw new TranscriptError({ code: "PRIVATE_VIDEO", provider: "watch-page", reason: "YouTube reports this is a private video." });
+  }
+  if (lower.includes("confirm your age") || lower.includes("age-restricted")) {
+    throw new TranscriptError({ code: "AGE_RESTRICTED", provider: "watch-page", reason: "YouTube requires age verification for this video." });
+  }
+  if (lower.includes("not available in your country")) {
+    throw new TranscriptError({ code: "REGION_BLOCKED", provider: "watch-page", reason: "YouTube reports this video is region blocked." });
+  }
+  if (lower.includes('"islivecontent":true')) {
+    throw new TranscriptError({ code: "LIVE_STREAM_UNSUPPORTED", provider: "watch-page", reason: "Live stream captions are not available for analysis yet." });
   }
 }
 
-async function scrapeWatchPageCaptions(videoId: string, videoUrl: string): Promise<string> {
-  const startTime = Date.now();
-  console.log(`[Scrape Watch Page] START\n- Input: videoId=${videoId}`);
-
-  try {
-    const response = await axios.get(videoUrl, {
-      timeout: 4000, // Short timeout for race safety
-      headers: browserHeaders(),
-      validateStatus: () => true,
-    });
-
-    const elapsedMs = Date.now() - startTime;
-    console.log(`[Scrape Watch Page] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
-
-    if (response.status === 429) {
-      throw new TranscriptError("Transcript provider quota exceeded", "TRANSCRIPT_QUOTA_EXCEEDED");
-    }
-    if (response.status < 200 || response.status >= 300) {
-      throw new TranscriptError(`Failed to fetch watch page with status ${response.status}`, "TRANSCRIPT_UNAVAILABLE");
-    }
-
-    const html = response.data;
-    const tracks = extractCaptionTracks(html);
-    if (!tracks || tracks.length === 0) {
-      throw new TranscriptError("No caption tracks found in HTML watch page", "NO_CAPTIONS");
-    }
-
-    const track = pickCaptionTrack(tracks);
-    if (!track || !track.baseUrl) {
-      throw new TranscriptError("Selected caption track has no baseUrl", "NO_CAPTIONS");
-    }
-
-    const urls = captionUrlCandidates(track);
-    console.log(`[Scrape Watch Page] Found ${tracks.length} tracks. Trying candidate URLs...`);
-
-    for (const url of urls) {
-      try {
-        console.log(`[Scrape Watch Page] Fetching caption URL candidate: ${url}`);
-        const capRes = await axios.get<unknown>(url, {
-          headers: browserHeaders(),
-          timeout: 3000,
-        });
-
-        const rawText =
-          typeof capRes.data === "string"
-            ? parseCaptionText(capRes.data)
-            : parseJsonCaption(capRes.data);
-
-        if (rawText && rawText.length > 80) {
-          const transcript = normalizeAndValidateTranscript(rawText, "scrape-watch-page");
-          console.log(`[Scrape Watch Page] SUCCESS\n- Duration: ${Date.now() - startTime}ms`);
-          return transcript;
-        }
-      } catch (e: any) {
-        console.warn(`[Scrape Watch Page] URL candidate failed: ${url}`, e.message || e);
-      }
-    }
-
-    throw new TranscriptError("Exhausted all caption track URLs without parsing text", "NO_CAPTIONS");
-  } catch (error: any) {
-    const elapsedMs = Date.now() - startTime;
-    console.error(`[Scrape Watch Page] FAILED\n- Duration: ${elapsedMs}ms\n- Error: ${error.message || error}`);
-    throw error instanceof TranscriptError ? error : new TranscriptError(error.message || "Watch page scrape failed", "TRANSCRIPT_UNAVAILABLE");
+function classifyPlayabilityFailure(status: string, reason: string) {
+  const lowerReason = reason.toLowerCase();
+  if (lowerReason.includes("not a bot") || lowerReason.includes("unusual traffic")) {
+    return new TranscriptError({ code: "NETWORK_FAILURE", provider: "watch-page", reason: reason || "YouTube blocked this provider with a bot challenge." });
   }
+  if (status === "LOGIN_REQUIRED" && lowerReason.includes("age")) {
+    return new TranscriptError({ code: "AGE_RESTRICTED", provider: "watch-page", reason: reason || "YouTube requires age verification for this video." });
+  }
+  if (status === "LOGIN_REQUIRED" || lowerReason.includes("private")) {
+    return new TranscriptError({ code: "PRIVATE_VIDEO", provider: "watch-page", reason: reason || "YouTube reports this is a private video." });
+  }
+  if (lowerReason.includes("country") || lowerReason.includes("region")) {
+    return new TranscriptError({ code: "REGION_BLOCKED", provider: "watch-page", reason: reason || "YouTube reports this video is region blocked." });
+  }
+  if (lowerReason.includes("live")) {
+    return new TranscriptError({ code: "LIVE_STREAM_UNSUPPORTED", provider: "watch-page", reason: reason || "Live stream captions are not available for analysis yet." });
+  }
+  return new TranscriptError({ code: "VIDEO_UNAVAILABLE", provider: "watch-page", reason: reason || `YouTube playability status is ${status}.` });
 }
 
-async function fetchYtdlSubtitles(videoId: string, videoUrl: string): Promise<string> {
-  const startTime = Date.now();
-  console.log(`[yt-dlp Subtitles] START\n- Input: videoId=${videoId}`);
-
-  try {
-    const infoResult = await ytdl(videoUrl, {
-      dumpSingleJson: true,
-      skipDownload: true,
-    });
-
-    const elapsedMs = Date.now() - startTime;
-    console.log(`[yt-dlp Subtitles] fetched metadata in ${elapsedMs}ms`);
-
-    const info = typeof infoResult === "string" ? infoResult : JSON.stringify(infoResult);
-    const infoJson = JSON.parse(info);
-
-    const hasSubtitles = infoJson.requestedSubtitles || infoJson.automatic_captions;
-    if (!hasSubtitles) {
-      throw new TranscriptError("No subtitles available via yt-dlp", "NO_CAPTIONS");
+function extractInitialPlayerResponse(html: string): {
+  playabilityStatus?: { status?: string; reason?: string; messages?: string[] };
+  videoDetails?: { isLiveContent?: boolean };
+} | null {
+  const markers = ["ytInitialPlayerResponse = ", "ytInitialPlayerResponse=", "window[\"ytInitialPlayerResponse\"] = "];
+  for (const marker of markers) {
+    const rawResponse = extractBalancedObjectAfter(html, marker);
+    if (!rawResponse) continue;
+    try {
+      return JSON.parse(rawResponse);
+    } catch {
+      continue;
     }
-
-    let subtitleUrl = null;
-    if (infoJson.requestedSubtitles) {
-      const enSubtitle = infoJson.requestedSubtitles.en;
-      if (enSubtitle) subtitleUrl = enSubtitle.url;
-    }
-    if (!subtitleUrl && infoJson.automatic_captions) {
-      const enAuto = infoJson.automatic_captions['en'];
-      if (enAuto) subtitleUrl = enAuto.url;
-    }
-    if (!subtitleUrl) {
-      if (infoJson.requestedSubtitles) {
-        const firstLang = Object.keys(infoJson.requestedSubtitles)[0];
-        if (firstLang) subtitleUrl = infoJson.requestedSubtitles[firstLang].url;
-      } else if (infoJson.automatic_captions) {
-        const firstLang = Object.keys(infoJson.automatic_captions)[0];
-        if (firstLang) subtitleUrl = infoJson.automatic_captions[firstLang].url;
-      }
-    }
-
-    if (!subtitleUrl) {
-      throw new TranscriptError("No subtitle URL found via yt-dlp", "NO_CAPTIONS");
-    }
-
-    console.log(`[yt-dlp Subtitles] Fetching subtitle content from: ${subtitleUrl}`);
-    const text = (await ytdl(subtitleUrl)) as unknown as string;
-    
-    const cleanedText = text
-      .replace(/<\d{2}:\d{2}:\d{2}\.\d{3}><\/\d{2}:\d{2}:\d{2}\.\d{3}>/g, '')
-      .replace(/\[\d{2}:\d{2}:\d{2}\.\d{3}\]/g, '')
-      .replace(/\(\d{2}:\d{2}:\d{2}\.\d{3}\)/, '')
-      .replace(/^\s*[\d\-:]+\s*$/gm, '')
-      .replace(/^\s*$/gm, '')
-      .trim();
-
-    const transcript = normalizeAndValidateTranscript(cleanedText, "yt-dlp");
-    console.log(`[yt-dlp Subtitles] SUCCESS\n- Duration: ${Date.now() - startTime}ms`);
-    return transcript;
-  } catch (error: any) {
-    const elapsedMs = Date.now() - startTime;
-    console.error(`[yt-dlp Subtitles] FAILED\n- Duration: ${elapsedMs}ms\n- Error: ${error.message || error}`);
-
-    let code = "TRANSCRIPT_UNAVAILABLE";
-    if (error.message && error.message.includes("geo-restricted")) {
-      code = "REGION_BLOCKED";
-    } else if (error.message && (error.message.includes("No subtitles") || error.message.includes("not found"))) {
-      code = "NO_CAPTIONS";
-    }
-
-    throw error instanceof TranscriptError ? error : new TranscriptError(error.message || "yt-dlp subtitles failed", code);
   }
-}
-
-function readSupadataContent(payload: SupadataTranscriptResponse) {
-  if (typeof payload.content === "string") return payload.content;
-  if (Array.isArray(payload.content)) {
-    return payload.content
-      .map((item) => item.text?.trim() ?? "")
-      .filter(Boolean)
-      .join(" ");
-  }
-  return "";
-}
-
-function readSupadataError(payload: SupadataTranscriptResponse) {
-  if (!payload) return "empty response";
-  if (typeof payload.error === "string") return payload.error;
-  if (payload.error?.message) return payload.error.message;
-  return JSON.stringify(payload);
+  return null;
 }
 
 function normalizeAndValidateTranscript(raw: string, provider: string) {
   const transcript = normalizeTranscript(raw);
   const words = wordCount(transcript);
-
-  console.log(`[Transcript Normalizer] provider: ${provider}, rawChars: ${raw?.length ?? 0}, normalizedChars: ${transcript.length}, words: ${words}`);
-
+  console.log(`[Transcript Normalizer] provider=${provider} rawChars=${raw?.length ?? 0} normalizedChars=${transcript.length} words=${words}`);
   if (words < MIN_TRANSCRIPT_WORDS) {
-    throw new TranscriptError(`Transcript is too short after normalization (${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}).`, "NO_CAPTIONS");
+    throw new TranscriptError({ code: "NO_CAPTIONS", provider, reason: `Transcript is too short after normalization (${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}).` });
   }
-
   return transcript;
 }
 
 function normalizeTranscript(value: string) {
-  return (value ?? "")
-    .replace(/&amp;/g, "&")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
+  return decodeHtml(value ?? "")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -446,26 +494,72 @@ function wordCount(value: string) {
   return value.split(/\s+/).filter(Boolean).length;
 }
 
+function sanitizeVideoId(value: string | undefined | null) {
+  const match = value?.match(/^[A-Za-z0-9_-]{11}/);
+  return match?.[0] ?? null;
+}
+
 function browserHeaders() {
   return {
     Accept: "text/html,application/json,text/plain,*/*",
     "Accept-Language": "en-US,en;q=0.9",
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
   };
 }
 
 function extractCaptionTracks(html: string): CaptionTrack[] {
-  const match = html.match(/"captionTracks":(\[.*?\])/);
-  if (!match?.[1]) return [];
-
+  const rawTracks = extractBalancedJsonAfter(html, '"captionTracks":');
+  if (!rawTracks) return [];
   try {
-    const parsed = JSON.parse(match[1]) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isCaptionTrack);
+    const parsed = JSON.parse(rawTracks) as unknown;
+    return Array.isArray(parsed) ? parsed.filter(isCaptionTrack) : [];
   } catch {
     return [];
   }
+}
+
+function extractBalancedJsonAfter(value: string, marker: string) {
+  const markerIndex = value.indexOf(marker);
+  if (markerIndex === -1) return "";
+  const start = value.indexOf("[", markerIndex);
+  if (start === -1) return "";
+  return extractBalancedValueFrom(value, start, "[", "]");
+}
+
+function extractBalancedObjectAfter(value: string, marker: string) {
+  const markerIndex = value.indexOf(marker);
+  if (markerIndex === -1) return "";
+  const start = value.indexOf("{", markerIndex);
+  if (start === -1) return "";
+  return extractBalancedValueFrom(value, start, "{", "}");
+}
+
+function extractBalancedValueFrom(value: string, start: number, openChar: string, closeChar: string) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < value.length; index += 1) {
+    const char = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (char === openChar) depth += 1;
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) return value.slice(start, index + 1);
+    }
+  }
+  return "";
 }
 
 function isCaptionTrack(value: unknown): value is CaptionTrack {
@@ -483,17 +577,14 @@ function pickCaptionTrack(tracks: CaptionTrack[]) {
 
 function captionUrlCandidates(track: CaptionTrack) {
   if (!track.baseUrl) return [];
-
   const urls = [
     withCaptionFormat(track.baseUrl, "json3"),
     withCaptionFormat(track.baseUrl, "vtt"),
   ];
-
   if (track.languageCode && !track.languageCode.startsWith("en")) {
     urls.unshift(withCaptionFormat(addCaptionParam(track.baseUrl, "tlang", "en"), "json3"));
     urls.push(withCaptionFormat(addCaptionParam(track.baseUrl, "tlang", "en"), "vtt"));
   }
-
   urls.push(track.baseUrl);
   return Array.from(new Set(urls));
 }
@@ -503,7 +594,6 @@ function withCaptionFormat(baseUrl: string, format: "json3" | "vtt") {
   return `${baseUrl}${separator}fmt=${format}`;
 }
 
-// export default is not needed - exporting individual functions
 function addCaptionParam(baseUrl: string, key: string, value: string) {
   const separator = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
@@ -513,7 +603,6 @@ function parseJsonCaption(payload: unknown) {
   if (!payload || typeof payload !== "object" || !("events" in payload)) return "";
   const events = (payload as { events?: unknown }).events;
   if (!Array.isArray(events)) return "";
-
   return normalizeTranscript(
     events
       .flatMap((event) => {
@@ -531,11 +620,8 @@ function parseJsonCaption(payload: unknown) {
 
 function parseCaptionText(raw: string) {
   if (!raw.trim()) return "";
-  const xmlLines = Array.from(raw.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)).map((match) =>
-    decodeHtml(match[1] ?? ""),
-  );
+  const xmlLines = Array.from(raw.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)).map((match) => decodeHtml(match[1] ?? ""));
   if (xmlLines.length > 0) return normalizeTranscript(xmlLines.join(" "));
-
   return normalizeTranscript(
     raw
       .replace(/^WEBVTT[\s\S]*?\n\n/i, " ")
@@ -545,13 +631,23 @@ function parseCaptionText(raw: string) {
 }
 
 function decodeHtml(value: string) {
-  return value
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 10)))
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+  const entities: Record<string, string> = {
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    apos: "'",
+    "#39": "'",
+  };
+  return value.replace(/&([^;]+);/g, (match, entity: string) => {
+    if (entities[entity]) return entities[entity];
+    if (entity.startsWith("#x")) return String.fromCharCode(Number.parseInt(entity.slice(2), 16));
+    if (entity.startsWith("#")) return String.fromCharCode(Number.parseInt(entity.slice(1), 10));
+    return match;
+  });
 }
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+

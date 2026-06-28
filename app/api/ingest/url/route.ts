@@ -12,6 +12,7 @@ import { PLAN_RULES } from "@/lib/plans";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import { assertIngestRateLimit } from "@/lib/rate-limit";
+import { normalizeYoutubeUrl } from "@/lib/transcript";
 import type { Platform, Plan, Project, SourceType } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -45,10 +46,13 @@ export async function POST(request: Request) {
     await requireCredits(user);
     const payload = ingestUrlSchema.parse(await request.json());
     const source = detectSource(payload.url);
+    const sourceUrl = source === "youtube" ? normalizeYoutubeUrl(payload.url) : payload.url;
+    console.log(`[ingest/url] Incoming URL: ${payload.url}`);
+    console.log(`[ingest/url] Normalized URL: ${sourceUrl}`);
 
     if (process.env.RECASTR_DEMO_MODE === "true") {
-      if (source === "youtube" && !/demo/i.test(payload.url)) {
-        const project = await createYoutubeProject(payload.url, user.id);
+      if (source === "youtube" && !/demo/i.test(sourceUrl)) {
+        const project = await createYoutubeProject(sourceUrl, user.id);
         saveStoredProject(project);
         await consumeCredits(user);
         return NextResponse.json({
@@ -76,18 +80,19 @@ export async function POST(request: Request) {
     if (source === "youtube") {
       let project: Project;
       try {
-        project = await createYoutubeProject(payload.url, user.id, payload.transcript);
+        project = await createYoutubeProject(sourceUrl, user.id, payload.transcript);
         project = restrictProjectToPlan(project, user.plan);
       } catch (error: any) {
         console.error("[ingest/url] YouTube pipeline failed:", error);
-        const message = error instanceof Error ? error.message : "YouTube ingestion failed.";
+        const parsedError = parsePipelineError(error);
+        const message = parsedError.reason;
         const isAiConfigFailure =
           message.includes("AI_CONFIG_INVALID") ||
           message.includes("invalid authentication credentials") ||
           message.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED") ||
           message.includes("UNAUTHENTICATED");
         
-        let code = "PIPELINE_FAILED";
+        let code = parsedError.code ?? "PIPELINE_FAILED";
         if (error && typeof error === "object" && "code" in error) {
           code = error.code;
         } else if (
@@ -101,8 +106,10 @@ export async function POST(request: Request) {
         if (isAiConfigFailure || code === "AI_CONFIG_INVALID") {
           return NextResponse.json(
             {
-              error: "AI provider authentication failed. Replace OPENAI_API_KEY with a valid OpenAI Platform API key.",
+              error: "AI provider authentication failed. Replace NVIDIA_API_KEY with a valid NVIDIA Build API key.",
               code: "AI_CONFIG_INVALID",
+              reason: "NVIDIA NIM authentication failed.",
+              provider: "nvidia-nim",
             },
             { status: 500 },
           );
@@ -114,6 +121,13 @@ export async function POST(request: Request) {
           "REGION_BLOCKED",
           "TRANSCRIPT_QUOTA_EXCEEDED",
           "PROVIDER_TIMEOUT",
+          "PRIVATE_VIDEO",
+          "AGE_RESTRICTED",
+          "VIDEO_UNAVAILABLE",
+          "LIVE_STREAM_UNSUPPORTED",
+          "TRANSCRIPT_DISABLED",
+          "NETWORK_FAILURE",
+          "INVALID_URL",
           "UNSUPPORTED_VIDEO",
           "INVALID_API_KEY",
           "TRANSCRIPT_UNAVAILABLE"
@@ -121,9 +135,12 @@ export async function POST(request: Request) {
 
         if (isTranscriptFailure) {
           return Response.json({
-            error: 'Could not fetch transcript for this video.',
-            hint: 'Try a video with captions enabled, or use the Text tab to paste a transcript.',
-            code: 'transcript_unavailable'
+            error: message,
+            code,
+            reason: message,
+            provider: parsedError.provider ?? "transcript",
+            failures: parsedError.failures,
+            hint: "Try another public video with captions, or use the Text tab to paste a transcript.",
           }, { status: 422 });
         }
 
@@ -131,6 +148,9 @@ export async function POST(request: Request) {
           {
             error: message,
             code,
+            reason: message,
+            provider: parsedError.provider ?? "pipeline",
+            failures: parsedError.failures,
           },
           { status: 500 }
         );
@@ -182,7 +202,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const project = await ingestBlog(payload.url, user.id);
+    const project = await ingestBlog(sourceUrl, user.id);
     await consumeCredits(user);
 
     return NextResponse.json({
@@ -194,6 +214,18 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    const parsedError = parsePipelineError(error);
+    if (parsedError.code === "INVALID_URL") {
+      return NextResponse.json(
+        {
+          error: parsedError.reason,
+          code: "INVALID_URL",
+          reason: parsedError.reason,
+          provider: parsedError.provider ?? "url-normalizer",
+        },
+        { status: 400 },
+      );
+    }
     const planResponse = planLimitErrorResponse(error);
     if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
@@ -224,6 +256,35 @@ export async function POST(request: Request) {
 
 function detectSource(url: string): "youtube" | "blog" {
   return /(?:youtube\.com|youtu\.be)/i.test(url) ? "youtube" : "blog";
+}
+
+function parsePipelineError(error: unknown): {
+  code?: string;
+  reason: string;
+  provider?: string;
+  failures?: unknown;
+} {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    const parsed = JSON.parse(message) as {
+      code?: string;
+      reason?: string;
+      provider?: string;
+      failures?: unknown;
+    };
+    return {
+      code: parsed.code,
+      reason: parsed.reason || message,
+      provider: parsed.provider,
+      failures: parsed.failures,
+    };
+  } catch {
+    return {
+      code: error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code) : undefined,
+      reason: message || "YouTube ingestion failed.",
+      provider: error && typeof error === "object" && "provider" in error ? String((error as { provider?: unknown }).provider) : undefined,
+    };
+  }
 }
 
 function sourceToSourceType(source: "youtube" | "blog"): SourceType {

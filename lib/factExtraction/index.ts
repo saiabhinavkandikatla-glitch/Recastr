@@ -2,7 +2,7 @@
 export { FactExtractor } from './extractor';
 export {
   GeminiProvider,
-  OpenAIProvider,
+  NIMProvider,
   AnthropicProvider,
 } from './providers';
 export type {

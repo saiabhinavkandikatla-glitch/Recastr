@@ -59,13 +59,13 @@ const toneInstructions: Record<Tone, string> = {
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
   const localSummary = summaryFromBrief(briefFromTranscript(transcript));
   
-  if (!env.openaiKey) return localSummary;
+  if (!env.nvidiaKey) return localSummary;
 
   try {
     const brief = await extractBrief(transcript, "Source content");
     return summaryFromBrief(brief);
   } catch (error) {
-    console.error("OpenAI API Error (summarizeTranscript), falling back to local summary:", error);
+    console.error("NVIDIA NIM API Error (summarizeTranscript), falling back to local summary:", error);
     return localSummary;
   }
 }
@@ -140,12 +140,11 @@ export async function extractBrief(transcript: string, title: string): Promise<G
   console.log(`Fact count: N/A (Brief extraction)`);
   console.log(`Context length: ${prompt.length}`);
   console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: OpenAI`);
-  console.log(`Model: OpenAI configured model`);
+  console.log(`Provider: NVIDIA NIM`);
+  console.log(`Model: NVIDIA NIM configured model`);
   console.log("============================================================================================");
 
   const text = await generateAIText({
-    model: "gpt-5.4-mini",
     prompt,
     temperature: 0.25,
     responseMimeType: "application/json",
@@ -204,7 +203,7 @@ async function writePlatformPost({
   transcriptLength: number;
 }) {
   const aiClient = getAIClient();
-  if (!aiClient) throw new Error("OpenAI API client not configured.");
+  if (!aiClient) throw new Error("AI API client not configured.");
 
   let prompt = platformWriterPrompt(platform, brief, title);
 
@@ -232,8 +231,8 @@ async function writePlatformPost({
   console.log(`Fact count: ${factCount}`);
   console.log(`Context length: ${prompt.length}`);
   console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: OpenAI`);
-  console.log(`Model: OpenAI configured model`);
+  console.log(`Provider: NVIDIA NIM`);
+  console.log(`Model: NVIDIA NIM configured model`);
   console.log("============================================================================================");
 
   // Validation: If no real facts are present, fail loudly
@@ -243,7 +242,6 @@ async function writePlatformPost({
 
   try {
     const text = await generateAIText({
-      model: "gpt-5.4-mini",
       prompt,
       systemInstruction: CONTENT_WRITER_SYSTEM_PROMPT,
       temperature: 0.85,

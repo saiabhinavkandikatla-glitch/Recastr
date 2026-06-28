@@ -5,6 +5,8 @@ import type { ScheduledPost } from "@/lib/types";
 type CreditPayload = {
   error?: string | { code?: string; message?: string };
   code?: string;
+  reason?: string;
+  provider?: string;
   credits?: number;
   status?: number;
   upgradeUrl?: string;
@@ -95,7 +97,9 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
   }
 
   if (code === "TRANSCRIPT_QUOTA_EXCEEDED") {
-    return "Transcript provider quota exceeded";
+    return providerName(payload) === "nvidia-nim"
+      ? "NVIDIA NIM quota exceeded. Update NVIDIA_API_KEY, then retry."
+      : raw ?? "Transcript provider quota exceeded. Try again later or paste the transcript.";
   }
 
   if (code === "INVALID_API_KEY") {
@@ -119,7 +123,7 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
   }
 
   if (code === "AI_CONFIG_INVALID") {
-    return "AI provider authentication failed. Replace OPENAI_API_KEY with a valid OpenAI Platform API key.";
+    return "AI provider authentication failed. Replace NVIDIA_API_KEY with a valid NVIDIA Build API key.";
   }
 
   if (path.startsWith("/api/ingest")) {
@@ -146,6 +150,10 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
     : "Request failed. Check the details and try again.";
 }
 
+function providerName(payload: CreditPayload) {
+  return payload.provider?.toLowerCase();
+}
+
 function getResponsePath(response: Response) {
   try {
     return new URL(response.url).pathname;
@@ -170,5 +178,5 @@ function isPlanLimitCode(code?: string) {
 }
 
 function looksLikeProviderError(message: string) {
-  return /openai|gemini|google ai|quota|api key|platform\.openai\.com|stack|prisma|database|supabase|internal/i.test(message);
+  return /nvidia|nim|gemini|google ai|quota|api key|stack|prisma|database|supabase|internal/i.test(message);
 }

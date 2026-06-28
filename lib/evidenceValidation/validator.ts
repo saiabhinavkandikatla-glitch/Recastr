@@ -198,9 +198,9 @@ export class EvidenceValidator {
     if (typeof result.validationReason !== 'string') {
       throw new Error('validationReason must be a string');
     }
-    const validProviders = ['gemini', 'openai', 'anthropic'];
+    const validProviders = ['gemini', 'nvidia-nim', 'anthropic'];
     if (!validProviders.includes(result.validatorProvider)) {
-      throw new Error('validatorProvider must be one of: gemini, openai, anthropic');
+      throw new Error('validatorProvider must be one of: gemini, nvidia-nim, anthropic');
     }
     if (typeof result.validatorModel !== 'string') {
       throw new Error('validatorModel must be a string');
@@ -309,7 +309,7 @@ export class EvidenceValidator {
   /**
    * Get provider name for error reporting
    */
-  private getProviderName(): "gemini" | "openai" | "anthropic" {
+  private getProviderName(): "gemini" | "nvidia-nim" | "anthropic" {
     // This would ideally come from the provider instance
     // For now, we'll return a generic name
     return 'gemini';

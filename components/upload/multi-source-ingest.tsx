@@ -59,6 +59,12 @@ export function MultiSourceIngest() {
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
   const [pendingYoutubeUrl, setPendingYoutubeUrl] = useState<string>("");
   const [manualTranscript, setManualTranscript] = useState("");
+  const [lastError, setLastError] = useState<{
+    message: string;
+    code?: string;
+    provider?: string;
+    reason?: string;
+  } | null>(null);
 
   const form = useForm<IngestForm>({
     resolver: zodResolver(ingestFormSchema),
@@ -76,6 +82,7 @@ export function MultiSourceIngest() {
     setIsProcessing(true);
     setIsComplete(false);
     setGeneratedProjectId(null);
+    setLastError(null);
     stepperRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     for (const step of ingestionSteps) {
       setActiveStep(step);
@@ -104,22 +111,38 @@ export function MultiSourceIngest() {
         projectId?: string;
         error?: string;
         code?: string;
+        provider?: string;
+        reason?: string;
         warning?: string;
       };
 
       if (!response.ok || !data.projectId) {
-        if (data.code === "NO_TRANSCRIPT") {
+        if (isTranscriptErrorCode(data.code)) {
+          setLastError({
+            message: data.error ?? "No captions available for this video.",
+            code: data.code,
+            provider: data.provider,
+            reason: data.reason,
+          });
           setPendingYoutubeUrl(values.url || "");
           setShowTranscriptModal(true);
           setIsProcessing(false);
           return;
         }
-        throw new Error(data.error ?? "ingestion_failed");
+        const message = data.reason ?? data.error ?? "Analyze Source failed.";
+        setLastError({
+          message,
+          code: data.code,
+          provider: data.provider,
+          reason: data.reason,
+        });
+        throw new Error(message);
       }
 
       const projectId = data.projectId;
       setGeneratedProjectId(projectId);
       setIsComplete(true);
+      setLastError(null);
       toast.success("Source intelligence is ready", {
         description: data.warning ?? "Open the generated project to edit, copy, and export posts.",
       });
@@ -164,6 +187,7 @@ export function MultiSourceIngest() {
 
       setGeneratedProjectId(data.projectId);
       setIsComplete(true);
+      setLastError(null);
       setManualTranscript("");
       setPendingYoutubeUrl("");
 
@@ -319,6 +343,26 @@ export function MultiSourceIngest() {
                 </div>
               </div>
             ) : null}
+            {lastError ? (
+              <div className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
+                <p className="text-sm font-medium text-destructive">Analyze Source failed</p>
+                <p className="mt-1 text-xs text-muted-foreground">{lastError.message}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                  {lastError.code ? <span>Code: {lastError.code}</span> : null}
+                  {lastError.provider ? <span>Provider: {lastError.provider}</span> : null}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  disabled={isProcessing}
+                  onClick={form.handleSubmit(onSubmit)}
+                >
+                  Retry analyze
+                </Button>
+              </div>
+            ) : null}
             <div className="mt-5 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-[8px] border bg-card p-3">
                 <p className="font-medium">Cached transcripts</p>
@@ -383,4 +427,16 @@ export function MultiSourceIngest() {
       )}
     </AnimatedBorderCard>
   );
+}
+
+function isTranscriptErrorCode(code?: string) {
+  return [
+    "NO_TRANSCRIPT",
+    "NO_CAPTIONS",
+    "TRANSCRIPT_DISABLED",
+    "PROVIDER_TIMEOUT",
+    "TRANSCRIPT_QUOTA_EXCEEDED",
+    "TRANSCRIPT_UNAVAILABLE",
+    "NETWORK_FAILURE",
+  ].includes(code ?? "");
 }

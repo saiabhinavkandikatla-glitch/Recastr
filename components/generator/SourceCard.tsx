@@ -18,6 +18,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
   const [history, setHistory] = useState<Project[]>(initialHistory);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasLoadedInitially, setHasLoadedInitially] = useState(initialHistory.length > 0);
+  const [lastError, setLastError] = useState("");
 
   useEffect(() => {
     if (initialHistory.length > 0) {
@@ -56,6 +57,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
     if (mode === "url") {
       if (!url.trim()) return;
       setIsIngesting(true);
+      setLastError("");
       try {
         const response = await fetch("/api/ingest/url", {
           method: "POST",
@@ -73,13 +75,16 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           toast.error("Failed to ingest source");
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to analyze source");
+        const message = error instanceof Error ? error.message : "Failed to analyze source";
+        setLastError(message);
+        toast.error(message);
       } finally {
         setIsIngesting(false);
       }
     } else {
       if (!text.trim()) return;
       setIsIngesting(true);
+      setLastError("");
       try {
         const response = await fetch("/api/ingest/text", {
           method: "POST",
@@ -100,7 +105,9 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           toast.error("Failed to ingest text");
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to analyze text");
+        const message = error instanceof Error ? error.message : "Failed to analyze text";
+        setLastError(message);
+        toast.error(message);
       } finally {
         setIsIngesting(false);
       }
@@ -221,6 +228,25 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
               {isIngesting ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Source"}
             </button>
           </form>
+
+          {lastError ? (
+            <div className="mt-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs text-red-100">
+              <p className="font-semibold text-red-200">Analyze Source failed</p>
+              <p className="mt-1 text-red-100/80">{lastError}</p>
+              {mode === "url" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("text");
+                    setLastError("");
+                  }}
+                  className="mt-3 rounded-lg border border-red-300/30 px-3 py-1.5 font-semibold text-red-50 transition-colors hover:bg-red-500/20"
+                >
+                  Paste transcript instead
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           {history.length > 0 && (
             <div className="mt-6 border-t border-[#232323] pt-4">
