@@ -1,11 +1,22 @@
 import axios, { AxiosError } from "axios";
 import { YoutubeTranscript } from "youtube-transcript";
+import { env } from "@/lib/env";
 
 const MIN_TRANSCRIPT_WORDS = 50;
-type TranscriptProvider = "youtube-transcript" | "watch-page" | "nvidia-nim";
+const SUPADATA_BASE_URL = "https://api.supadata.ai/v1";
+
+type TranscriptProvider = "youtube-transcript" | "watch-page" | "nvidia-nim" | "supadata";
+
+export type SupadataTranscriptResponse = {
+  content?: string | Array<{ text?: string }>;
+  jobId?: string;
+  status?: "queued" | "active" | "completed" | "failed";
+  error?: string | { message?: string };
+};
 
 type TranscriptErrorCode =
   | "INVALID_URL"
+  | "INVALID_API_KEY"
   | "NO_CAPTIONS"
   | "PRIVATE_VIDEO"
   | "AGE_RESTRICTED"
@@ -18,7 +29,6 @@ type TranscriptErrorCode =
   | "NETWORK_FAILURE"
   | "UNSUPPORTED_SOURCE"
   | "TRANSCRIPT_UNAVAILABLE";
-
 
 type CaptionTrack = {
   baseUrl?: string;
@@ -168,6 +178,25 @@ export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
 
 async function fetchTranscriptResult(videoUrl: string, videoId: string): Promise<ProviderResult> {
   const failures: ProviderFailure[] = [];
+
+  // Provider 1: Supadata (canonical)
+  if (env.supadataKey) {
+    try {
+      return await runProvider("supadata", () => fetchSupadataTranscriptWithRetry(videoUrl, videoId), 45000);
+    } catch (e: any) {
+      failures.push(toProviderFailure(e));
+      console.warn(`[Transcript Pipeline] Supadata failed. Trying next fallback provider...`);
+    }
+  } else {
+    failures.push({
+      provider: "supadata",
+      code: "INVALID_API_KEY",
+      reason: "SUPADATA_API_KEY environment variable is not configured.",
+      durationMs: 0,
+    });
+  }
+
+  // Fallbacks: Scrapers
   const lightweightProviders: Array<() => Promise<ProviderResult>> = [
     () => runProvider("youtube-transcript", () => fetchWithYoutubeTranscriptLib(videoId), 7000),
     () => runProvider("watch-page", () => scrapeWatchPageCaptions(videoUrl), 8000),
@@ -178,10 +207,17 @@ async function fetchTranscriptResult(videoUrl: string, videoId: string): Promise
 
   const dominant = chooseDominantFailure(failures);
   console.error("[Transcript] All providers failed:", JSON.stringify(failures));
+
+  let finalReason = dominant.reason;
+  // If the failure reason indicates a bot block and the user hasn't set the Supadata key, suggest setting it.
+  if (!env.supadataKey && (dominant.reason.toLowerCase().includes("bot") || dominant.reason.toLowerCase().includes("sign in"))) {
+    finalReason = "YouTube blocked the scraper with a bot challenge ('Sign in to confirm you're not a bot'). Configure SUPADATA_API_KEY in your environment variables to bypass this challenge.";
+  }
+
   throw new TranscriptError({
     code: dominant.code,
     provider: dominant.provider,
-    reason: dominant.reason,
+    reason: finalReason,
     failures,
   });
 }
@@ -215,7 +251,7 @@ async function runProvider(
   try {
     const transcript = await withTimeout(
       withRetry(fetcher, {
-        retries: provider === "nvidia-nim" ? 0 : 2,
+        retries: provider === "nvidia-nim" || provider === "supadata" ? 0 : 2,
         provider,
       }),
       timeoutMs,
@@ -236,6 +272,161 @@ async function runProvider(
       failures: [{ provider, code: classified.code, reason: classified.reason, durationMs }],
     });
   }
+}
+
+async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: string): Promise<string> {
+  let attempt = 0;
+  const maxAttempts = 3;
+  let lastError: any = null;
+
+  while (attempt < maxAttempts) {
+    attempt++;
+    const startTime = Date.now();
+    console.log(`[Supadata Client] START - Attempt ${attempt}/${maxAttempts}\n- Input: ${videoUrl}`);
+
+    try {
+      const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript`, {
+        headers: { "x-api-key": env.supadataKey },
+        params: {
+          url: videoUrl,
+          lang: "en",
+          text: true,
+          mode: "native",
+        },
+        timeout: 30000,
+        validateStatus: () => true, // capture raw error details
+      });
+
+      const elapsedMs = Date.now() - startTime;
+      console.log(`[Supadata Client] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
+
+      if (response.status === 202 && response.data.jobId) {
+        return await pollSupadataJob(response.data.jobId, videoUrl, videoId);
+      }
+
+      if (response.status === 206) {
+        throw new TranscriptError({ code: "NO_CAPTIONS", provider: "supadata", reason: "Supadata returned transcript unavailable for existing captions." });
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new TranscriptError({ code: "INVALID_API_KEY", provider: "supadata", reason: "Invalid API key configured for Supadata." });
+      }
+
+      if (response.status === 429) {
+        throw new TranscriptError({ code: "TRANSCRIPT_QUOTA_EXCEEDED", provider: "supadata", reason: "Transcript provider quota exceeded." });
+      }
+
+      if (response.status < 200 || response.status >= 300) {
+        const errorMsg = readSupadataError(response.data);
+        throw new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: `Supadata transcript request failed with HTTP ${response.status}: ${errorMsg}` });
+      }
+
+      const content = readSupadataContent(response.data);
+      const transcript = normalizeAndValidateTranscript(content, "supadata");
+      return transcript;
+    } catch (error: any) {
+      const elapsedMs = Date.now() - startTime;
+      console.error(`[Supadata Client] FAILED - Attempt ${attempt}/${maxAttempts}\n- Duration: ${elapsedMs}ms`);
+      console.error(`- Provider: supadata`);
+      console.error(`- Video ID: ${videoId}`);
+      console.error(`- Normalized URL: ${videoUrl}`);
+      
+      if (error.response) {
+        console.error(`- HTTP Status: ${error.response.status}`);
+        console.error(`- Response Body:`, JSON.stringify(error.response.data));
+      } else {
+        console.error(`- Error: ${error.message || error}`);
+      }
+
+      lastError = error;
+
+      // Do not retry on permanent errors
+      if (error instanceof TranscriptError && 
+         (error.code === "NO_CAPTIONS" || error.code === "INVALID_API_KEY" || error.code === "TRANSCRIPT_QUOTA_EXCEEDED")) {
+        throw error;
+      }
+
+      if (attempt < maxAttempts) {
+        const backoff = attempt * 1000;
+        console.log(`[Supadata Client] Retrying after ${backoff}ms backoff...`);
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+      }
+    }
+  }
+
+  throw lastError || new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: "Supadata failed after retries." });
+}
+
+async function pollSupadataJob(jobId: string, videoUrl: string, videoId: string): Promise<string> {
+  const deadline = Date.now() + 55000;
+  let lastStatus = "queued";
+  const pollStartTime = Date.now();
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const stepStart = Date.now();
+    console.log(`[Supadata Client Poll] START - Job ${jobId}`);
+
+    try {
+      const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript/${jobId}`, {
+        headers: { "x-api-key": env.supadataKey },
+        timeout: 15000,
+        validateStatus: () => true,
+      });
+
+      const elapsedMs = Date.now() - stepStart;
+      console.log(`[Supadata Client Poll] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
+
+      if (response.status < 200 || response.status >= 300) {
+        const errorMsg = readSupadataError(response.data);
+        throw new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: `Supadata job check failed with HTTP ${response.status}: ${errorMsg}` });
+      }
+
+      lastStatus = response.data.status ?? lastStatus;
+      if (response.data.status === "failed") {
+        const errorMsg = readSupadataError(response.data);
+        throw new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: `Supadata job failed: ${errorMsg}` });
+      }
+
+      if (response.data.status === "completed" || response.data.content) {
+        const content = readSupadataContent(response.data);
+        const transcript = normalizeAndValidateTranscript(content, "supadata");
+        return transcript;
+      }
+    } catch (error: any) {
+      console.error(`[Supadata Client Poll] FAILED - Job ${jobId}`);
+      console.error(`- Provider: supadata`);
+      console.error(`- Video ID: ${videoId}`);
+      console.error(`- Normalized URL: ${videoUrl}`);
+      if (error.response) {
+        console.error(`- HTTP Status: ${error.response.status}`);
+        console.error(`- Response Body:`, JSON.stringify(error.response.data));
+      } else {
+        console.error(`- Error: ${error.message || error}`);
+      }
+      throw error;
+    }
+  }
+
+  throw new TranscriptError({ code: "PROVIDER_TIMEOUT", provider: "supadata", reason: `Supadata transcript job ${jobId} timed out while status was ${lastStatus}.` });
+}
+
+function readSupadataContent(payload: SupadataTranscriptResponse): string {
+  if (typeof payload.content === "string") return payload.content;
+  if (Array.isArray(payload.content)) {
+    return payload.content
+      .map((item) => item.text?.trim() ?? "")
+      .filter(Boolean)
+      .join(" ");
+  }
+  return "";
+}
+
+function readSupadataError(payload: SupadataTranscriptResponse): string {
+  if (!payload) return "empty response";
+  if (typeof payload.error === "string") return payload.error;
+  if (payload.error?.message) return payload.error.message;
+  return JSON.stringify(payload);
 }
 
 async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string> {
@@ -650,4 +841,3 @@ function decodeHtml(value: string) {
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
