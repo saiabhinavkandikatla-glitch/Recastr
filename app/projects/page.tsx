@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { FolderOpen, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -8,6 +9,19 @@ import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import { listStoredProjects } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
+
+export const metadata: Metadata = {
+  title: "Projects",
+  description: "Browse and manage all your content repurposing projects. Each project contains generated posts, reminders, and editing history.",
+  openGraph: {
+    title: "Projects | Recastr",
+    description: "Browse all your content repurposing projects.",
+  },
+  twitter: {
+    title: "Projects | Recastr",
+    description: "Browse all your content repurposing projects.",
+  },
+};
 
 export default async function ProjectsIndexPage() {
   const user = await getCurrentUser();
@@ -64,7 +78,7 @@ async function loadProjects(userId?: string): Promise<Project[]> {
       where: { userId },
       select: projectShellSelect,
       orderBy: { createdAt: "desc" },
-      take: 48,
+      take: 24,
     });
     return mergeProjects(projects.map(serializeProjectShell), storedProjects);
   } catch (error) {

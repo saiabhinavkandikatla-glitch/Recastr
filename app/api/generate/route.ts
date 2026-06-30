@@ -199,11 +199,17 @@ async function loadProjectForGeneration(projectId: string, userId: string): Prom
   });
 
   if (dbProject) {
+    // Normalize sourceType: DB stores lowercase ("youtube") but app-layer uses uppercase ("YOUTUBE")
+    const rawSourceType = String(dbProject.sourceType ?? "TEXT").toUpperCase();
+    const sourceType = (["YOUTUBE", "PODCAST", "BLOG", "TEXT"].includes(rawSourceType)
+      ? rawSourceType
+      : "TEXT") as Project["sourceType"];
+
     return {
       id: dbProject.id,
       userId: dbProject.userId,
       title: dbProject.title,
-      sourceType: "YOUTUBE",
+      sourceType,
       sourceUrl: dbProject.sourceUrl ?? undefined,
       thumbnailUrl: dbProject.thumbnailUrl ?? undefined,
       sourceText: dbProject.sourceText ?? undefined,

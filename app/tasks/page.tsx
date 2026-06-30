@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -8,6 +9,19 @@ import { listStoredScheduledPosts } from "@/lib/projects/store";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import type { Platform, PostStatus, Project, ScheduledPost } from "@/lib/types";
 import { Loader2 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Tasks & Reminders",
+  description: "Manage your scheduled content reminders, view upcoming posts, and track publishing history across all platforms.",
+  openGraph: {
+    title: "Tasks & Reminders | Recastr",
+    description: "Manage scheduled content reminders and track your publishing history.",
+  },
+  twitter: {
+    title: "Tasks & Reminders | Recastr",
+    description: "Manage scheduled content reminders and track your publishing history.",
+  },
+};
 
 export default async function TasksPage() {
   const user = await getCurrentUser();

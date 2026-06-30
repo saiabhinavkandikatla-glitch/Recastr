@@ -1,38 +1,29 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { getCurrentUser } from "@/lib/current-user";
-import { env } from "@/lib/env";
-import { prisma } from "@/lib/prisma/client";
-import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
-import type { Project } from "@/lib/types";
+
+export const metadata: Metadata = {
+  title: "Settings",
+  description: "Manage your Recastr account, connected platforms, notification preferences, and subscription plan.",
+  openGraph: {
+    title: "Settings | Recastr",
+    description: "Manage your account, platforms, and subscription.",
+  },
+  twitter: {
+    title: "Settings | Recastr",
+    description: "Manage your account, platforms, and subscription.",
+  },
+};
 
 export default async function SettingsRoute() {
   const user = await getCurrentUser();
-  const projects = await loadProjects(user?.id);
 
   return (
-    <AppShell projects={projects} title="Settings" user={user}>
+    <AppShell title="Settings" user={user}>
       <PageHeader title="Settings" backHref="/dashboard" />
       <SettingsPage currentUser={user} />
     </AppShell>
   );
-}
-
-async function loadProjects(userId?: string): Promise<Project[]> {
-
-  if (!userId) return env.requireAuth ? [] : [];
-
-  try {
-    const projects = await prisma.project.findMany({
-      where: { userId },
-      select: projectShellSelect,
-      orderBy: { createdAt: "desc" },
-      take: 8,
-    });
-
-    return projects.map(serializeProjectShell);
-  } catch {
-    return [];
-  }
 }

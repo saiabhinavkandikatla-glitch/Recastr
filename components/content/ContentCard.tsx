@@ -697,6 +697,7 @@ function toPreviewPlatform(platform: ContentCardPlatform): PreviewPlatform {
   if (platform === "instagram") return "INSTAGRAM";
   if (platform === "facebook") return "FACEBOOK";
   if (platform === "youtube") return "COMMUNITY";
+  if (platform === "threads") return "TWITTER"; // Threads uses same text layout as Twitter
   return "TWITTER";
 }
 

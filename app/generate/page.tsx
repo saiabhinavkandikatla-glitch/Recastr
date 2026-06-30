@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { GeneratorWorkspace } from "@/components/generator/GeneratorWorkspace";
@@ -6,6 +7,19 @@ import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import { listStoredProjects } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
+
+export const metadata: Metadata = {
+  title: "Generate Content",
+  description: "Paste a YouTube URL, podcast episode, blog post, or raw text and generate platform-ready social content in seconds.",
+  openGraph: {
+    title: "Generate Content | Recastr",
+    description: "Turn any source into Twitter threads, LinkedIn posts, Instagram captions, and more.",
+  },
+  twitter: {
+    title: "Generate Content | Recastr",
+    description: "Turn any source into Twitter threads, LinkedIn posts, Instagram captions, and more.",
+  },
+};
 
 export default async function GeneratePage() {
   const user = await getCurrentUser();

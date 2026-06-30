@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProjectDashboard, type DashboardMetrics } from "@/components/dashboard/project-dashboard";
 import { getCurrentUser } from "@/lib/current-user";
@@ -5,6 +6,19 @@ import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import type { DbProjectShell } from "@/lib/projects/serialize";
 import type { Project } from "@/lib/types";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "View your recent projects, content metrics, and scheduled reminders in your Recastr dashboard.",
+  openGraph: {
+    title: "Dashboard | Recastr",
+    description: "View your recent projects, content metrics, and scheduled reminders.",
+  },
+  twitter: {
+    title: "Dashboard | Recastr",
+    description: "View your recent projects, content metrics, and scheduled reminders.",
+  },
+};
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();

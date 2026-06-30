@@ -24,9 +24,12 @@ export function ProjectIndexGrid({
     queryKey: ["projects"],
     queryFn: async () => {
       const res = await fetch("/api/projects");
+      if (!res.ok) return projects;
       return res.json();
     },
     initialData: projects,
+    initialDataUpdatedAt: 0, // treat SSR data as stale immediately — triggers background refetch
+    staleTime: 30_000, // 30s before next refetch
   });
 
   return (
