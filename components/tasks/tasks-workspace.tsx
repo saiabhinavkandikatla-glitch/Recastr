@@ -8,6 +8,7 @@ import { format, isSameDay, isThisWeek, isToday } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarDays, CheckCircle2, Clock3, Copy, Eye, History, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,18 +50,42 @@ export function TasksWorkspace({
   projects: Project[];
   scheduledPosts: ScheduledPost[];
 }) {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const [tab, setTab] = useState<TaskTab>(() => parseTaskTab(tabParam));
   const [scheduledFilter, setScheduledFilter] = useState<ScheduledFilter>("upcoming");
-  const [localScheduled, setLocalScheduled] = useState(() =>
-    mergeScheduledPosts(scheduledPosts, readBrowserScheduledPosts()),
-  );
-  const [scheduledLoading, setScheduledLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const { data: dbScheduled = scheduledPosts, isFetching: scheduledLoading } = useQuery<ScheduledPost[]>({
+    queryKey: ["scheduled"],
+    queryFn: async () => {
+      const res = await fetch("/api/scheduled?filter=all");
+      return res.json();
+    },
+    initialData: scheduledPosts,
+  });
+
+  const { data: dbHistoryResponse, isFetching: historyLoading } = useQuery<{ items: ScheduledPost[] }>({
+    queryKey: ["history"],
+    queryFn: async () => {
+      const res = await fetch("/api/history?page=1");
+      return res.json();
+    },
+  });
+
+  const localScheduled = useMemo(() => {
+    const historyItems = dbHistoryResponse?.items ?? [];
+    const browserPosts = readBrowserScheduledPosts();
+    return mergeScheduledPosts(
+      mergeScheduledPosts(mergeScheduledPosts(scheduledPosts, dbScheduled), historyItems),
+      browserPosts
+    );
+  }, [scheduledPosts, dbScheduled, dbHistoryResponse]);
+
   const contentIndex = useMemo(() => buildContentIndex(projects), [projects]);
+  
   const scheduledItems = useMemo(
     () =>
       localScheduled
@@ -69,6 +94,7 @@ export function TasksWorkspace({
         .sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime()),
     [localScheduled, scheduledFilter],
   );
+
   const historyItems = useMemo(
     () =>
       localScheduled
@@ -82,66 +108,17 @@ export function TasksWorkspace({
   }, [tabParam]);
 
   useEffect(() => {
-    setLocalScheduled((current) => mergeScheduledPosts(current, scheduledPosts));
-  }, [scheduledPosts]);
-
-  useEffect(() => {
-    setLocalScheduled((current) => mergeScheduledPosts(current, readBrowserScheduledPosts()));
-  }, []);
-
-  useEffect(() => {
-    if (tab !== "scheduled") return;
-    let cancelled = false;
-    setScheduledLoading(true);
-
-    fetch("/api/scheduled?filter=all")
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => ({}))) as ScheduledListResponse;
-        if (!response.ok) throw new Error(payload.error?.message ?? "Could not load scheduled posts");
-        if (!cancelled) {
-          setLocalScheduled((current) =>
-            replaceScheduledGroup(current, payload.data ?? [], [...SCHEDULED_STATUSES]),
-          );
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load scheduled posts");
-      })
-      .finally(() => {
-        if (!cancelled) setScheduledLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
+    const handleScheduleCreated = () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+      void queryClient.invalidateQueries({ queryKey: ["history"] });
+      void queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
     };
-  }, [tab]);
-
-  useEffect(() => {
-    if (tab !== "history") return;
-    let cancelled = false;
-    setHistoryLoading(true);
-
-    fetch("/api/history?page=1")
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => ({}))) as HistoryListResponse;
-        if (!response.ok) throw new Error(payload.error?.message ?? "Could not load history");
-        if (!cancelled) {
-          setLocalScheduled((current) =>
-            replaceScheduledGroup(current, payload.data?.items ?? [], [...HISTORY_STATUSES]),
-          );
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load history");
-      })
-      .finally(() => {
-        if (!cancelled) setHistoryLoading(false);
-      });
-
+    window.addEventListener("recastr:schedule-created", handleScheduleCreated);
     return () => {
-      cancelled = true;
+      window.removeEventListener("recastr:schedule-created", handleScheduleCreated);
     };
-  }, [tab]);
+  }, [queryClient]);
 
   function changeTab(nextTab: TaskTab) {
     setTab(nextTab);
@@ -151,13 +128,12 @@ export function TasksWorkspace({
   }
 
   async function cancelScheduled(id: string) {
-    setLocalScheduled((current) =>
-      current.map((post) => (post.id === id ? { ...post, status: "CANCELLED" } : post)),
-    );
     updateBrowserScheduledPost(id, { status: "CANCELLED" });
 
     if (isBrowserScheduledPostId(id)) {
       toast.success("Post unscheduled");
+      void queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+      void queryClient.invalidateQueries({ queryKey: ["history"] });
       return;
     }
 
@@ -167,15 +143,18 @@ export function TasksWorkspace({
       return;
     }
     toast.success("Post unscheduled");
+    void queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+    void queryClient.invalidateQueries({ queryKey: ["history"] });
+    void queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
   }
 
   async function retryPost(id: string) {
-    setLocalScheduled((current) =>
-      current.map((post) => (post.id === id ? { ...post, status: "PENDING", failReason: null } : post)),
-    );
     updateBrowserScheduledPost(id, { status: "PENDING", failReason: null });
     if (isBrowserScheduledPostId(id)) {
       toast.success("Retry scheduled");
+      void queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+      void queryClient.invalidateQueries({ queryKey: ["history"] });
       return;
     }
 
@@ -185,7 +164,12 @@ export function TasksWorkspace({
       return;
     }
     toast.success("Retry scheduled");
+    void queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+    void queryClient.invalidateQueries({ queryKey: ["history"] });
+    void queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
   }
+
 
   const tabs: Array<{ id: TaskTab; label: string; icon: ReactNode }> = [
     { id: "scheduled", label: "Scheduled", icon: <CalendarDays className="h-4 w-4" /> },
@@ -251,7 +235,7 @@ export function TasksWorkspace({
                 contentIndex={contentIndex}
                 loading={historyLoading}
                 posts={historyItems}
-                onDelete={(id) => setLocalScheduled((current) => current.filter((post) => post.id !== id))}
+                onDelete={cancelScheduled}
                 onRetry={retryPost}
               />
             )}
@@ -306,7 +290,9 @@ function ScheduledTab({
         <EmptyState
           headline="Nothing scheduled yet"
           icon={<Clock3 className="h-8 w-8 text-amber-500" />}
-          subline="Go to a project and click Schedule on any content card."
+          subline="Go to a project and click Schedule on any content card, or generate a new campaign."
+          actionHref="/generate"
+          actionLabel="Generate content to schedule your first reminder"
         />
       ) : (
         Object.entries(grouped).map(([day, dayPosts], index) => (

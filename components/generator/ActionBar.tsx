@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useGenerator } from "./GeneratorProvider";
+import { useQueryClient } from "@tanstack/react-query";
 
 function getActiveContent(outputs: ReturnType<typeof useGenerator>["outputs"], activeTab: string): string {
   const match = outputs.find((o) => o.platform === activeTab);
@@ -22,6 +23,7 @@ function getActiveContent(outputs: ReturnType<typeof useGenerator>["outputs"], a
 }
 
 export function ActionBar() {
+  const queryClient = useQueryClient();
   const { outputs, activePreviewTab, project } = useGenerator();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -184,6 +186,9 @@ export function ActionBar() {
       toast.success("Reminder scheduled successfully!", {
         description: "Please check your spam or promotions folder if you don't see our emails.",
       });
+      queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       setIsModalOpen(false);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to schedule reminder");

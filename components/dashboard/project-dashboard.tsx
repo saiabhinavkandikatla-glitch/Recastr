@@ -9,8 +9,10 @@ import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CurrentUser } from "@/lib/current-user";
-import type { Project } from "@/lib/types";
+import type { Project, ScheduledPost } from "@/lib/types";
 import { PlatformIcon } from "@/components/PlatformIcon";
+import { useQuery } from "@tanstack/react-query";
+import { ActivityFeed } from "./ActivityFeed";
 
 export type DashboardMetrics = {
   projects: number;
@@ -33,27 +35,37 @@ export function ProjectDashboard({
   const searchParams = useSearchParams();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | undefined>();
-  const [liveMetrics, setLiveMetrics] = useState<DashboardMetrics>(
-    initialMetrics ?? { projects: initialProjects.length, contentCount: 0, scheduled: 0 },
+  
+  const { data: projects = initialProjects } = useQuery<Project[]>({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      const res = await fetch("/api/projects");
+      return res.json();
+    },
+    initialData: initialProjects,
+  });
+
+  const { data: scheduled = [] } = useQuery<ScheduledPost[]>({
+    queryKey: ["scheduled"],
+    queryFn: async () => {
+      const res = await fetch("/api/scheduled");
+      return res.json();
+    },
+  });
+
+  const projectCount = projects.length;
+  const contentCount = projects.reduce(
+    (total, p) => total + (p.contents?.length ?? p.outputs?.length ?? 0),
+    0,
   );
+  const scheduledCount = scheduled.filter(
+    (post) => ["PENDING", "SCHEDULED", "pending", "scheduled"].includes(post.status)
+  ).length;
+
   const isWelcome = searchParams.get("welcome") === "1";
   const firstName = user?.name?.split(" ")[0] ?? user?.email.split("@")[0] ?? "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const fallbackContentCount = initialProjects.reduce(
-    (total, project) => total + (project.contents?.length ?? project.outputs.length),
-    0,
-  );
-
-  const fallbackScheduledCount = initialProjects.reduce((total, project) => {
-    if (project.contents?.length) {
-      return total + project.contents.filter((content) => Boolean(content.scheduledPost)).length;
-    }
-    return total;
-  }, 0);
-  const projectCount = Math.max(liveMetrics.projects, initialProjects.length);
-  const contentCount = Math.max(liveMetrics.contentCount, fallbackContentCount);
-  const scheduledCount = Math.max(liveMetrics.scheduled, fallbackScheduledCount);
   const projectLabel = `${projectCount} ${projectCount === 1 ? "project" : "projects"}`;
 
   const timeSavedHours = Math.max(0, (contentCount * 8 + projectCount * 20) / 60);
@@ -69,31 +81,6 @@ export function ProjectDashboard({
     { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "None scheduled" },
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated" },
   ];
-
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function refreshMetrics() {
-      try {
-        const response = await fetch("/api/usage", { cache: "no-store" });
-        const payload = (await response.json()) as {
-          data: DashboardMetrics | null;
-          error: { message: string; code: string } | null;
-        };
-        if (!ignore && response.ok && payload.data) {
-          setLiveMetrics(payload.data);
-        }
-      } catch {
-        // The server-rendered metrics remain visible if the live refresh fails.
-      }
-    }
-
-    void refreshMetrics();
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   return (
     <div className="space-y-10">
@@ -147,100 +134,108 @@ export function ProjectDashboard({
       ) : null}
 
 
-      <section>
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold font-display flex items-center gap-2">
-              <FolderOpen className="h-5 w-5 text-muted-foreground" />
-              Recent projects
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">Continue editing, exporting, or scheduling generated assets.</p>
-          </div>
-          {initialProjects.length > 0 && (
-            <Button variant="ghost" asChild className="hidden text-[var(--violet)] hover:bg-[var(--app-panel)] hover:text-[var(--violet)] sm:flex">
-              <Link href="/projects">View all <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          )}
-        </div>
-
-        {initialProjects.length ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {initialProjects.slice(0, 6).map((project, index) => (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.3 }}
-                key={project.id}
-              >
-                <button
-                  type="button"
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5 text-left transition-all duration-300 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111]/40 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
-                  onClick={() => {
-                    if (demoLocked) {
-                      setSelectedProjectTitle(project.title);
-                      setAuthModalOpen(true);
-                      return;
-                    }
-                    router.push(`/projects/${project.id}`);
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                    <Badge variant="muted" className="bg-muted capitalize text-xs">{((project?.sourceType || '').toLowerCase())}</Badge>
-                  </div>
-
-                  <h3 className="line-clamp-2 text-lg font-bold font-display group-hover:text-primary transition-colors">{project.title}</h3>
-                  <p className="mt-2 text-sm font-medium text-muted-foreground flex-1">
-                    {formatGeneratedCount(project)}
-                  </p>
-
-                  <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
-                    <div className="flex -space-x-2">
-                      {["twitter", "linkedin", "instagram"].map((platform, i) => (
-                        <PlatformIcon
-                          key={platform}
-                          platform={platform}
-                          size="sm"
-                          variant="circle"
-                          className="border-2 border-[var(--app-surface)]"
-                          style={{ zIndex: 3 - i }}
-                        />
-                      ))}
-                    </div>
-                    <span className="inline-flex items-center text-sm font-semibold text-primary transition-transform group-hover:translate-x-1">
-                      Open <ArrowRight className="ml-1 h-4 w-4" />
-                    </span>
-                  </div>
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-12 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--app-panel)] text-[var(--violet)] mb-6">
-              <FolderOpen className="h-8 w-8" />
+      <div className="grid gap-8 lg:grid-cols-[2fr_1fr] items-start">
+        {/* Left Column: Recent Projects */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold font-display flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                Recent projects
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">Continue editing, exporting, or scheduling generated assets.</p>
             </div>
-            <h3 className="text-2xl font-bold font-display">No projects yet</h3>
-            <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
-              Paste a source URL or upload a file above to generate your first content pack.
-            </p>
-            <div className="mt-8 flex justify-center">
-              <Button
-                size="lg"
-                className="rounded-full bg-[var(--violet)] px-8 text-black hover:bg-[var(--violet-hover)]"
-                asChild
-              >
-                <Link href="/generate">
-                  <Plus className="mr-2 h-5 w-5" />
-                  Create your first project
-                </Link>
+            {projects.length > 0 && (
+              <Button variant="ghost" asChild className="hidden text-[var(--violet)] hover:bg-[var(--app-panel)] hover:text-[var(--violet)] sm:flex">
+                <Link href="/projects">View all <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
-            </div>
+            )}
           </div>
-        )}
-      </section>
+
+          {projects.length ? (
+            <div className="grid gap-5 sm:grid-cols-2">
+              {projects.slice(0, 4).map((project, index) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05, duration: 0.3 }}
+                  key={project.id}
+                >
+                  <button
+                    type="button"
+                    className="group relative flex w-full h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5 text-left transition-all duration-300 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111]/40 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
+                    onClick={() => {
+                      if (demoLocked) {
+                        setSelectedProjectTitle(project.title);
+                        setAuthModalOpen(true);
+                        return;
+                      }
+                      router.push(`/projects/${project.id}`);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <Badge variant="muted" className="bg-muted capitalize text-xs">{((project?.sourceType || '').toLowerCase())}</Badge>
+                    </div>
+
+                    <h3 className="line-clamp-2 text-lg font-bold font-display group-hover:text-primary transition-colors">{project.title}</h3>
+                    <p className="mt-2 text-sm font-medium text-muted-foreground flex-1">
+                      {formatGeneratedCount(project)}
+                    </p>
+
+                    <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4 w-full">
+                      <div className="flex -space-x-2">
+                        {["twitter", "linkedin", "instagram"].map((platform, i) => (
+                          <PlatformIcon
+                            key={platform}
+                            platform={platform}
+                            size="sm"
+                            variant="circle"
+                            className="border-2 border-[var(--app-surface)]"
+                            style={{ zIndex: 3 - i }}
+                          />
+                        ))}
+                      </div>
+                      <span className="inline-flex items-center text-sm font-semibold text-primary transition-transform group-hover:translate-x-1">
+                        Open <ArrowRight className="ml-1 h-4 w-4" />
+                      </span>
+                    </div>
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--app-panel)] text-[var(--violet)] mb-6">
+                <FolderOpen className="h-8 w-8" />
+              </div>
+              <h3 className="text-2xl font-bold font-display">No projects yet</h3>
+              <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
+                Paste a source URL or upload a file above to generate your first content pack.
+              </p>
+              <div className="mt-8 flex justify-center">
+                <Button
+                  size="lg"
+                  className="rounded-full bg-[var(--violet)] px-8 text-black hover:bg-[var(--violet-hover)]"
+                  asChild
+                >
+                  <Link href="/generate">
+                    <Plus className="mr-2 h-5 w-5" />
+                    Create your first project
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Right Column: Activity Feed */}
+        <section className="space-y-6 lg:mt-0">
+          <ActivityFeed projects={projects} scheduled={scheduled} />
+        </section>
+      </div>
       <AuthPromptModal
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}

@@ -26,7 +26,7 @@ import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import type { PreviewPlatform } from "@/lib/preview-content";
 import { cn } from "@/lib/utils";
 
-export type ContentCardPlatform = "twitter" | "linkedin" | "instagram" | "facebook" | "youtube";
+export type ContentCardPlatform = "twitter" | "linkedin" | "instagram" | "facebook" | "threads" | "youtube";
 
 export interface ContentCardProps {
   id: string;
@@ -83,6 +83,12 @@ const platformMeta: Record<
     accent: "border-l-[var(--platform-youtube)]",
     limit: getPlatformCharacterLimit("COMMUNITY"),
   },
+  threads: {
+    label: "Threads",
+    dot: "bg-white",
+    accent: "border-l-white",
+    limit: getPlatformCharacterLimit("THREADS"),
+  },
 };
 
 const cardEntrance = {
@@ -104,10 +110,10 @@ export const ContentCard = memo(function ContentCard({
   onSchedule,
   onCopy,
   onRegenerate,
+  approved,
   onActivate,
   selected = false,
 }: ContentCardProps) {
-  const approved = false;
   const [localBody, setLocalBody] = useState(body);
   const [focused, setFocused] = useState(false);
   const [copied, setCopied] = useState(false);

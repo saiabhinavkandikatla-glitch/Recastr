@@ -27,6 +27,7 @@ export type PostStatus =
 export type Tone =
   | "Professional"
   | "Casual"
+  | "Entertainment"
   | "Storytelling"
   | "Viral"
   | "Educational"

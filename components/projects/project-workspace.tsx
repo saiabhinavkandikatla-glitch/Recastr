@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Plus,
@@ -45,7 +45,22 @@ export function ProjectWorkspace({
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
-  const [scheduledDates, setScheduledDates] = useState<Record<string, Date>>({});
+  const { data: scheduledPosts = [] } = useQuery<ScheduledPost[]>({
+    queryKey: ["scheduled"],
+    queryFn: async () => {
+      const res = await fetch("/api/scheduled");
+      return res.json();
+    },
+  });
+  const scheduledDatesMap = useMemo(() => {
+    const map: Record<string, Date> = {};
+    scheduledPosts.forEach((post) => {
+      if (post.contentId) {
+        map[post.contentId] = new Date(post.publishAt);
+      }
+    });
+    return map;
+  }, [scheduledPosts]);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(
     () => initialContent[0]?.id ?? null,
   );
@@ -63,6 +78,9 @@ export function ProjectWorkspace({
     mutationFn: patchContent,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["project", project.id] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
+      void queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
     },
     onError: (error) => {
       if (error instanceof Error && error.message === "credit_exhausted") return;
@@ -100,9 +118,14 @@ export function ProjectWorkspace({
 
   const scheduleMutation = useMutation({
     mutationFn: scheduleContent,
-    onSuccess: () => toast.success("Post scheduled. You will receive an email reminder when it is time to post.", {
-      description: "Please check your spam or promotions folder if you don't see our emails.",
-    }),
+    onSuccess: (scheduledPost) => {
+      toast.success("Post scheduled. You will receive an email reminder when it is time to post.", {
+        description: "Please check your spam or promotions folder if you don't see our emails.",
+      });
+      void queryClient.invalidateQueries({ queryKey: ["scheduled"] });
+      void queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+    },
     onError: (error) => {
       if (error instanceof Error && error.message === "credit_exhausted") return;
       toast.error(error instanceof Error ? error.message : "Schedule failed");
@@ -113,6 +136,10 @@ export function ProjectWorkspace({
     setAuthPromptOpen(true);
     toast.info(`Create a free account to ${action}.`);
   }, []);
+
+  const availablePlatformFilters = useMemo(() => {
+    return Array.from(new Set(contents.map((item) => toCardPlatform(item.platform))));
+  }, [contents]);
 
   const filteredContents = useMemo(() => {
     return contents
@@ -247,7 +274,6 @@ export function ProjectWorkspace({
         hookId: content.hookId,
       }, {
         onSuccess: (scheduledPost) => {
-          setScheduledDates((current) => ({ ...current, [id]: date }));
           emitScheduleCreated(scheduledPost);
         },
       });
@@ -306,6 +332,7 @@ export function ProjectWorkspace({
           exportOpen={exportOpen}
           onExportToggle={() => readOnly ? requireAccount("export content") : setExportOpen((current) => !current)}
           onGenerateToggle={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}
+          availableFilters={availablePlatformFilters}
         />
 
         {readOnly ? (
@@ -347,7 +374,7 @@ export function ProjectWorkspace({
             {feedItems.length > 0 ? (
               <ContentFeed
                 feedItems={feedItems}
-                scheduledDates={scheduledDates}
+                scheduledDates={scheduledDatesMap}
                 selectedContentId={selectedContentId}
                 onApprove={handleApprove}
                 onToneChange={handleToneChange}

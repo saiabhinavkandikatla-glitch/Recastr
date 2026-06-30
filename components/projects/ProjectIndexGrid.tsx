@@ -7,6 +7,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { Badge } from "@/components/ui/badge";
 import type { Project } from "@/lib/types";
+import { useQuery } from "@tanstack/react-query";
 
 export function ProjectIndexGrid({
   projects,
@@ -19,10 +20,19 @@ export function ProjectIndexGrid({
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | undefined>();
 
+  const { data: liveProjects = projects } = useQuery<Project[]>({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      const res = await fetch("/api/projects");
+      return res.json();
+    },
+    initialData: projects,
+  });
+
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {projects.map((project) => (
+        {liveProjects.map((project) => (
           <button
             key={project.id}
             type="button"

@@ -56,11 +56,24 @@ async function loadTasksData(userId?: string): Promise<{
       }),
       prisma.scheduledPost.findMany({
         where: { userId },
-        include: { content: true },
+        select: {
+          id: true,
+          contentId: true,
+          platform: true,
+          postingMethod: true,
+          scheduledAt: true,
+          status: true,
+          timezone: true,
+          verificationRequired: true,
+          verifiedByUser: true,
+          publishedAt: true,
+          failReason: true,
+          content: { select: { body: true } },
+        },
         orderBy: { scheduledAt: "asc" },
       }),
     ]),
-    900,
+    4000,
     [[], []],
   );
 

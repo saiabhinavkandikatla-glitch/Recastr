@@ -1,142 +1,192 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
-import { getCurrentUser } from "@/lib/current-user";
-import { prisma } from "@/lib/prisma/client";
-import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   MessageSquare,
   Briefcase,
   Heart,
   Video,
+  AlertCircle,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
-export default async function AnalyticsPage() {
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect("/login");
+type AnalyticsData = {
+  totalGeneratedPosts: number;
+  totalProjects: number;
+  totalScheduledPosts: number;
+  completedReminders: number;
+  platformCounts: Record<string, number>;
+  chartData: Array<{
+    date: string;
+    created: number;
+    scheduled: number;
+  }>;
+  todayActivity: number;
+  weeklyActivity: number;
+  monthlyActivity: number;
+  topPlatform: string;
+  generationSuccessRate: number;
+  averageGenerationTimeSeconds: number;
+};
+
+export default function AnalyticsPage() {
+  const { data, isLoading } = useQuery<AnalyticsData>({
+    queryKey: ["analytics"],
+    queryFn: async () => {
+      const res = await fetch("/api/analytics");
+      return res.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <AppShell title="Analytics">
+        <PageHeader title="Analytics" backHref="/dashboard" />
+        <div className="flex h-[400px] items-center justify-center">
+          <div className="flex flex-col items-center gap-4 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--violet)]" />
+            <p className="text-sm">Loading analytics...</p>
+          </div>
+        </div>
+      </AppShell>
+    );
   }
 
-  // Fetch data
-  const [contentItems, scheduledPosts] = await Promise.all([
-    prisma.content.findMany({
-      where: { project: { userId: user.id } },
-      select: { platform: true, createdAt: true },
-    }),
-    prisma.scheduledPost.findMany({
-      where: { userId: user.id },
-      orderBy: { scheduledAt: "desc" },
-      include: { content: true },
-    }),
-  ]);
+  const isOnboarding = !data || data.totalGeneratedPosts === 0;
 
-  // Count content by platform
-  const platformCounts: Record<string, number> = {
-    TWITTER: 0,
-    LINKEDIN: 0,
-    INSTAGRAM: 0,
-    FACEBOOK: 0,
-    THREADS: 0,
-    CAROUSEL: 0,
-    COMMUNITY: 0,
-  };
+  // Onboarding sample data
+  const twitterCount = isOnboarding
+    ? 3
+    : (data.platformCounts.TWITTER || 0) + (data.platformCounts.THREADS || 0);
+  const linkedinCount = isOnboarding
+    ? 2
+    : (data.platformCounts.LINKEDIN || 0);
+  const facebookIgCount = isOnboarding
+    ? 4
+    : (data.platformCounts.FACEBOOK || 0) + (data.platformCounts.INSTAGRAM || 0) + (data.platformCounts.CAROUSEL || 0);
+  const youtubeCount = isOnboarding
+    ? 2
+    : (data.platformCounts.COMMUNITY || 0);
 
-  contentItems.forEach((item) => {
-    const p = item.platform.toUpperCase();
-    if (p in platformCounts) {
-      platformCounts[p] = (platformCounts[p] || 0) + 1;
-    }
-  });
+  const totalProjects = isOnboarding ? 0 : data.totalProjects;
+  const scheduledCount = isOnboarding ? 0 : data.totalScheduledPosts;
 
-  const twitterCount = (platformCounts.TWITTER || 0) + (platformCounts.THREADS || 0);
-  const linkedinCount = (platformCounts.LINKEDIN || 0);
-  const facebookIgCount = (platformCounts.FACEBOOK || 0) + (platformCounts.INSTAGRAM || 0) + (platformCounts.CAROUSEL || 0);
-  const youtubeCount = (platformCounts.COMMUNITY || 0);
+  const chartData = isOnboarding
+    ? Array.from({ length: 14 }).map((_, i) => ({
+        date: new Date(Date.now() - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
+        created: [2, 0, 3, 0, 2, 4, 0, 1, 3, 0, 2, 4, 0, 3][i],
+        scheduled: [0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 1, 2, 0, 2][i],
+      }))
+    : data.chartData;
 
-  // Calculate daily content for the last 14 days
-  const last14Days = Array.from({ length: 14 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }).reverse(); // chronological order
+  const maxVal = Math.max(...chartData.map((d) => Math.max(d.created, d.scheduled, 1)), 1);
 
-  const dailyCounts = last14Days.map((date) => {
-    const count = contentItems.filter((item) => {
-      const itemDate = new Date(item.createdAt);
-      itemDate.setHours(0, 0, 0, 0);
-      return itemDate.getTime() === date.getTime();
-    }).length;
-    return count;
-  });
-
-  const maxDailyCount = Math.max(...(dailyCounts.filter((c) => c !== 0)), 1);
-  const chartBars = last14Days.map((date, idx) => {
-    const totalCreated = (dailyCounts[idx] || 0);
-    const totalScheduled = scheduledPosts.filter((post) => {
-      const postDate = new Date(post.scheduledAt);
-      postDate.setHours(0, 0, 0, 0);
-      return postDate.getTime() === date.getTime();
-    }).length;
-
-    const h1 = ((totalCreated || 0) / (maxDailyCount || 1)) * 80;
-    const h2 = ((totalScheduled || 0) / (maxDailyCount || 1)) * 80;
-
+  const chartBars = chartData.map((bar) => {
+    const h1 = (bar.created / maxVal) * 80;
+    const h2 = (bar.scheduled / maxVal) * 80;
     return {
-      h1: Math.max(h1, (totalCreated || 0) > 0 ? 5 : 0),
-      h2: Math.max(h2, (totalScheduled || 0) > 0 ? 5 : 0),
-      created: (totalCreated || 0),
-      scheduled: (totalScheduled || 0),
+      h1: Math.max(h1, bar.created > 0 ? 5 : 0),
+      h2: Math.max(h2, bar.scheduled > 0 ? 5 : 0),
+      created: bar.created,
+      scheduled: bar.scheduled,
+      date: new Date(bar.date),
     };
   });
 
   return (
-    <AppShell title="Analytics" user={user}>
+    <AppShell title="Analytics">
       <PageHeader title="Analytics" backHref="/dashboard" />
       <div className="space-y-8">
+        {/* Onboarding Notice Banner */}
+        {isOnboarding && (
+          <div className="flex items-start gap-4 rounded-3xl border border-dashed border-[var(--violet)]/25 bg-[var(--violet-muted)] p-6">
+            <AlertCircle className="h-6 w-6 text-[var(--violet)] mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-white">Onboarding Mode</h3>
+              <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                You haven't generated any social content packs yet. Below is a preview of how Recastr tracks your metrics with sample data. Analyze your first video to start!
+              </p>
+              <Button asChild size="sm" className="mt-4 rounded-full bg-[var(--violet)] px-5 text-black hover:bg-[var(--violet-hover)]">
+                <Link href="/generate">
+                  <Plus className="mr-2 h-4 w-4" /> Create content pack
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-white">Analytics</h1>
-          <p className="mt-1 text-sm text-[#8A8A8A]">
-            Track your content performance across all platforms.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Analytics Summary</h1>
+            <p className="mt-1 text-sm text-[#8A8A8A]">
+              Track your content performance across all platforms.
+            </p>
+          </div>
+          {!isOnboarding && (
+            <Badge variant="success">
+              Live updates active
+            </Badge>
+          )}
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             icon={<MessageSquare className="h-4 w-4" />}
-            label="Twitter / X Posts"
+            label="Twitter & Threads"
             value={String(twitterCount)}
-            change={twitterCount > 0 ? 10 : null}
             hint="Total generated threads & posts"
           />
           <StatsCard
             icon={<Briefcase className="h-4 w-4" />}
             label="LinkedIn Posts"
             value={String(linkedinCount)}
-            change={linkedinCount > 0 ? 15 : null}
-            hint="Total generated articles"
+            hint="Total generated professional insights"
           />
           <StatsCard
             icon={<Heart className="h-4 w-4" />}
-            label="Facebook / Instagram"
+            label="Facebook & Instagram"
             value={String(facebookIgCount)}
-            change={facebookIgCount > 0 ? 8 : null}
-            hint="Total generated FB, IG & Carousel posts"
+            hint="Total captions & carousel scripts"
           />
           <StatsCard
             icon={<Video className="h-4 w-4" />}
             label="YouTube Community"
             value={String(youtubeCount)}
-            change={youtubeCount > 0 ? 12 : null}
-            hint="Total generated community assets"
+            hint="Total community assets generated"
           />
         </div>
 
-        {/* Bar Chart Placeholder */}
+        {/* Performance metrics row */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6 text-center sm:text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Projects</p>
+            <p className="mt-2 text-3xl font-bold text-white">{totalProjects}</p>
+          </div>
+          <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6 text-center sm:text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Scheduled Reminders</p>
+            <p className="mt-2 text-3xl font-bold text-white">{scheduledCount}</p>
+          </div>
+          <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6 text-center sm:text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Success Rate</p>
+            <p className="mt-2 text-3xl font-bold text-white">
+              {isOnboarding ? "100%" : `${data.generationSuccessRate}%`}
+            </p>
+          </div>
+        </div>
+
+        {/* Bar Chart */}
         <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-base font-semibold text-white">
                 Repurposing Activity
@@ -151,33 +201,33 @@ export default async function AnalyticsPage() {
                 Generated
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-[#8A8a8a]" />
+                <span className="inline-block h-2 w-2 rounded-full bg-[var(--violet)]" />
                 Scheduled
               </span>
             </div>
           </div>
 
-          {/* Dynamic / simulated bars */}
+          {/* Bar Chart Graphics */}
           <div className="flex h-48 items-end gap-3 px-2 border-b border-[#232323] pb-2">
             {chartBars.map((bar, i) => (
               <div
                 key={i}
-                className={`flex h-full flex-1 flex-col justify-end`}
+                className="flex h-full flex-1 flex-col justify-end"
               >
                 <div className="flex flex-1 items-end gap-1">
                   <div
-                    className={`w-full rounded-t bg-[hsl(var(--accent))]`}
+                    className="w-full rounded-t bg-white"
                     style={{ height: `${bar.h1}%` }}
                     title={`${bar.created} posts generated`}
                   />
                   <div
-                    className={`w-full rounded-t bg-[hsl(var(--accent-2))]`}
+                    className="w-full rounded-t bg-[var(--violet)]"
                     style={{ height: `${bar.h2}%` }}
                     title={`${bar.scheduled} posts scheduled`}
                   />
                 </div>
-                <div className="mt-2 text-center text-[10px] text-[#555] font-mono select-none h-4">
-                  {i % 2 === 0 ? last14Days[i].toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}
+                <div className="mt-2 text-center text-[9px] text-[#555] font-mono select-none h-4">
+                  {i % 2 === 0 ? bar.date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}
                 </div>
               </div>
             ))}
@@ -192,35 +242,24 @@ function StatsCard({
   icon,
   label,
   value,
-  change,
   hint,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
-  change: number | null;
   hint: string;
 }) {
-  const absoluteChange = change ? `${change > 0 ? "+" : ""}${change}%` : null;
-  const bgColor = change ? (change > 0 ? "bg-green-500/20" : "bg-red-500/20") : "bg-[var(--app-line)]/20";
-  const changeColor = change && change > 0 ? "text-green-400" : "text-red-400";
-
   return (
     <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          {icon}
+          <div className="text-[var(--violet)]">{icon}</div>
           <h3 className="text-sm font-medium text-white">{label}</h3>
         </div>
-        {absoluteChange && (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${bgColor} ${changeColor}`}>
-            {absoluteChange}
-          </span>
-        )}
       </div>
-      <p className="text-2xl font-bold text-white">{value}</p>
+      <p className="text-3xl font-bold text-white mt-2">{value}</p>
       {hint && (
-        <p className="mt-1 text-xs text-[#8A8A8A]">{hint}</p>
+        <p className="mt-2 text-xs text-[#8A8A8A] leading-relaxed">{hint}</p>
       )}
     </div>
   );
